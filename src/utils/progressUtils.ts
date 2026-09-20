@@ -59,11 +59,13 @@ export function weekSummary(days: Record<string, DayData>, weekDates: string[]):
     totalPct += st.pct;
     countedDays++;
 
-    const better = st.pct > bestPct || (st.pct === bestPct && st.completed > bestCompleted);
-    if (better) {
-      bestPct = st.pct;
-      bestCompleted = st.completed;
-      bestDay = weekdayFull(dstr);
+    if (st.pct > 0) {
+      const better = st.pct > bestPct || (st.pct === bestPct && st.completed > bestCompleted);
+      if (better) {
+        bestPct = st.pct;
+        bestCompleted = st.completed;
+        bestDay = weekdayFull(dstr);
+      }
     }
   });
 

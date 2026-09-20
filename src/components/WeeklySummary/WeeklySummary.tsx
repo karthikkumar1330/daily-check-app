@@ -24,7 +24,7 @@ export default function WeeklySummary({ summary, streaks }: WeeklySummaryProps) 
           <SummaryItem label="Average completion" value={summary.avgPct + "%"} />
           <SummaryItem label="Tasks completed" value={String(summary.completed)} />
           <SummaryItem label="Tasks created" value={String(summary.created)} />
-          <SummaryItem label="Best day" value={summary.bestDay ?? "\u2013"} />
+          <SummaryItem label="Best day" value={summary.bestDay ?? "—"} />
         </div>
       )}
 

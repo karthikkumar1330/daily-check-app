@@ -61,7 +61,7 @@ export default function PrintWeek({ days, weekStart }: PrintWeekProps) {
         </div>
         <div>
           Best day
-          <b>{summary.bestDay ?? "\u2013"}</b>
+          <b>{summary.bestDay ?? "—"}</b>
         </div>
         <div>
           Current streak
