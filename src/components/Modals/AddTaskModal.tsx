@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import type { CategoryId, Priority } from "../../types";
+import type { CategoryId, Priority, RecurrenceType, TaskRecurrence } from "../../types";
+import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
+import { DAYS_OF_WEEK_OPTIONS, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES } from "../../utils/taskUtils";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 interface AddTaskModalProps {
-  onAdd: (title: string, priority: Priority, category: CategoryId, notes: string) => void;
+  initialDate?: string;
+  onAdd: (
+    title: string,
+    priority: Priority,
+    category: CategoryId,
+    notes: string,
+    recurrence?: TaskRecurrence | null
+  ) => void;
   onCancel: () => void;
 }
 
@@ -14,11 +23,29 @@ const PRIORITY_ORDER: { value: Priority; label: string }[] = [
   { value: 1, label: "High" }
 ];
 
-export default function AddTaskModal({ onAdd, onCancel }: AddTaskModalProps) {
+type RepeatOption = "none" | RecurrenceType;
+
+const REPEAT_OPTIONS: { value: RepeatOption; label: string }[] = [
+  { value: "none", label: "Does not repeat" },
+  { value: "daily", label: "Every day" },
+  { value: "weekdays", label: "Weekdays" },
+  { value: "weekly", label: "Every week" },
+  { value: "custom", label: "Custom days" }
+];
+
+export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskModalProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>(2);
   const [category, setCategory] = useState<CategoryId>("");
   const [notes, setNotes] = useState("");
+
+  const effectiveStart = initialDate && initialDate.trim() ? initialDate : todayStr();
+  const [repeat, setRepeat] = useState<RepeatOption>("none");
+  const [startDate, setStartDate] = useState(effectiveStart);
+  const [endDate, setEndDate] = useState("");
+  const [customDays, setCustomDays] = useState<number[]>([1, 3, 5]);
+  const [error, setError] = useState<string | null>(null);
+
   const titleRef = useRef<HTMLInputElement>(null);
 
   useBodyScrollLock(true);
@@ -33,14 +60,47 @@ export default function AddTaskModal({ onAdd, onCancel }: AddTaskModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function toggleCustomDay(dayNumber: number) {
+    setError(null);
+    setCustomDays((prev) =>
+      prev.includes(dayNumber) ? prev.filter((d) => d !== dayNumber) : [...prev, dayNumber]
+    );
+  }
+
   function submit() {
     const trimmed = title.trim();
     if (!trimmed) {
       titleRef.current?.focus();
       return;
     }
-    onAdd(trimmed, priority, category, notes.trim());
+
+    if (repeat === "none") {
+      onAdd(trimmed, priority, category, notes.trim(), null);
+      return;
+    }
+
+    const rec: TaskRecurrence = {
+      type: repeat,
+      startDate: startDate || effectiveStart,
+      ...(endDate.trim() ? { endDate: endDate.trim() } : {}),
+      daysOfWeek:
+        repeat === "custom"
+          ? customDays
+          : repeat === "weekly"
+          ? [parseDateStr(startDate || effectiveStart).getDay()]
+          : undefined
+    };
+
+    const val = validateRecurrence(rec);
+    if (!val.valid) {
+      setError(val.error ?? "Invalid recurrence configuration");
+      return;
+    }
+
+    onAdd(trimmed, priority, category, notes.trim(), rec);
   }
+
+  const weeklyDayName = weekdayFull(startDate || effectiveStart);
 
   return (
     <div
@@ -66,7 +126,7 @@ export default function AddTaskModal({ onAdd, onCancel }: AddTaskModalProps) {
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") onCancel();
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && repeat === "none") {
               e.preventDefault();
               submit();
             }
@@ -105,18 +165,110 @@ export default function AddTaskModal({ onAdd, onCancel }: AddTaskModalProps) {
           ))}
         </select>
 
+        {/* Recurrence repeat selector */}
+        <label className="field-label" htmlFor="add-task-repeat">
+          Repeat
+        </label>
+        <select
+          id="add-task-repeat"
+          className="modal-input"
+          value={repeat}
+          onChange={(e) => {
+            setRepeat(e.target.value as RepeatOption);
+            setError(null);
+          }}
+        >
+          {REPEAT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        {/* When recurrence is selected, show relevant controls */}
+        {repeat !== "none" ? (
+          <div className="recurrence-control-group">
+            <div className="recurrence-dates-row">
+              <div className="recurrence-date-field">
+                <label className="recurrence-sublabel" htmlFor="recurrence-start-date">
+                  Start date
+                </label>
+                <input
+                  id="recurrence-start-date"
+                  type="date"
+                  className="modal-input"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setError(null);
+                  }}
+                />
+              </div>
+
+              <div className="recurrence-date-field">
+                <label className="recurrence-sublabel" htmlFor="recurrence-end-date">
+                  End date (optional)
+                </label>
+                <input
+                  id="recurrence-end-date"
+                  type="date"
+                  className="modal-input"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setError(null);
+                  }}
+                />
+              </div>
+            </div>
+
+            {repeat === "weekly" ? (
+              <div className="recurrence-info-text">
+                Repeats every <strong>{weeklyDayName}</strong> starting {startDate || effectiveStart}.
+              </div>
+            ) : null}
+
+            {repeat === "custom" ? (
+              <div>
+                <div className="recurrence-sublabel" style={{ marginBottom: 6 }}>
+                  Repeat on days:
+                </div>
+                <div className="recurrence-days-grid" role="group" aria-label="Select repeat days">
+                  {DAYS_OF_WEEK_OPTIONS.map((opt) => {
+                    const isSelected = customDays.includes(opt.day);
+                    return (
+                      <button
+                        key={opt.day}
+                        type="button"
+                        className={"recurrence-day-btn" + (isSelected ? " active" : "")}
+                        onClick={() => toggleCustomDay(opt.day)}
+                        aria-pressed={isSelected}
+                        aria-label={opt.label}
+                      >
+                        {opt.short}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {error ? <div className="recurrence-error-msg">{error}</div> : null}
+          </div>
+        ) : null}
+
         <label className="field-label" htmlFor="add-task-notes">
           Notes (optional)
         </label>
         <textarea
           id="add-task-notes"
           className="modal-input"
-          rows={3}
+          rows={2}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
 
-        <div className="row" style={{ marginTop: 4 }}>
+        <div className="row" style={{ marginTop: 12 }}>
           <button className="btn-ghost" onClick={onCancel}>
             Cancel
           </button>

@@ -1,11 +1,66 @@
-import type { AppData, DayData, ThemePreference } from "../types";
+import type { AppData, CategoryId, DayData, Task, TaskRecurrence, ThemePreference } from "../types";
 import { CURRENT_DATA_VERSION } from "../types";
 import { isValidDateStr } from "./dateUtils";
 
 const STORAGE_KEY = "dailyCheck.data";
 
 function emptyAppData(): AppData {
-  return { version: CURRENT_DATA_VERSION, days: {}, theme: "auto" };
+  return { version: CURRENT_DATA_VERSION, days: {}, theme: "auto", recurringTasks: [] };
+}
+
+function sanitizeRecurrence(raw: any): TaskRecurrence | null {
+  if (!raw || typeof raw !== "object") return null;
+  if (!["daily", "weekly", "weekdays", "custom"].includes(raw.type)) return null;
+  if (!isValidDateStr(raw.startDate)) return null;
+  const clean: TaskRecurrence = {
+    type: raw.type,
+    startDate: raw.startDate
+  };
+  if (raw.endDate && isValidDateStr(raw.endDate)) {
+    clean.endDate = raw.endDate;
+  }
+  if (Array.isArray(raw.daysOfWeek)) {
+    clean.daysOfWeek = raw.daysOfWeek.filter((d: any) => typeof d === "number" && d >= 0 && d <= 6);
+  }
+  return clean;
+}
+
+function sanitizeCompletedDates(raw: any): Record<string, number> {
+  const clean: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return clean;
+  Object.entries(raw).forEach(([date, ts]) => {
+    if (isValidDateStr(date) && typeof ts === "number") {
+      clean[date] = ts;
+    }
+  });
+  return clean;
+}
+
+function sanitizeRecurringTasks(raw: unknown): Task[] {
+  if (!Array.isArray(raw)) return [];
+  const tasks: Task[] = [];
+  for (const t of raw) {
+    if (!t || typeof t !== "object" || typeof (t as Record<string, unknown>).id !== "string" || typeof (t as Record<string, unknown>).title !== "string") {
+      continue;
+    }
+    const item = t as Record<string, any>;
+    const rec = sanitizeRecurrence(item.recurrence);
+    if (!rec) continue;
+    tasks.push({
+      id: item.id,
+      title: item.title,
+      completed: false,
+      priority: [1, 2, 3].includes(item.priority) ? item.priority : 2,
+      category: (typeof item.category === "string" ? item.category : "") as CategoryId,
+      notes: typeof item.notes === "string" ? item.notes : "",
+      createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
+      completedAt: null,
+      order: typeof item.order === "number" ? item.order : Date.now(),
+      recurrence: rec,
+      completedDates: sanitizeCompletedDates(item.completedDates)
+    });
+  }
+  return tasks;
 }
 
 /**
@@ -39,7 +94,9 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
       notes: typeof (t as any).notes === "string" ? (t as any).notes : "",
       createdAt: typeof (t as any).createdAt === "number" ? (t as any).createdAt : Date.now(),
       completedAt: typeof (t as any).completedAt === "number" ? (t as any).completedAt : null,
-      order: typeof (t as any).order === "number" ? (t as any).order : Date.now()
+      order: typeof (t as any).order === "number" ? (t as any).order : Date.now(),
+      recurrence: sanitizeRecurrence((t as any).recurrence),
+      completedDates: sanitizeCompletedDates((t as any).completedDates)
     }));
 
     clean[key] = {
@@ -88,7 +145,8 @@ export function loadData(): AppData {
     const withVersion = {
       version: typeof parsed.version === "number" ? parsed.version : 1,
       days: sanitizeDays(parsed.days),
-      theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference
+      theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference,
+      recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
 
     return migrate(withVersion);
@@ -182,7 +240,8 @@ export function parseImportFile(text: string): ImportResult {
     const data: AppData = {
       version: typeof parsed.version === "number" ? parsed.version : CURRENT_DATA_VERSION,
       days,
-      theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference
+      theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference,
+      recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
     return { ok: true, data: migrate(data) };
   } catch {

@@ -1,5 +1,6 @@
-import type { DayData, DayStats } from "../types";
+import type { DayData, DayStats, Task } from "../types";
 import { weekdayFull } from "./dateUtils";
+import { resolveDayData } from "./recurrenceUtils";
 
 /**
  * Zero-task rule: a day with no tasks has pct = null. Callers must never
@@ -41,7 +42,11 @@ export interface WeekSummary {
  * zero tasks contributes to neither the average nor "best day", and can
  * never itself be the best day.
  */
-export function weekSummary(days: Record<string, DayData>, weekDates: string[]): WeekSummary {
+export function weekSummary(
+  days: Record<string, DayData>,
+  weekDates: string[],
+  recurringTasks?: Task[]
+): WeekSummary {
   let totalPct = 0;
   let countedDays = 0;
   let completed = 0;
@@ -51,7 +56,8 @@ export function weekSummary(days: Record<string, DayData>, weekDates: string[]):
   let bestCompleted = -1;
 
   weekDates.forEach((dstr) => {
-    const st = dayStats(days[dstr]);
+    const day = recurringTasks ? resolveDayData(dstr, days[dstr], recurringTasks) : days[dstr];
+    const st = dayStats(day);
     completed += st.completed;
     created += st.total;
     if (st.total === 0 || st.pct === null) return; // zero-task day: excluded entirely

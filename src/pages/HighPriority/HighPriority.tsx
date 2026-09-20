@@ -14,7 +14,7 @@ export default function HighPriority() {
   );
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const view = useMemo(() => highPriorityTasks(appData.days), [appData.days]);
+  const view = useMemo(() => highPriorityTasks(appData.days, appData.recurringTasks), [appData.days, appData.recurringTasks]);
 
   return (
     <div className="page">

@@ -1,10 +1,12 @@
-import type { DayData } from "../../types";
+import type { DayData, Task } from "../../types";
 import { formatLong, getWeekDates, weekLabel } from "../../utils/dateUtils";
 import { dayStats, formatPct, weekSummary } from "../../utils/progressUtils";
+import { resolveDayData } from "../../utils/recurrenceUtils";
 import { computeStreaks } from "../../utils/streakUtils";
 
 interface PrintWeekProps {
   days: Record<string, DayData>;
+  recurringTasks?: Task[];
   weekStart: string;
 }
 
@@ -12,10 +14,10 @@ interface PrintWeekProps {
  * Renders off-screen at all times; only becomes visible via the
  * `@media print` rules in index.css when the user prints the page.
  */
-export default function PrintWeek({ days, weekStart }: PrintWeekProps) {
+export default function PrintWeek({ days, recurringTasks, weekStart }: PrintWeekProps) {
   const weekDates = getWeekDates(weekStart);
-  const summary = weekSummary(days, weekDates);
-  const streaks = computeStreaks(days);
+  const summary = weekSummary(days, weekDates, recurringTasks);
+  const streaks = computeStreaks(days, recurringTasks);
 
   return (
     <div id="print-week" className="print-only">
@@ -33,7 +35,8 @@ export default function PrintWeek({ days, weekStart }: PrintWeekProps) {
         </thead>
         <tbody>
           {weekDates.map((dstr) => {
-            const st = dayStats(days[dstr]);
+            const day = recurringTasks ? resolveDayData(dstr, days[dstr], recurringTasks) : days[dstr];
+            const st = dayStats(day);
             return (
               <tr key={dstr}>
                 <td>{formatLong(dstr)}</td>

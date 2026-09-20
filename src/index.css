@@ -1976,6 +1976,104 @@ textarea:focus-visible,
   accent-color: var(--accent);
 }
 
+/* ================= Recurrence UI & Badges ================= */
+.task-recurrence-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.recurrence-control-group {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recurrence-dates-row {
+  display: flex;
+  gap: 8px;
+}
+.recurrence-dates-row .recurrence-date-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.recurrence-sublabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.recurrence-days-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.recurrence-day-btn {
+  flex: 1;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.recurrence-day-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+.recurrence-day-btn.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.recurrence-day-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.recurrence-error-msg {
+  font-size: 12px;
+  color: var(--red);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.recurrence-info-text {
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+
 /* ---------- Print: "Print Week" ---------- */
 .print-only {
   display: none;

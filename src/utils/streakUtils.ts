@@ -1,6 +1,7 @@
-import type { DayData } from "../types";
+import type { DayData, Task } from "../types";
 import { addDays, todayStr } from "./dateUtils";
 import { dayStats } from "./progressUtils";
+import { resolveDayData } from "./recurrenceUtils";
 
 const STREAK_THRESHOLD = 80;
 
@@ -15,11 +16,20 @@ export interface Streaks {
  *  - total > 0 and pct < 80   -> breaks the streak
  *  - total === 0              -> ignored entirely (neither extends nor breaks)
  */
-export function computeStreaks(days: Record<string, DayData>): Streaks {
-  const activeDates = Object.keys(days)
-    .filter((d) => dayStats(days[d]).total > 0)
-    .sort();
+export function computeStreaks(days: Record<string, DayData>, recurringTasks: Task[] = []): Streaks {
+  function getStats(date: string) {
+    const d = recurringTasks.length > 0 ? resolveDayData(date, days[date], recurringTasks) : days[date];
+    return dayStats(d);
+  }
 
+  const candidateDates = Object.keys(days).filter((d) => dayStats(days[d]).total > 0);
+  recurringTasks.forEach((t) => {
+    if (t.recurrence?.startDate) {
+      candidateDates.push(t.recurrence.startDate);
+    }
+  });
+
+  const activeDates = candidateDates.sort();
   if (activeDates.length === 0) return { current: 0, best: 0 };
 
   const minDate = activeDates[0];
@@ -30,7 +40,7 @@ export function computeStreaks(days: Record<string, DayData>): Streaks {
   let cursor = todayStr();
   let guard = 0;
   while (cursor >= minDate && guard < 20000) {
-    const st = dayStats(days[cursor]);
+    const st = getStats(cursor);
     if (st.total > 0) {
       if (st.pct !== null && st.pct >= STREAK_THRESHOLD) {
         current++;
@@ -50,7 +60,7 @@ export function computeStreaks(days: Record<string, DayData>): Streaks {
   let cur = minDate;
   guard = 0;
   while (cur <= maxDate && guard < 20000) {
-    const st = dayStats(days[cur]);
+    const st = getStats(cur);
     if (st.total > 0) {
       if (st.pct !== null && st.pct >= STREAK_THRESHOLD) {
         running++;

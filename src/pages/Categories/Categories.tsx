@@ -15,11 +15,11 @@ export default function Categories() {
     null
   );
 
-  const stats = useMemo(() => categoryStats(appData.days), [appData.days]);
+  const stats = useMemo(() => categoryStats(appData.days, appData.recurringTasks), [appData.days, appData.recurringTasks]);
   const selectedMeta = stats.find((s) => s.id === selected);
   const tasksForSelected = useMemo(
-    () => (selected ? tasksInCategory(appData.days, selected) : []),
-    [appData.days, selected]
+    () => (selected ? tasksInCategory(appData.days, selected, appData.recurringTasks) : []),
+    [appData.days, selected, appData.recurringTasks]
   );
 
   if (selected && selectedMeta) {

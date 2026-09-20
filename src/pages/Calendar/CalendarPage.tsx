@@ -27,6 +27,7 @@ export default function CalendarPage() {
         monthAnchor={anchor}
         selectedDate={selectedDate}
         days={appData.days}
+        recurringTasks={appData.recurringTasks}
         onSelectDate={(d) => {
           setSelectedDate(d);
           setEditingId(null);

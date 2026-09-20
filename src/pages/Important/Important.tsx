@@ -13,7 +13,7 @@ export default function Important() {
     null
   );
 
-  const groups = useMemo(() => importantGroups(appData.days), [appData.days]);
+  const groups = useMemo(() => importantGroups(appData.days, appData.recurringTasks), [appData.days, appData.recurringTasks]);
   const isEmpty = groups.today.length === 0 && groups.upcoming.length === 0 && groups.completed.length === 0;
 
   function renderGroup(label: string, items: DatedTask[]) {

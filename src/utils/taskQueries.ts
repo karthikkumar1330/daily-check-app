@@ -1,5 +1,6 @@
 import type { CategoryId, DayData, Task } from "../types";
 import { todayStr } from "./dateUtils";
+import { isTaskScheduledOnDate } from "./recurrenceUtils";
 import { CATEGORIES } from "./taskUtils";
 
 export interface DatedTask {
@@ -7,15 +8,62 @@ export interface DatedTask {
   date: string;
 }
 
-/** Flattens every task across every stored day, newest date first. */
-export function allTasksWithDates(days: Record<string, DayData>): DatedTask[] {
+/** Flattens every task across every stored day, including active recurring occurrences. */
+export function allTasksWithDates(days: Record<string, DayData>, recurringTasks: Task[] = []): DatedTask[] {
   const out: DatedTask[] = [];
+  const seen = new Set<string>();
+
   Object.keys(days)
     .sort()
     .forEach((date) => {
       const day = days[date];
-      day.tasks.forEach((task) => out.push({ task, date }));
+      day.tasks.forEach((task) => {
+        const key = `${task.id}_${date}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push({ task, date });
+        }
+      });
     });
+
+  const today = todayStr();
+  recurringTasks.forEach((rt) => {
+    // Add today's occurrence if scheduled today
+    if (isTaskScheduledOnDate(rt.recurrence, today)) {
+      const key = `${rt.id}_${today}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const isCompleted = Boolean(rt.completedDates?.[today]);
+        out.push({
+          task: {
+            ...rt,
+            completed: isCompleted,
+            completedAt: isCompleted ? (rt.completedDates?.[today] ?? null) : null
+          },
+          date: today
+        });
+      }
+    }
+
+    // Add historical completed occurrences
+    if (rt.completedDates) {
+      Object.entries(rt.completedDates).forEach(([cDate, completedAt]) => {
+        const key = `${rt.id}_${cDate}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push({
+            task: {
+              ...rt,
+              completed: true,
+              completedAt
+            },
+            date: cDate
+          });
+        }
+      });
+    }
+  });
+
   return out;
 }
 
@@ -30,8 +78,8 @@ export interface HighPriorityView {
 }
 
 /** High-priority (🔴) tasks, sorted by day then creation time. */
-export function highPriorityTasks(days: Record<string, DayData>): HighPriorityView {
-  const all = allTasksWithDates(days)
+export function highPriorityTasks(days: Record<string, DayData>, recurringTasks: Task[] = []): HighPriorityView {
+  const all = allTasksWithDates(days, recurringTasks)
     .filter((dt) => dt.task.priority === 1)
     .sort(sortByDateThenCreated);
   return {
@@ -50,9 +98,9 @@ export interface ImportantGroups {
  * "Important" reuses the High Priority flag but organizes it by time instead
  * of a flat list: what's due today, what's coming up, and what's done.
  */
-export function importantGroups(days: Record<string, DayData>): ImportantGroups {
+export function importantGroups(days: Record<string, DayData>, recurringTasks: Task[] = []): ImportantGroups {
   const today = todayStr();
-  const all = allTasksWithDates(days).filter((dt) => dt.task.priority === 1);
+  const all = allTasksWithDates(days, recurringTasks).filter((dt) => dt.task.priority === 1);
 
   return {
     today: all.filter((dt) => dt.date === today && !dt.task.completed).sort(sortByDateThenCreated),
@@ -72,8 +120,8 @@ export interface CategoryCount {
 }
 
 /** Active/completed task counts per category, across all stored days. */
-export function categoryStats(days: Record<string, DayData>): CategoryCount[] {
-  const all = allTasksWithDates(days);
+export function categoryStats(days: Record<string, DayData>, recurringTasks: Task[] = []): CategoryCount[] {
+  const all = allTasksWithDates(days, recurringTasks);
   return CATEGORIES.filter((c) => c.id !== "").map((c) => {
     const inCat = all.filter((dt) => dt.task.category === c.id);
     return {
@@ -87,17 +135,17 @@ export function categoryStats(days: Record<string, DayData>): CategoryCount[] {
 }
 
 /** Tasks in a given category, most recent day first. */
-export function tasksInCategory(days: Record<string, DayData>, category: CategoryId): DatedTask[] {
-  return allTasksWithDates(days)
+export function tasksInCategory(days: Record<string, DayData>, category: CategoryId, recurringTasks: Task[] = []): DatedTask[] {
+  return allTasksWithDates(days, recurringTasks)
     .filter((dt) => dt.task.category === category)
     .sort((a, b) => sortByDateThenCreated(b, a));
 }
 
 /** Simple case-insensitive search across title, notes, and category label. */
-export function searchTasks(days: Record<string, DayData>, query: string): DatedTask[] {
+export function searchTasks(days: Record<string, DayData>, query: string, recurringTasks: Task[] = []): DatedTask[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return allTasksWithDates(days)
+  return allTasksWithDates(days, recurringTasks)
     .filter((dt) => {
       const t = dt.task;
       const catLabel = CATEGORIES.find((c) => c.id === t.category)?.label ?? "";

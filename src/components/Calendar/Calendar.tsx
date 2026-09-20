@@ -1,11 +1,13 @@
-import type { DayData } from "../../types";
+import type { DayData, Task } from "../../types";
 import { getMonthGrid, monthLabel, todayStr } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
+import { resolveDayData } from "../../utils/recurrenceUtils";
 
 interface CalendarProps {
   monthAnchor: string;
   selectedDate: string;
   days: Record<string, DayData>;
+  recurringTasks?: Task[];
   onSelectDate: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -18,6 +20,7 @@ export default function Calendar({
   monthAnchor,
   selectedDate,
   days,
+  recurringTasks,
   onSelectDate,
   onPrevMonth,
   onNextMonth,
@@ -55,7 +58,8 @@ export default function Calendar({
       </div>
       <div className="calendar-grid">
         {cells.map((cell) => {
-          const st = dayStats(days[cell.date]);
+          const day = recurringTasks ? resolveDayData(cell.date, days[cell.date], recurringTasks) : days[cell.date];
+          const st = dayStats(day);
           const isToday = cell.date === today;
           const isSelected = cell.date === selectedDate;
           const dayNum = Number(cell.date.slice(-2));

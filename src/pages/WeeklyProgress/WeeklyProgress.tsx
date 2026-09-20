@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTasks } from "../../hooks/useTasks";
 import { formatLong, addDays, getWeekDates, getWeekStart, todayStr, weekLabel } from "../../utils/dateUtils";
 import { dayStats, formatPct, weekSummary } from "../../utils/progressUtils";
+import { resolveDayData } from "../../utils/recurrenceUtils";
 import { computeStreaks } from "../../utils/streakUtils";
 import WeeklyChart from "../../components/WeeklyChart/WeeklyChart";
 import WeeklySummary from "../../components/WeeklySummary/WeeklySummary";
@@ -14,8 +15,14 @@ export default function WeeklyProgress() {
   const [selectedDate, setSelectedDate] = useState(todayStr());
 
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
-  const summary = useMemo(() => weekSummary(appData.days, weekDates), [appData.days, weekDates]);
-  const streaks = useMemo(() => computeStreaks(appData.days), [appData.days]);
+  const summary = useMemo(
+    () => weekSummary(appData.days, weekDates, appData.recurringTasks),
+    [appData.days, weekDates, appData.recurringTasks]
+  );
+  const streaks = useMemo(
+    () => computeStreaks(appData.days, appData.recurringTasks),
+    [appData.days, appData.recurringTasks]
+  );
 
   return (
     <div className="page">
@@ -40,11 +47,18 @@ export default function WeeklyProgress() {
         </button>
       </div>
 
-      <WeeklyChart days={appData.days} weekStart={weekStart} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+      <WeeklyChart
+        days={appData.days}
+        recurringTasks={appData.recurringTasks}
+        weekStart={weekStart}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
 
       <div className="day-breakdown">
         {weekDates.map((dstr) => {
-          const st = dayStats(appData.days[dstr]);
+          const day = resolveDayData(dstr, appData.days[dstr], appData.recurringTasks);
+          const st = dayStats(day);
           return (
             <button
               key={dstr}
@@ -64,7 +78,7 @@ export default function WeeklyProgress() {
 
       <div className="footer-note">A day counts toward your streak at 80%+ completion. Zero-task days are skipped.</div>
 
-      <PrintWeek days={appData.days} weekStart={weekStart} />
+      <PrintWeek days={appData.days} recurringTasks={appData.recurringTasks} weekStart={weekStart} />
     </div>
   );
 }

@@ -1,15 +1,17 @@
-import type { DayData } from "../../types";
+import type { DayData, Task } from "../../types";
 import { formatShort, getWeekDates, todayStr, weekdayLetter } from "../../utils/dateUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
+import { resolveDayData } from "../../utils/recurrenceUtils";
 
 interface WeeklyChartProps {
   days: Record<string, DayData>;
+  recurringTasks?: Task[];
   weekStart: string;
   selectedDate?: string;
   onSelectDate: (date: string) => void;
 }
 
-export default function WeeklyChart({ days, weekStart, selectedDate, onSelectDate }: WeeklyChartProps) {
+export default function WeeklyChart({ days, recurringTasks, weekStart, selectedDate, onSelectDate }: WeeklyChartProps) {
   const weekDates = getWeekDates(weekStart);
   const today = todayStr();
 
@@ -17,7 +19,8 @@ export default function WeeklyChart({ days, weekStart, selectedDate, onSelectDat
     <div className="card chart-card">
       <div className="chart">
         {weekDates.map((dstr) => {
-          const st = dayStats(days[dstr]);
+          const day = recurringTasks ? resolveDayData(dstr, days[dstr], recurringTasks) : days[dstr];
+          const st = dayStats(day);
           const h = st.total > 0 ? Math.max(st.pct ?? 0, 3) : 0;
           const isTodayCol = dstr === today;
           const isSelected = dstr === selectedDate;

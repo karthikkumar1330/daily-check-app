@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { CategoryId, Priority, Task } from "../../types";
+import type { CategoryId, Priority, RecurrenceType, Task, TaskRecurrence } from "../../types";
+import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
+import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
 import { CheckIcon, DownIcon, EditIcon, MoreIcon, TrashIcon, UpIcon } from "../icons";
 
@@ -60,6 +62,7 @@ export default function TaskItem({
   }
 
   const cat = categoryMeta(task.category);
+  const recurrenceLabel = formatRecurrenceLabel(task.recurrence);
 
   return (
     <div className={"task" + (task.completed ? " completed" : "")}>
@@ -75,6 +78,11 @@ export default function TaskItem({
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
+          {recurrenceLabel ? (
+            <span className="task-recurrence-badge" title={`Repeats: ${recurrenceLabel}`}>
+              🔁 {recurrenceLabel}
+            </span>
+          ) : null}
           {dateLabel ? <span className="task-date-badge">{dateLabel}</span> : null}
           {cat.id ? (
             <span className="task-cat">
@@ -152,11 +160,33 @@ interface EditFormProps {
   onSave: (updates: Partial<Task>) => void;
 }
 
+type RepeatOption = "none" | RecurrenceType;
+
+const REPEAT_OPTIONS: { value: RepeatOption; label: string }[] = [
+  { value: "none", label: "Does not repeat" },
+  { value: "daily", label: "Every day" },
+  { value: "weekdays", label: "Weekdays" },
+  { value: "weekly", label: "Every week" },
+  { value: "custom", label: "Custom days" }
+];
+
 function EditForm({ task, onCancel, onSave }: EditFormProps) {
   const [title, setTitle] = useState(task.title);
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [category, setCategory] = useState<CategoryId>(task.category);
   const [notes, setNotes] = useState(task.notes);
+
+  const initialRepeat: RepeatOption = task.recurrence?.type ?? "none";
+  const [repeat, setRepeat] = useState<RepeatOption>(initialRepeat);
+  const [startDate, setStartDate] = useState(task.recurrence?.startDate ?? todayStr());
+  const [endDate, setEndDate] = useState(task.recurrence?.endDate ?? "");
+  const [customDays, setCustomDays] = useState<number[]>(
+    task.recurrence?.daysOfWeek && task.recurrence.daysOfWeek.length > 0
+      ? task.recurrence.daysOfWeek
+      : [1, 3, 5]
+  );
+  const [error, setError] = useState<string | null>(null);
+
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -165,15 +195,47 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
     titleRef.current?.setSelectionRange(len, len);
   }, []);
 
+  function toggleCustomDay(dayNumber: number) {
+    setError(null);
+    setCustomDays((prev) =>
+      prev.includes(dayNumber) ? prev.filter((d) => d !== dayNumber) : [...prev, dayNumber]
+    );
+  }
+
   function save() {
     const trimmed = title.trim();
+
+    let rec: TaskRecurrence | null = null;
+    if (repeat !== "none") {
+      rec = {
+        type: repeat,
+        startDate: startDate || todayStr(),
+        ...(endDate.trim() ? { endDate: endDate.trim() } : {}),
+        daysOfWeek:
+          repeat === "custom"
+            ? customDays
+            : repeat === "weekly"
+            ? [parseDateStr(startDate || todayStr()).getDay()]
+            : undefined
+      };
+
+      const val = validateRecurrence(rec);
+      if (!val.valid) {
+        setError(val.error ?? "Invalid recurrence configuration");
+        return;
+      }
+    }
+
     onSave({
       title: trimmed || task.title,
       priority,
       category,
-      notes: notes.trim()
+      notes: notes.trim(),
+      recurrence: rec
     });
   }
+
+  const weeklyDayName = weekdayFull(startDate || todayStr());
 
   return (
     <div className="task">
@@ -187,7 +249,7 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") onCancel();
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && repeat === "none") {
               e.preventDefault();
               save();
             }
@@ -217,6 +279,100 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
             ))}
           </select>
         </div>
+
+        {/* Recurrence repeat selector */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--ink-muted)" }} htmlFor="edit-task-repeat">
+            Repeat
+          </label>
+          <select
+            id="edit-task-repeat"
+            value={repeat}
+            onChange={(e) => {
+              setRepeat(e.target.value as RepeatOption);
+              setError(null);
+            }}
+            aria-label="Repeat option"
+          >
+            {REPEAT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {repeat !== "none" ? (
+          <div className="recurrence-control-group">
+            <div className="recurrence-dates-row">
+              <div className="recurrence-date-field">
+                <label className="recurrence-sublabel" htmlFor="edit-recurrence-start-date">
+                  Start date
+                </label>
+                <input
+                  id="edit-recurrence-start-date"
+                  type="date"
+                  className="modal-input"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setError(null);
+                  }}
+                />
+              </div>
+
+              <div className="recurrence-date-field">
+                <label className="recurrence-sublabel" htmlFor="edit-recurrence-end-date">
+                  End date (optional)
+                </label>
+                <input
+                  id="edit-recurrence-end-date"
+                  type="date"
+                  className="modal-input"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setError(null);
+                  }}
+                />
+              </div>
+            </div>
+
+            {repeat === "weekly" ? (
+              <div className="recurrence-info-text">
+                Repeats every <strong>{weeklyDayName}</strong> starting {startDate}.
+              </div>
+            ) : null}
+
+            {repeat === "custom" ? (
+              <div>
+                <div className="recurrence-sublabel" style={{ marginBottom: 6 }}>
+                  Repeat on days:
+                </div>
+                <div className="recurrence-days-grid" role="group" aria-label="Select repeat days">
+                  {DAYS_OF_WEEK_OPTIONS.map((opt) => {
+                    const isSelected = customDays.includes(opt.day);
+                    return (
+                      <button
+                        key={opt.day}
+                        type="button"
+                        className={"recurrence-day-btn" + (isSelected ? " active" : "")}
+                        onClick={() => toggleCustomDay(opt.day)}
+                        aria-pressed={isSelected}
+                        aria-label={opt.label}
+                      >
+                        {opt.short}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {error ? <div className="recurrence-error-msg">{error}</div> : null}
+          </div>
+        ) : null}
+
         <textarea
           placeholder="Notes (optional)"
           rows={2}

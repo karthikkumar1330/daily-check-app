@@ -1,4 +1,4 @@
-import type { CategoryId, DayData, Priority, Task } from "../types";
+import type { CategoryId, DayData, Priority, Task, TaskRecurrence } from "../types";
 
 let counter = 0;
 
@@ -7,7 +7,12 @@ export function uid(): string {
   return Date.now().toString(36) + counter.toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-export function newTask(title: string, priority: Priority = 2, category: CategoryId = ""): Task {
+export function newTask(
+  title: string,
+  priority: Priority = 2,
+  category: CategoryId = "",
+  recurrence: TaskRecurrence | null = null
+): Task {
   const now = Date.now();
   return {
     id: uid(),
@@ -18,7 +23,9 @@ export function newTask(title: string, priority: Priority = 2, category: Categor
     notes: "",
     createdAt: now,
     completedAt: null,
-    order: now
+    order: now,
+    recurrence: recurrence ?? null,
+    completedDates: {}
   };
 }
 

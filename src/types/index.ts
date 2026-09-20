@@ -9,6 +9,18 @@ export type CategoryId =
   | "personal"
   | "other";
 
+export type RecurrenceType = "daily" | "weekly" | "weekdays" | "custom";
+
+export interface TaskRecurrence {
+  type: RecurrenceType;
+  /** 0 = Sun, 1 = Mon, ..., 6 = Sat */
+  daysOfWeek?: number[];
+  /** YYYY-MM-DD, inclusive */
+  startDate: string;
+  /** YYYY-MM-DD, inclusive (optional: empty means indefinite) */
+  endDate?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -19,6 +31,9 @@ export interface Task {
   createdAt: number;
   completedAt: number | null;
   order: number;
+  recurrence?: TaskRecurrence | null;
+  /** Per-date completion tracking: date (YYYY-MM-DD) -> completedAt timestamp */
+  completedDates?: Record<string, number>;
 }
 
 export interface DayData {
@@ -48,6 +63,7 @@ export interface AppData {
   version: number;
   days: Record<string, DayData>;
   theme: ThemePreference;
+  recurringTasks?: Task[];
 }
 
 export const CURRENT_DATA_VERSION = 1;
