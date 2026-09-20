@@ -53,6 +53,26 @@ export function weekdayFull(dateStr: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long" });
 }
 
+/** "20 Sep 2026" — used for countdown goal dates (no weekday, needs the year). */
+export function formatDateMedium(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * Whole calendar days between two YYYY-MM-DD dates (b - a), independent of
+ * time-of-day/DST: both are parsed to local midnight, and rounding (rather
+ * than flooring) absorbs the one-off DST hour shift so a "23-hour" or
+ * "25-hour" day still counts as exactly 1 day. Never use `Date.now()` or
+ * millisecond timestamps for calendar-day math — this is date-only.
+ */
+export function daysBetweenCalendar(aDateStr: string, bDateStr: string): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const a = parseDateStr(aDateStr).getTime();
+  const b = parseDateStr(bDateStr).getTime();
+  return Math.round((b - a) / msPerDay);
+}
+
 /** Monday-start week containing the given date. */
 export function getWeekStart(dateStr: string): string {
   const d = parseDateStr(dateStr);

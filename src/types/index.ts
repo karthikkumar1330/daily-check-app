@@ -51,3 +51,27 @@ export interface AppData {
 }
 
 export const CURRENT_DATA_VERSION = 1;
+
+/* ---------------- Countdown Goals (calendar-day based, stored separately from tasks) ---------------- */
+
+export interface CountdownGoal {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD, inclusive — the first day of the goal. */
+  startDate: string;
+  /** YYYY-MM-DD, inclusive — the final day of the goal. */
+  targetDate: string;
+  icon: string;
+  description: string;
+  createdAt: number;
+}
+
+/** The full shape persisted under its own localStorage key. */
+export interface CountdownGoalsData {
+  version: number;
+  goals: Record<string, CountdownGoal>;
+  /** The one goal shown on Today, or null if none/not yet chosen. */
+  primaryGoalId: string | null;
+}
+
+export const CURRENT_COUNTDOWN_VERSION = 1;

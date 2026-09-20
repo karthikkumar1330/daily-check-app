@@ -1,9 +1,11 @@
+import type { DayData } from "../../types";
 import { getMonthGrid, monthLabel, todayStr } from "../../utils/dateUtils";
+import { dayStats } from "../../utils/progressUtils";
 
 interface CalendarProps {
   monthAnchor: string;
   selectedDate: string;
-  datesWithTasks: Set<string>;
+  days: Record<string, DayData>;
   onSelectDate: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -15,7 +17,7 @@ const WEEKDAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export default function Calendar({
   monthAnchor,
   selectedDate,
-  datesWithTasks,
+  days,
   onSelectDate,
   onPrevMonth,
   onNextMonth,
@@ -53,10 +55,20 @@ export default function Calendar({
       </div>
       <div className="calendar-grid">
         {cells.map((cell) => {
-          const hasTasks = datesWithTasks.has(cell.date);
+          const st = dayStats(days[cell.date]);
           const isToday = cell.date === today;
           const isSelected = cell.date === selectedDate;
           const dayNum = Number(cell.date.slice(-2));
+
+          // Subtle status dot: none for zero-task days, otherwise colored by
+          // completion — never a heatmap, just one small indicator.
+          let dotClass = "";
+          if (st.total > 0 && st.pct !== null) {
+            if (st.pct === 100) dotClass = "calendar-dot-complete";
+            else if (st.pct > 0) dotClass = "calendar-dot-partial";
+            else dotClass = "calendar-dot-neutral";
+          }
+
           return (
             <button
               key={cell.date}
@@ -67,11 +79,13 @@ export default function Calendar({
                 (isSelected ? " selected" : "")
               }
               onClick={() => onSelectDate(cell.date)}
-              aria-label={cell.date}
+              aria-label={
+                cell.date + (st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks")
+              }
               aria-pressed={isSelected}
             >
               <span>{dayNum}</span>
-              {hasTasks ? <span className="calendar-dot" aria-hidden="true" /> : null}
+              {dotClass ? <span className={"calendar-dot " + dotClass} aria-hidden="true" /> : null}
             </button>
           );
         })}

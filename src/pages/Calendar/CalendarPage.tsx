@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTasks } from "../../hooks/useTasks";
 import { addMonths, formatLong, monthAnchor, todayStr } from "../../utils/dateUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
-import { datesWithTasks } from "../../utils/taskQueries";
 import Calendar from "../../components/Calendar/Calendar";
 import TaskList from "../../components/TaskList/TaskList";
 import EmptyState from "../../components/EmptyState/EmptyState";
@@ -15,7 +14,6 @@ export default function CalendarPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
 
-  const taskDates = useMemo(() => datesWithTasks(appData.days), [appData.days]);
   const day = getDay(selectedDate);
   const stats = dayStats(day);
 
@@ -28,7 +26,7 @@ export default function CalendarPage() {
       <Calendar
         monthAnchor={anchor}
         selectedDate={selectedDate}
-        datesWithTasks={taskDates}
+        days={appData.days}
         onSelectDate={(d) => {
           setSelectedDate(d);
           setEditingId(null);

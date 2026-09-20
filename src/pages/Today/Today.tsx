@@ -9,6 +9,7 @@ import TaskList from "../../components/TaskList/TaskList";
 import EmptyState from "../../components/EmptyState/EmptyState";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
+import CountdownCard from "../../components/CountdownGoal/CountdownCard";
 
 export default function Today() {
   const { getDay, addTask, toggleTask, saveEdit, deleteTask, moveTask, clearCompleted } = useTasks();
@@ -46,6 +47,8 @@ export default function Today() {
           setEditingId(null);
         }}
       />
+
+      <CountdownCard />
 
       <ProgressCard stats={stats} isToday={isToday} />
 

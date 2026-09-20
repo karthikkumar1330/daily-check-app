@@ -2,12 +2,13 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import type { AppData, ThemePreference } from "../../types";
-import { CURRENT_DATA_VERSION } from "../../types";
+import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION } from "../../types";
 import { exportBackup, parseImportFile } from "../../utils/storageUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
 import { DownloadIcon, InstallIcon, PrintIcon, UploadIcon } from "../../components/icons";
 import { usePwaInstall } from "../../hooks/usePwaInstall";
+import GoalsManagerModal from "../../components/CountdownGoal/GoalsManagerModal";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "\u2600\uFE0F Light" },
@@ -24,6 +25,7 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [goalsOpen, setGoalsOpen] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -86,6 +88,17 @@ export default function Settings() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-heading">Goals</div>
+        <ActionRow
+          icon={<span style={{ fontSize: 18 }}>{"\uD83C\uDFAF"}</span>}
+          title="Countdown Goals"
+          description="Create and manage calendar-day countdowns shown on Today."
+          actionLabel="Manage"
+          onAction={() => setGoalsOpen(true)}
+        />
       </div>
 
       {!installed ? (
@@ -157,7 +170,13 @@ export default function Settings() {
         <p className="settings-note">
           Daily Check
           <br />
-          Version 3.0 {"\u00B7"} data schema v{CURRENT_DATA_VERSION}
+          Version 4.1 {"\u00B7"} data schema v{CURRENT_DATA_VERSION} {"\u00B7"} countdown goals schema v
+          {CURRENT_COUNTDOWN_VERSION}
+        </p>
+        <p className="settings-note" style={{ marginTop: 8 }}>
+          Data is stored only on this device, in this browser (or this installed app if you opened it that
+          way) — never on a server. A different device or browser always starts empty; use Export/Import to
+          move data between them.
         </p>
       </div>
 
@@ -177,6 +196,8 @@ export default function Settings() {
           {toast}
         </div>
       ) : null}
+
+      {goalsOpen ? <GoalsManagerModal onClose={() => setGoalsOpen(false)} /> : null}
     </div>
   );
 }

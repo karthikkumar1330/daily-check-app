@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TasksProvider, useTasks } from "./hooks/useTasks";
+import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
 import { useTheme } from "./hooks/useTheme";
 import AppShell from "./components/Layout/AppShell";
 
@@ -38,7 +39,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <TasksProvider>
-        <Shell />
+        <CountdownGoalsProvider>
+          <Shell />
+        </CountdownGoalsProvider>
       </TasksProvider>
     </BrowserRouter>
   );

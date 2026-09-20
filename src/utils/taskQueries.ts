@@ -110,15 +110,6 @@ export function searchTasks(days: Record<string, DayData>, query: string): Dated
     .sort((a, b) => sortByDateThenCreated(b, a));
 }
 
-/** Set of YYYY-MM-DD dates that have at least one task, for calendar dots. */
-export function datesWithTasks(days: Record<string, DayData>): Set<string> {
-  const set = new Set<string>();
-  Object.keys(days).forEach((d) => {
-    if (days[d].tasks.length > 0) set.add(d);
-  });
-  return set;
-}
-
 export function isUpcoming(date: string): boolean {
   return date > todayStr();
 }

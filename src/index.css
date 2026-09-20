@@ -130,23 +130,6 @@ textarea:focus-visible,
   background: var(--accent);
   display: inline-block;
 }
-.date-line {
-  margin-top: 14px;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-}
-.greeting {
-  margin-top: 4px;
-  color: var(--ink-muted);
-  font-size: 15px;
-}
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex: none;
-}
 .icon-round {
   width: 44px;
   height: 44px;
@@ -201,9 +184,13 @@ textarea:focus-visible,
 .day-nav .label,
 .week-nav .label {
   flex: 1;
+  min-width: 0;
   text-align: center;
   font-size: 13px;
   color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .day-nav .today-btn {
   border: 1px solid var(--border);
@@ -285,6 +272,113 @@ textarea:focus-visible,
   font-weight: 600;
 }
 
+/* ================= Countdown Goal (calendar-day, no time-of-day) ================= */
+.countdown-add-link {
+  display: inline-block;
+  margin-bottom: 16px;
+}
+.countdown-card {
+  padding: 16px 18px 18px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.countdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+.countdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.countdown-figure {
+  padding: 6px 0 2px;
+}
+.countdown-number {
+  font-size: clamp(34px, 12vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.countdown-number-complete {
+  color: var(--ink-muted);
+  font-size: clamp(26px, 9vw, 32px);
+}
+.countdown-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.countdown-range {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 8px 0 10px;
+}
+.countdown-bar-track {
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+/* Manage Countdown Goals list */
+.goal-manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.goal-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.goal-manage-primary {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.goal-manage-primary input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.goal-manage-text {
+  flex: 1;
+  min-width: 0;
+}
+.goal-manage-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.goal-manage-dates {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 1px;
+}
+
 /* Quick add */
 .quick-add {
   display: flex;
@@ -293,6 +387,7 @@ textarea:focus-visible,
 }
 .quick-add input[type="text"] {
   flex: 1;
+  min-width: 0;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
@@ -324,6 +419,19 @@ textarea:focus-visible,
 .quick-add button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+@media (max-width: 340px) {
+  /* Stacked fallback for the narrowest phones or larger accessibility text
+     sizes, so Quick Add never gets cramped. */
+  .quick-add {
+    flex-wrap: wrap;
+  }
+  .quick-add input[type="text"] {
+    flex-basis: 100%;
+  }
+  .quick-add button {
+    flex: 1;
+  }
 }
 
 .section-title {
@@ -697,6 +805,18 @@ textarea:focus-visible,
   font-weight: 700;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .footer-note {
   text-align: center;
   font-size: 11.5px;
@@ -868,12 +988,6 @@ textarea:focus-visible,
   background: var(--accent-soft);
 }
 
-@media (max-width: 400px) {
-  .date-line {
-    font-size: 22px;
-  }
-}
-
 /* ================= Layout: sidebar + topbar (V2) ================= */
 
 .app-shell {
@@ -1007,7 +1121,7 @@ textarea:focus-visible,
   }
 }
 .page-title {
-  font-size: 20px;
+  font-size: clamp(18px, 5vw, 20px);
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -1017,10 +1131,15 @@ textarea:focus-visible,
   margin: -10px 0 16px;
 }
 .page-date-line {
-  font-size: 24px;
+  /* Fluid so a long localized date ("Wednesday, September 24") never
+     crowds the day-nav row on a 320px phone, without shrinking
+     needlessly on larger screens. */
+  font-size: clamp(19px, 5.6vw, 24px);
   font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 1.25;
   margin-bottom: 2px;
+  overflow-wrap: break-word;
 }
 .page-greeting {
   font-size: 14.5px;
@@ -1300,8 +1419,15 @@ textarea:focus-visible,
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: currentColor;
-  opacity: 0.6;
+}
+.calendar-dot-neutral {
+  background: var(--ink-faint);
+}
+.calendar-dot-partial {
+  background: var(--amber);
+}
+.calendar-dot-complete {
+  background: var(--accent);
 }
 .calendar-day-summary {
   font-size: 13px;
