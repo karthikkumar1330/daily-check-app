@@ -49,7 +49,15 @@ export function loadCountdownGoals(): CountdownGoalsData {
 
     return { version: CURRENT_COUNTDOWN_VERSION, goals, primaryGoalId };
   } catch (e) {
-    console.error("Daily Check: could not read countdown goals, starting fresh.", e);
+    console.error("Daily Check: could not read countdown goals. Backing up corrupted data.", e);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        localStorage.setItem(`dailyCheck.countdownGoals.corrupted_recovery.${Date.now()}`, raw);
+      }
+    } catch {
+      // Ignore fallback error
+    }
     return emptyData();
   }
 }

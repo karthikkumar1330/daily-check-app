@@ -4,72 +4,148 @@ import { useTodayDate } from "../../hooks/useTodayDate";
 import { computeCountdownStatus } from "../../utils/countdownUtils";
 import { formatDateMedium } from "../../utils/dateUtils";
 import GoalsManagerModal from "./GoalsManagerModal";
+import GoalFormModal from "./GoalFormModal";
+import SecondaryGoalsRail from "./SecondaryGoalsRail";
 
 export default function CountdownCard() {
-  const { primaryGoal, goals } = useCountdownGoals();
+  const { primaryGoal, goals, setPrimaryGoal, createGoal } = useCountdownGoals();
   const today = useTodayDate();
   const [managerOpen, setManagerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  if (!primaryGoal) {
+  // If no goals at all, render an inviting clean card
+  if (goals.length === 0) {
     return (
-      <>
-        <button className="link-btn countdown-add-link" onClick={() => setManagerOpen(true)}>
-          + Add a countdown goal
-        </button>
-        {managerOpen ? <GoalsManagerModal onClose={() => setManagerOpen(false)} /> : null}
-      </>
+      <div className="countdown-section">
+        <div className="card countdown-empty-card">
+          <div className="countdown-empty-icon" aria-hidden="true">
+            🎯
+          </div>
+          <div className="countdown-empty-title">Countdown Goals</div>
+          <div className="countdown-empty-desc">
+            Track 100-day challenges, fitness milestones, or exam deadlines day by day.
+          </div>
+          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
+            + Add Countdown Goal
+          </button>
+        </div>
+
+        {createOpen ? (
+          <GoalFormModal
+            onSubmit={(input) => {
+              const res = createGoal(input);
+              if (res.ok) setCreateOpen(false);
+              return res;
+            }}
+            onCancel={() => setCreateOpen(false)}
+          />
+        ) : null}
+      </div>
     );
   }
 
-  const status = computeCountdownStatus(primaryGoal, today);
-  const dateRange = `${formatDateMedium(primaryGoal.startDate)} \u2192 ${formatDateMedium(primaryGoal.targetDate)}`;
-  const manageLabel = goals.length > 1 ? "Manage goals" : "Manage";
+  // Fallback: if primaryGoalId was unset or invalid, default to the first goal
+  const activeGoal = primaryGoal || goals[0];
+  const status = computeCountdownStatus(activeGoal, today);
+  const dateRange = `${formatDateMedium(activeGoal.startDate)} \u2192 ${formatDateMedium(activeGoal.targetDate)}`;
 
   let bigNumber: string;
   let bigLabel: string;
+  let metaInfo: string;
   let srLabel: string;
 
   if (status.phase === "upcoming") {
     bigNumber = String(status.daysUntilStart);
-    bigLabel = status.daysUntilStart === 1 ? "DAY UNTIL START" : "DAYS UNTIL START";
-    srLabel = `${primaryGoal.title} starts in ${status.daysUntilStart} day${status.daysUntilStart === 1 ? "" : "s"}.`;
+    bigLabel = status.daysUntilStart === 1 ? "STARTS IN 1 DAY" : "DAYS UNTIL START";
+    metaInfo = `Starts on ${formatDateMedium(activeGoal.startDate)}`;
+    srLabel = `${activeGoal.title} starts in ${status.daysUntilStart} day${status.daysUntilStart === 1 ? "" : "s"}.`;
   } else if (status.phase === "complete") {
     bigNumber = "Completed";
-    bigLabel = "";
-    srLabel = `${primaryGoal.title} is complete.`;
+    bigLabel = "COMPLETED";
+    metaInfo = `All ${status.totalDays} days finished`;
+    srLabel = `${activeGoal.title} is completed.`;
   } else {
     bigNumber = String(status.daysLeft);
     bigLabel = status.daysLeft === 1 ? "DAY LEFT" : "DAYS LEFT";
-    srLabel = `${status.daysLeft} day${status.daysLeft === 1 ? "" : "s"} remaining in ${primaryGoal.title}.`;
+    metaInfo = `Day ${status.dayNumber} of ${status.totalDays} \u00B7 ${status.progressPct}% complete`;
+    srLabel = `${status.daysLeft} day${status.daysLeft === 1 ? "" : "s"} remaining in ${activeGoal.title}.`;
   }
 
   return (
-    <div className="card countdown-card">
-      <div className="countdown-head">
-        <span className="countdown-title">
-          {primaryGoal.icon} {primaryGoal.title}
-        </span>
-        <button className="link-btn" onClick={() => setManagerOpen(true)}>
-          {manageLabel}
-        </button>
+    <div className="countdown-section">
+      <div className="card countdown-card">
+        <div className="countdown-head">
+          <div className="countdown-primary-tag">
+            <span className="primary-tag-icon" aria-hidden="true">
+              🎯
+            </span>
+            <span>PRIMARY GOAL</span>
+          </div>
+          <button
+            className="link-btn countdown-manage-btn"
+            onClick={() => setManagerOpen(true)}
+            aria-label="Manage countdown goals"
+          >
+            Manage
+          </button>
+        </div>
+
+        <div className="countdown-title">
+          {activeGoal.icon ? (
+            <span className="countdown-icon" aria-hidden="true">
+              {activeGoal.icon}
+            </span>
+          ) : null}
+          <span>{activeGoal.title}</span>
+        </div>
+
+        <div className="countdown-figure" aria-label={srLabel}>
+          <div
+            className={
+              "countdown-number" +
+              (status.phase === "complete" ? " countdown-number-complete" : "")
+            }
+          >
+            {bigNumber}
+          </div>
+          {bigLabel ? <div className="countdown-label">{bigLabel}</div> : null}
+        </div>
+
+        <div className="countdown-range">{dateRange}</div>
+
+        {status.phase !== "upcoming" ? (
+          <div className="bar-track countdown-bar-track" aria-hidden="true">
+            <div className="bar-fill" style={{ width: `${status.progressPct}%` }} />
+          </div>
+        ) : null}
+
+        <div className="countdown-meta">{metaInfo}</div>
       </div>
 
-      <div className="countdown-figure" aria-label={srLabel}>
-        <div className={"countdown-number" + (status.phase === "complete" ? " countdown-number-complete" : "")}>
-          {bigNumber}
-        </div>
-        {bigLabel ? <div className="countdown-label">{bigLabel}</div> : null}
-      </div>
 
-      <div className="countdown-range">{dateRange}</div>
+      {/* Secondary Goals Rail when other goals exist or affordance to add */}
+      <SecondaryGoalsRail
+        goals={goals}
+        primaryGoalId={activeGoal.id}
+        onSetPrimary={(id) => setPrimaryGoal(id)}
+        onOpenManage={() => setManagerOpen(true)}
+        onOpenCreate={() => setCreateOpen(true)}
+      />
 
-      {status.phase !== "upcoming" ? (
-        <div className="bar-track countdown-bar-track">
-          <div className="bar-fill" style={{ width: status.progressPct + "%" }} />
-        </div>
+      {managerOpen ? (
+        <GoalsManagerModal onClose={() => setManagerOpen(false)} />
       ) : null}
 
-      {managerOpen ? <GoalsManagerModal onClose={() => setManagerOpen(false)} /> : null}
+      {createOpen ? (
+        <GoalFormModal
+          onSubmit={(input) => {
+            const res = createGoal(input);
+            if (res.ok) setCreateOpen(false);
+            return res;
+          }}
+          onCancel={() => setCreateOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

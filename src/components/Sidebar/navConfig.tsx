@@ -4,8 +4,10 @@ import {
   CalendarIcon,
   FolderIcon,
   HomeIcon,
+  PriorityIcon,
   SettingsIcon,
-  StarIcon
+  StarIcon,
+  TasksIcon
 } from "../icons";
 
 export interface NavItem {
@@ -21,24 +23,25 @@ export interface NavSection {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    heading: "Main",
+    heading: "MAIN",
     items: [
       { to: "/today", label: "Today", icon: HomeIcon },
-      { to: "/tasks", label: "Tasks", icon: () => <span aria-hidden="true">{"\u2705"}</span> },
+      { to: "/tasks", label: "Tasks", icon: TasksIcon },
       { to: "/calendar", label: "Calendar", icon: CalendarIcon },
       { to: "/weekly", label: "Weekly Progress", icon: BarChartIcon }
     ]
   },
   {
-    heading: "Productivity",
+    heading: "PRODUCTIVITY",
     items: [
       { to: "/important", label: "Important", icon: StarIcon },
-      { to: "/high-priority", label: "High Priority", icon: () => <span aria-hidden="true">{"\uD83D\uDD34"}</span> },
+      { to: "/high-priority", label: "High Priority", icon: PriorityIcon },
       { to: "/categories", label: "Categories", icon: FolderIcon }
     ]
   },
   {
-    heading: "Other",
+    heading: "OTHER",
     items: [{ to: "/settings", label: "Settings", icon: SettingsIcon }]
   }
 ];
+

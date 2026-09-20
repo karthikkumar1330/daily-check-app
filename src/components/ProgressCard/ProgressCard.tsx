@@ -8,29 +8,44 @@ interface ProgressCardProps {
 
 export default function ProgressCard({ stats, isToday }: ProgressCardProps) {
   const noTasks = stats.total === 0;
+  const isComplete = stats.pct === 100 && stats.total > 0;
+
   return (
-    <div className="card progress-card">
+    <div className={`card progress-card${isComplete ? " is-complete" : ""}`}>
       <div className="progress-top">
-        <div className="progress-title">{isToday ? "Today\u2019s" : "That day\u2019s"} Progress</div>
+        <div className="progress-title">{isToday ? "Today’s Progress" : "Day’s Progress"}</div>
         <div className="progress-msg">{motivationalMsg(stats)}</div>
       </div>
       {noTasks ? (
-        <div className="progress-count">
-          <span>No tasks</span>
+        <div className="progress-empty-wrap">
+          <div className="progress-empty-msg">No tasks planned today</div>
         </div>
       ) : (
         <>
           <div className="progress-count">
-            {stats.completed} / {stats.total} <span>completed</span>
+            <span className="count-completed">{stats.completed}</span>
+            <span className="count-sep"> / </span>
+            <span className="count-total">{stats.total}</span>
+            <span className="count-label"> completed</span>
           </div>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ width: (stats.pct ?? 0) + "%" }} />
+          <div
+            className="bar-track"
+            role="progressbar"
+            aria-valuenow={stats.pct ?? 0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Daily task completion"
+          >
+            <div
+              className={`bar-fill${isComplete ? " bar-fill-complete" : ""}`}
+              style={{ width: `${stats.pct ?? 0}%` }}
+            />
           </div>
           <div className="progress-foot">
-            <span>
+            <span className="foot-remaining">
               <b>{stats.remaining}</b> remaining
             </span>
-            <span>
+            <span className="foot-pct">
               <b>{formatPct(stats.pct)}</b> complete
             </span>
           </div>
@@ -39,3 +54,4 @@ export default function ProgressCard({ stats, isToday }: ProgressCardProps) {
     </div>
   );
 }
+

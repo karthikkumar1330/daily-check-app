@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useTasks } from "../../hooks/useTasks";
-import { addDays, formatLong, todayStr } from "../../utils/dateUtils";
+import { addDays, formatDayMonth, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
 import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
+import CountdownCard from "../../components/CountdownGoal/CountdownCard";
 import QuickAddTask from "../../components/QuickAddTask/QuickAddTask";
 import TaskList from "../../components/TaskList/TaskList";
 import EmptyState from "../../components/EmptyState/EmptyState";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
-import CountdownCard from "../../components/CountdownGoal/CountdownCard";
 
 export default function Today() {
   const { getDay, addTask, toggleTask, saveEdit, deleteTask, moveTask, clearCompleted } = useTasks();
@@ -25,12 +25,17 @@ export default function Today() {
   const stats = dayStats(day);
 
   return (
-    <div className="page">
-      <div className="page-date-line">{formatLong(viewDate)}</div>
-      <div className="page-greeting">
-        {isToday ? "Let\u2019s make today count \uD83D\uDCAA" : "Looking back at this day"}
+    <div className="page today-page">
+      <div className="today-header-block">
+        <div className="today-weekday-label">{weekdayFull(viewDate)}</div>
+        <h1 className="today-date-heading">{formatDayMonth(viewDate)}</h1>
+        <p className="page-greeting">
+          {isToday ? "Let’s make today count 💪" : "Looking back at this day"}
+        </p>
       </div>
 
+
+      {/* 2. Day navigation */}
       <DateNavigator
         viewDate={viewDate}
         isToday={isToday}
@@ -48,49 +53,61 @@ export default function Today() {
         }}
       />
 
-      <CountdownCard />
-
+      {/* 3. Today's Progress */}
       <ProgressCard stats={stats} isToday={isToday} />
 
-      <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
-      <button className="link-btn" onClick={() => setAdvancedOpen(true)} style={{ marginBottom: 18 }}>
-        + Add with priority, category &amp; notes
-      </button>
+      {/* 4 & 5. Primary Countdown Goal + Secondary Countdown Goals */}
+      <CountdownCard />
 
-      <div className="section-row">
-        <div className="section-title first" style={{ margin: 0 }}>
-          Today&rsquo;s Checklist
-        </div>
-        {stats.completed > 0 ? (
-          <button className="link-btn" onClick={() => setConfirmClear(true)}>
-            Clear completed
-          </button>
-        ) : null}
+      {/* 6. Quick Add */}
+      <div className="quick-add-section">
+        <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
+        <button
+          className="link-btn add-advanced-link"
+          onClick={() => setAdvancedOpen(true)}
+          aria-label="Add task with priority, category and notes"
+        >
+          + Add with priority, category &amp; notes
+        </button>
       </div>
 
-      {day.tasks.length === 0 ? (
-        <EmptyState variant="no-tasks" />
-      ) : (
-        <>
-          <TaskList
-            tasks={day.tasks}
-            editingId={editingId}
-            onToggle={(id) => toggleTask(viewDate, id)}
-            onStartEdit={(id) => setEditingId(id)}
-            onCancelEdit={() => setEditingId(null)}
-            onSave={(id, updates) => {
-              saveEdit(viewDate, id, updates);
-              setEditingId(null);
-            }}
-            onDelete={(id) => {
-              const t = day.tasks.find((x) => x.id === id);
-              if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
-            }}
-            onMove={(id, dir) => moveTask(viewDate, id, dir)}
-          />
-          {stats.remaining === 0 && stats.total > 0 ? <EmptyState variant="all-done" /> : null}
-        </>
-      )}
+      {/* 7. Today's Checklist */}
+      <div className="checklist-section">
+        <div className="section-row checklist-header">
+          <h2 className="section-title first" style={{ margin: 0 }}>
+            Today&rsquo;s Checklist
+          </h2>
+          {stats.completed > 0 ? (
+            <button className="link-btn clear-completed-btn" onClick={() => setConfirmClear(true)}>
+              Clear completed
+            </button>
+          ) : null}
+        </div>
+
+        {day.tasks.length === 0 ? (
+          <EmptyState variant="no-tasks" />
+        ) : (
+          <>
+            <TaskList
+              tasks={day.tasks}
+              editingId={editingId}
+              onToggle={(id) => toggleTask(viewDate, id)}
+              onStartEdit={(id) => setEditingId(id)}
+              onCancelEdit={() => setEditingId(null)}
+              onSave={(id, updates) => {
+                saveEdit(viewDate, id, updates);
+                setEditingId(null);
+              }}
+              onDelete={(id) => {
+                const t = day.tasks.find((x) => x.id === id);
+                if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
+              }}
+              onMove={(id, dir) => moveTask(viewDate, id, dir)}
+            />
+            {stats.remaining === 0 && stats.total > 0 ? <EmptyState variant="all-done" /> : null}
+          </>
+        )}
+      </div>
 
       {confirmDeleteTask ? (
         <ConfirmModal

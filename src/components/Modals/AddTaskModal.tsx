@@ -24,6 +24,7 @@ export default function AddTaskModal({ onAdd, onCancel }: AddTaskModalProps) {
   useBodyScrollLock(true);
 
   useEffect(() => {
+    titleRef.current?.focus();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
     }

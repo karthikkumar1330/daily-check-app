@@ -218,3 +218,26 @@ export function BarChartIcon() {
     </svg>
   );
 }
+
+export function TasksIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <rect x="3" y="3.5" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 10l2 2 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function PriorityIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <path
+        d="M10 2.5a6.5 6.5 0 0 0-4.6 11.1c.3.3.6.8.6 1.3v.6c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-.6c0-.5.3-1 .6-1.3A6.5 6.5 0 0 0 10 2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path d="M8 18h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+

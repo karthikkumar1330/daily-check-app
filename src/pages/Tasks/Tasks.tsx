@@ -85,6 +85,16 @@ export default function Tasks() {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search tasks"
         />
+        {query ? (
+          <button
+            type="button"
+            className="search-clear-btn"
+            onClick={() => setQuery("")}
+            aria-label="Clear search query"
+          >
+            &times;
+          </button>
+        ) : null}
       </div>
 
       <div className="filter-chips">

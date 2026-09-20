@@ -53,6 +53,24 @@ export function weekdayFull(dateStr: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long" });
 }
 
+/** "20 September" or "20 September 2026" if not current year */
+export function formatDayMonth(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  const now = new Date();
+  if (d.getFullYear() !== now.getFullYear()) {
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  }
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "long" });
+}
+
+/** Compact nav date like "Sun 20 Sep" */
+export function formatNavDate(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+  const month = d.toLocaleDateString(undefined, { month: "short" });
+  return `${weekday} ${d.getDate()} ${month}`;
+}
+
 /** "20 Sep 2026" — used for countdown goal dates (no weekday, needs the year). */
 export function formatDateMedium(dateStr: string): string {
   const d = parseDateStr(dateStr);

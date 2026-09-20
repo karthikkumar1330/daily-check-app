@@ -25,51 +25,81 @@ export default function GoalsManagerModal({ onClose }: GoalsManagerModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="goals-manager-title">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h2 id="goals-manager-title" style={{ margin: 0 }}>
-            Countdown Goals
-          </h2>
+      <div className="modal goals-modal" role="dialog" aria-modal="true" aria-labelledby="goals-manager-title">
+        <div className="modal-header">
+          <h2 id="goals-manager-title">Countdown Goals</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>
         </div>
 
+        <p className="modal-subtitle">
+          Select which goal is featured on your Today page.
+        </p>
+
         {goals.length === 0 ? (
-          <p className="settings-note">No countdown goals yet. Create one to see it on Today.</p>
+          <div className="empty-state" style={{ margin: "16px 0" }}>
+            <div className="empty-state-icon" aria-hidden="true">
+              🎯
+            </div>
+            <div className="empty-state-title">No countdown goals yet</div>
+            <div className="empty-state-subtitle">Create your first goal below.</div>
+          </div>
         ) : (
           <div className="goal-manage-list">
-            {goals.map((g) => (
-              <div key={g.id} className="goal-manage-row">
-                <label className="goal-manage-primary" title="Set as primary Today goal">
-                  <input
-                    type="radio"
-                    name="primary-goal"
-                    checked={primaryGoal?.id === g.id}
-                    onChange={() => setPrimaryGoal(g.id)}
-                    aria-label={`Set "${g.title}" as the primary Today goal`}
-                  />
-                </label>
-                <div className="goal-manage-text">
-                  <div className="goal-manage-title">
-                    {g.icon} {g.title}
+            {goals.map((g) => {
+              const isPrimary = primaryGoal?.id === g.id;
+              return (
+                <div key={g.id} className={`goal-manage-row ${isPrimary ? "is-primary" : ""}`}>
+                  <label className="goal-manage-primary" title="Set as primary Today goal">
+                    <input
+                      type="radio"
+                      name="primary-goal"
+                      checked={isPrimary}
+                      onChange={() => setPrimaryGoal(g.id)}
+                      aria-label={`Set "${g.title}" as the primary Today goal`}
+                    />
+                  </label>
+                  <div
+                    className="goal-manage-text"
+                    onClick={() => setPrimaryGoal(g.id)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="goal-manage-title-row">
+                      <span className="goal-manage-title">
+                        {g.icon} {g.title}
+                      </span>
+                      {isPrimary ? <span className="primary-pill">Primary</span> : null}
+                    </div>
+                    <div className="goal-manage-dates">
+                      {formatDateMedium(g.startDate)} &rarr; {formatDateMedium(g.targetDate)}
+                    </div>
                   </div>
-                  <div className="goal-manage-dates">
-                    {formatDateMedium(g.startDate)} {"\u2192"} {formatDateMedium(g.targetDate)}
+                  <div className="goal-manage-actions">
+                    <button
+                      className="icon-btn"
+                      onClick={() => setFormMode(g)}
+                      aria-label={`Edit "${g.title}"`}
+                      title="Edit goal"
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      className="icon-btn danger-hover"
+                      onClick={() => setConfirmDelete(g)}
+                      aria-label={`Delete "${g.title}"`}
+                      title="Delete goal"
+                    >
+                      <TrashIcon />
+                    </button>
                   </div>
                 </div>
-                <button className="icon-btn" onClick={() => setFormMode(g)} aria-label={`Edit "${g.title}"`}>
-                  <EditIcon />
-                </button>
-                <button className="icon-btn" onClick={() => setConfirmDelete(g)} aria-label={`Delete "${g.title}"`}>
-                  <TrashIcon />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        <button className="btn-ghost" style={{ width: "100%", marginTop: 12 }} onClick={() => setFormMode("create")}>
+        <button className="btn-primary" style={{ width: "100%", marginTop: 14 }} onClick={() => setFormMode("create")}>
           + New Goal
         </button>
       </div>
@@ -89,7 +119,7 @@ export default function GoalsManagerModal({ onClose }: GoalsManagerModalProps) {
       {confirmDelete ? (
         <ConfirmModal
           title="Delete this goal?"
-          message={`"${confirmDelete.title}" will be permanently removed. This can\u2019t be undone.`}
+          message={`"${confirmDelete.title}" will be permanently removed. This can’t be undone.`}
           confirmLabel="Delete"
           danger
           onConfirm={() => {

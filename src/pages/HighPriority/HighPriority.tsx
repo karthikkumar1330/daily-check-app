@@ -19,8 +19,9 @@ export default function HighPriority() {
   return (
     <div className="page">
       <div className="section-row" style={{ margin: "0 0 16px" }}>
-        <div className="page-title">{"\uD83D\uDD34"} High Priority</div>
+        <div className="page-title">High Priority</div>
       </div>
+      <p className="page-subtitle">A focused list of tasks requiring immediate attention.</p>
 
       {view.incomplete.length === 0 && view.completed.length === 0 ? (
         <EmptyState

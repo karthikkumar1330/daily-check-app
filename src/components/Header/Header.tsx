@@ -13,9 +13,17 @@ export default function Header({ isDark, onToggleTheme, onOpenSidebar }: HeaderP
         <HamburgerIcon />
       </button>
       <div className="topbar-title">Daily Check</div>
-      <button className="icon-round" onClick={onToggleTheme} aria-label="Toggle theme" title="Toggle theme">
-        {isDark ? "\u2600\uFE0F" : "\uD83C\uDF19"}
+      <button
+        className="icon-btn topbar-theme-btn"
+        onClick={onToggleTheme}
+        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        title="Toggle theme"
+      >
+        <span className="theme-toggle-icon" aria-hidden="true">
+          {isDark ? "☀️" : "🌙"}
+        </span>
       </button>
     </header>
   );
 }
+

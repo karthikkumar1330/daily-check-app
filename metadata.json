@@ -1,0 +1,6 @@
+{
+  "name": "Daily Check",
+  "description": "A clean, minimal daily checklist, todo list, and weekly progress tracker.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

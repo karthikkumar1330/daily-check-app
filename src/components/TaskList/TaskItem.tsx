@@ -86,7 +86,7 @@ export default function TaskItem({
       </div>
       <div className="task-actions" ref={menuRef} style={{ position: "relative" }}>
         <button
-          className="icon-btn"
+          className="icon-btn task-more-btn"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Task actions"
           aria-haspopup="true"

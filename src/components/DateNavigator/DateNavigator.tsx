@@ -1,4 +1,4 @@
-import { formatShort } from "../../utils/dateUtils";
+import { formatNavDate } from "../../utils/dateUtils";
 
 interface DateNavigatorProps {
   viewDate: string;
@@ -11,16 +11,17 @@ interface DateNavigatorProps {
 export default function DateNavigator({ viewDate, isToday, onPrev, onNext, onToday }: DateNavigatorProps) {
   return (
     <div className="day-nav">
-      <button onClick={onPrev} aria-label="Previous day">
-        {"\u2039"}
+      <button className="day-nav-arrow" onClick={onPrev} aria-label="Previous day">
+        ‹
       </button>
       <button className={"today-btn" + (isToday ? " active" : "")} onClick={onToday}>
         Today
       </button>
-      <div className="label">{formatShort(viewDate)}</div>
-      <button onClick={onNext} aria-label="Next day">
-        {"\u203A"}
+      <div className="label">{formatNavDate(viewDate)}</div>
+      <button className="day-nav-arrow" onClick={onNext} aria-label="Next day">
+        ›
       </button>
     </div>
   );
 }
+

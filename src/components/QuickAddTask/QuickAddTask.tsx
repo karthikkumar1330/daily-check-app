@@ -31,7 +31,7 @@ export default function QuickAddTask({ onAdd }: QuickAddTaskProps) {
       <input
         ref={inputRef}
         type="text"
-        placeholder="What needs to be done today?"
+        placeholder="What needs to be done?"
         autoComplete="off"
         maxLength={140}
         value={value}

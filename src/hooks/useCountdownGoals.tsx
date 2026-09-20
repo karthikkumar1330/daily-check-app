@@ -102,7 +102,7 @@ export function CountdownGoalsProvider({ children }: { children: ReactNode }) {
         ...prev,
         goals: nextGoals,
         primaryGoalId:
-          prev.primaryGoalId === id ? (remainingIds.length === 1 ? remainingIds[0] : null) : prev.primaryGoalId
+          prev.primaryGoalId === id ? (remainingIds.length > 0 ? remainingIds[0] : null) : prev.primaryGoalId
       };
     });
   }

@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
+import { useCountdownGoals } from "../../hooks/useCountdownGoals";
 import type { AppData, ThemePreference } from "../../types";
 import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION } from "../../types";
-import { exportBackup, parseImportFile } from "../../utils/storageUtils";
+import { exportBackup, parseImportFile, getStorageUsageKb } from "../../utils/storageUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
 import { DownloadIcon, InstallIcon, PrintIcon, UploadIcon } from "../../components/icons";
@@ -20,12 +21,15 @@ const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a vali
 
 export default function Settings() {
   const { appData, setTheme, replaceAllData } = useTasks();
+  const { goals } = useCountdownGoals();
   const { canInstall, installed, promptInstall } = usePwaInstall();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [goalsOpen, setGoalsOpen] = useState(false);
+
+  const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -43,7 +47,6 @@ export default function Settings() {
       const text = typeof reader.result === "string" ? reader.result : "";
       const result = parseImportFile(text);
       if (!result.ok || !result.data) {
-        // Current data is left completely untouched on any validation failure.
         showToast(result.error || IMPORT_ERROR);
         return;
       }
@@ -66,12 +69,13 @@ export default function Settings() {
   }
 
   return (
-    <div className="page">
+    <div className="page settings-page">
       <div className="section-row" style={{ margin: "0 0 16px" }}>
-        <div className="page-title">Settings</div>
+        <h1 className="page-title">Settings</h1>
       </div>
 
-      <div className="settings-section">
+      {/* Appearance */}
+      <div className="card settings-card">
         <div className="settings-heading">Appearance</div>
         <div className="seg" style={{ width: "100%" }} role="radiogroup" aria-label="Theme">
           {THEME_OPTIONS.map((opt) => (
@@ -90,62 +94,62 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-heading">Goals</div>
+      {/* Goals */}
+      <div className="card settings-card">
+        <div className="settings-heading">Countdown Goals</div>
         <ActionRow
-          icon={<span style={{ fontSize: 18 }}>{"\uD83C\uDFAF"}</span>}
-          title="Countdown Goals"
-          description="Create and manage calendar-day countdowns shown on Today."
+          icon={<span style={{ fontSize: 20 }}>{"\uD83C\uDFAF"}</span>}
+          title="Manage Goals"
+          description={
+            goals.length === 0
+              ? "No goals configured yet."
+              : `${goals.length} active goal${goals.length === 1 ? "" : "s"} (${goals.map((g) => g.title).join(", ")})`
+          }
           actionLabel="Manage"
           onAction={() => setGoalsOpen(true)}
         />
       </div>
 
-      {!installed ? (
-        <div className="settings-section">
-          <div className="settings-heading">App</div>
-          {canInstall ? (
-            <ActionRow
-              icon={<InstallIcon />}
-              title="Install App"
-              description="Add Daily Check to your home screen for quick, offline access."
-              actionLabel="Install"
-              onAction={handleInstall}
-            />
-          ) : (
-            <p className="settings-note">
-              On Android Chrome, use the browser menu {"\u2192"} <strong>Install app</strong> (or{" "}
-              <strong>Add to Home screen</strong>). On iOS Safari, use Share {"\u2192"}{" "}
-              <strong>Add to Home Screen</strong>.
-            </p>
-          )}
+      {/* App Install */}
+      {!installed && canInstall ? (
+        <div className="card settings-card">
+          <div className="settings-heading">App Installation</div>
+          <ActionRow
+            icon={<InstallIcon />}
+            title="Install App"
+            description="Add Daily Check to your home screen for quick, offline access."
+            actionLabel="Install"
+            onAction={handleInstall}
+          />
         </div>
       ) : null}
 
-      <div className="settings-section">
-        <div className="settings-heading">Data</div>
+      {/* Data Management */}
+      <div className="card settings-card">
+        <div className="settings-heading">Data &amp; Backups</div>
 
         <ActionRow
           icon={<DownloadIcon />}
           title="Export Backup"
-          description="Download a backup of your Daily Check data."
+          description="Download a complete JSON backup of your tasks and checklist history."
           actionLabel="Export"
           onAction={handleExport}
         />
         <ActionRow
           icon={<UploadIcon />}
           title="Import Backup"
-          description="Restore Daily Check data from a backup file."
+          description="Restore your Daily Check data from a previously downloaded backup file."
           actionLabel="Import"
           onAction={() => fileRef.current?.click()}
         />
         <ActionRow
           icon={<PrintIcon />}
           title="Print Weekly Progress"
-          description="Open Weekly Progress to print or save it as a PDF."
+          description="Open formatted weekly view to print or save as a PDF."
           actionLabel="Open"
           onAction={() => navigate("/weekly")}
         />
+
         <input
           ref={fileRef}
           type="file"
@@ -158,32 +162,57 @@ export default function Settings() {
             e.target.value = "";
           }}
         />
-
-        <p className="settings-note" style={{ marginTop: 4 }}>
-          <strong>Your data is stored on this device.</strong> Export a backup regularly so you can restore it if
-          browser storage is cleared.
-        </p>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-heading">About</div>
-        <p className="settings-note">
-          Daily Check
-          <br />
-          Version 4.1 {"\u00B7"} data schema v{CURRENT_DATA_VERSION} {"\u00B7"} countdown goals schema v
-          {CURRENT_COUNTDOWN_VERSION}
-        </p>
-        <p className="settings-note" style={{ marginTop: 8 }}>
-          Data is stored only on this device, in this browser (or this installed app if you opened it that
-          way) — never on a server. A different device or browser always starts empty; use Export/Import to
-          move data between them.
-        </p>
+      {/* Storage & Privacy Guarantee */}
+      <div className="card settings-card storage-privacy-card">
+        <div className="settings-heading">Storage &amp; Privacy Architecture</div>
+        <div className="privacy-info-block">
+          <div className="privacy-badge">
+            <span className="privacy-icon" aria-hidden="true">
+              🔒
+            </span>
+            <strong>100% Client-Side Local Storage</strong>
+          </div>
+          <p className="privacy-text">
+            Your tasks, checklists, and goals are stored <strong>strictly on this device</strong> in your
+            browser&rsquo;s local storage. No data is sent to or stored on any external server.
+          </p>
+          <div className="storage-stat-row">
+            <span className="storage-stat-label">Local Storage Used:</span>
+            <span className="storage-stat-value">{storageUsage}</span>
+          </div>
+          <p className="privacy-subtext">
+            <strong>Cross-Device Note:</strong> Another person opening or sharing this URL on a different
+            device or browser profile starts with their own separate, empty workspace. To transfer your data
+            between devices, use the <strong>Export Backup</strong> and <strong>Import Backup</strong> buttons above.
+          </p>
+        </div>
+      </div>
+
+      {/* About */}
+      <div className="card settings-card">
+        <div className="settings-heading">About Daily Check</div>
+        <div className="about-details">
+          <div className="about-row">
+            <span className="about-label">Application Version:</span>
+            <span className="about-val">V5.1</span>
+          </div>
+          <div className="about-row">
+            <span className="about-label">Task Schema:</span>
+            <span className="about-val">v{CURRENT_DATA_VERSION}</span>
+          </div>
+          <div className="about-row">
+            <span className="about-label">Countdown Goals Schema:</span>
+            <span className="about-val">v{CURRENT_COUNTDOWN_VERSION}</span>
+          </div>
+        </div>
       </div>
 
       {pendingImport ? (
         <ConfirmModal
           title="Import this backup?"
-          message="This will replace your current Daily Check data."
+          message="This will replace your current Daily Check data with the contents of the backup."
           confirmLabel="Import Backup"
           danger
           onConfirm={confirmImport}

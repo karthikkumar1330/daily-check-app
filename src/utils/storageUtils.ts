@@ -93,8 +93,35 @@ export function loadData(): AppData {
 
     return migrate(withVersion);
   } catch (e) {
-    console.error("Daily Check: could not read stored data, starting fresh.", e);
+    console.error("Daily Check: could not read stored data. Backing up corrupted data.", e);
+    // Preserve corrupted data under a recovery key before starting clean
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        localStorage.setItem(`dailyCheck.corrupted_recovery.${Date.now()}`, raw);
+      }
+    } catch {
+      // Ignore fallback error
+    }
     return emptyAppData();
+  }
+}
+
+/** Calculates total approximate KB stored in localStorage by Daily Check keys */
+export function getStorageUsageKb(): string {
+  try {
+    let totalChars = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("dailyCheck")) {
+        const val = localStorage.getItem(key) ?? "";
+        totalChars += key.length + val.length;
+      }
+    }
+    const kb = (totalChars * 2) / 1024; // 2 bytes per UTF-16 character
+    return kb < 0.1 ? "< 0.1 KB" : `${kb.toFixed(1)} KB`;
+  } catch {
+    return "Unknown";
   }
 }
 
