@@ -1,6 +1,8 @@
-import type { AppData, CategoryId, DayData, Priority, ReminderMinutes, Task, TaskRecurrence, ThemePreference } from "../types";
+import type { AppData, CategoryId, CountdownGoalsData, DayData, Priority, ReminderMinutes, RoutinesData, Task, TaskRecurrence, ThemePreference } from "../types";
 import { CURRENT_DATA_VERSION } from "../types";
 import { isValidDateStr } from "./dateUtils";
+import { loadCountdownGoals, saveCountdownGoals } from "./countdownStorage";
+import { loadRoutines, sanitizeRoutines, saveRoutines } from "./routineStorage";
 
 const STORAGE_KEY = "dailyCheck.data";
 
@@ -58,6 +60,24 @@ function sanitizeCompletedDates(raw: any): Record<string, number> {
   return clean;
 }
 
+function sanitizeFocusDate(raw: any): string | null {
+  if (typeof raw === "string" && isValidDateStr(raw)) {
+    return raw;
+  }
+  return null;
+}
+
+function sanitizeFocusDates(raw: any): Record<string, number> {
+  const clean: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return clean;
+  Object.entries(raw).forEach(([date, val]) => {
+    if (isValidDateStr(date) && (typeof val === "number" || typeof val === "boolean")) {
+      clean[date] = typeof val === "number" ? val : Date.now();
+    }
+  });
+  return clean;
+}
+
 function sanitizeRecurringTasks(raw: unknown): Task[] {
   if (!Array.isArray(raw)) return [];
   const tasks: Task[] = [];
@@ -85,7 +105,9 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
       completedDates: sanitizeCompletedDates(item.completedDates),
       dueDate,
       dueTime,
-      reminderMinutes
+      reminderMinutes,
+      focusDate: sanitizeFocusDate(item.focusDate),
+      focusDates: sanitizeFocusDates(item.focusDates)
     });
   }
   return tasks;
@@ -117,6 +139,8 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
       const dueDate = sanitizeDueDate((t as any).dueDate);
       const dueTime = sanitizeDueTime((t as any).dueTime);
       const reminderMinutes = sanitizeReminderMinutes((t as any).reminderMinutes, dueTime);
+      const routineId = typeof (t as any).routineId === "string" ? (t as any).routineId : null;
+      const routineTaskId = typeof (t as any).routineTaskId === "string" ? (t as any).routineTaskId : null;
       return {
         id: t.id,
         title: t.title,
@@ -131,7 +155,11 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
         completedDates: sanitizeCompletedDates((t as any).completedDates),
         dueDate,
         dueTime,
-        reminderMinutes
+        reminderMinutes,
+        routineId,
+        routineTaskId,
+        focusDate: sanitizeFocusDate((t as any).focusDate),
+        focusDates: sanitizeFocusDates((t as any).focusDates)
       };
     });
 
@@ -230,9 +258,14 @@ export function saveData(data: AppData): boolean {
 }
 
 /** Triggers a browser download of the full backup as JSON. */
-export function exportBackup(data: AppData): void {
+export function exportBackup(data: AppData, goalsData?: CountdownGoalsData, routinesData?: RoutinesData): void {
+  const currentGoals = goalsData ?? loadCountdownGoals();
+  const currentRoutines = routinesData ?? loadRoutines();
+
   const payload = {
     ...data,
+    countdownGoals: currentGoals,
+    routines: currentRoutines,
     exportedAt: new Date().toISOString(),
     app: "daily-check"
   };
@@ -250,6 +283,8 @@ export function exportBackup(data: AppData): void {
 export interface ImportResult {
   ok: boolean;
   data?: AppData;
+  countdownGoals?: CountdownGoalsData;
+  routines?: RoutinesData;
   error?: string;
 }
 
@@ -279,7 +314,25 @@ export function parseImportFile(text: string): ImportResult {
       theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference,
       recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
-    return { ok: true, data: migrate(data) };
+
+    let countdownGoals: CountdownGoalsData | undefined;
+    if (parsed.countdownGoals && typeof parsed.countdownGoals === "object") {
+      countdownGoals = {
+        version: typeof parsed.countdownGoals.version === "number" ? parsed.countdownGoals.version : 1,
+        goals: parsed.countdownGoals.goals || {},
+        primaryGoalId: parsed.countdownGoals.primaryGoalId || null
+      };
+    }
+
+    let routines: RoutinesData | undefined;
+    if (parsed.routines && typeof parsed.routines === "object") {
+      routines = {
+        version: typeof parsed.routines.version === "number" ? parsed.routines.version : 1,
+        routines: sanitizeRoutines(parsed.routines.routines ?? parsed.routines)
+      };
+    }
+
+    return { ok: true, data: migrate(data), countdownGoals, routines };
   } catch {
     return { ok: false, error: genericError };
   }

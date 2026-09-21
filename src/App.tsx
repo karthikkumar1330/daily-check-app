@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TasksProvider, useTasks } from "./hooks/useTasks";
 import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
+import { RoutinesProvider } from "./hooks/useRoutines";
 import { useTheme } from "./hooks/useTheme";
 import { useTaskReminders } from "./hooks/useTaskReminders";
 import AppShell from "./components/Layout/AppShell";
@@ -9,10 +10,11 @@ import Today from "./pages/Today/Today";
 import Tasks from "./pages/Tasks/Tasks";
 import CalendarPage from "./pages/Calendar/CalendarPage";
 import WeeklyProgress from "./pages/WeeklyProgress/WeeklyProgress";
+import RoutinesPage from "./pages/Routines/RoutinesPage";
+import Insights from "./pages/Insights/Insights";
 import Important from "./pages/Important/Important";
 import HighPriority from "./pages/HighPriority/HighPriority";
 import Categories from "./pages/Categories/Categories";
-import Insights from "./pages/Insights/Insights";
 import Settings from "./pages/Settings/Settings";
 
 function Shell() {
@@ -28,6 +30,7 @@ function Shell() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="weekly" element={<WeeklyProgress />} />
+        <Route path="routines" element={<RoutinesPage />} />
         <Route path="insights" element={<Insights />} />
         <Route path="important" element={<Important />} />
         <Route path="high-priority" element={<HighPriority />} />
@@ -44,9 +47,12 @@ export default function App() {
     <BrowserRouter>
       <TasksProvider>
         <CountdownGoalsProvider>
-          <Shell />
+          <RoutinesProvider>
+            <Shell />
+          </RoutinesProvider>
         </CountdownGoalsProvider>
       </TasksProvider>
     </BrowserRouter>
   );
 }
+

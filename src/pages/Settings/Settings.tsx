@@ -2,8 +2,9 @@ import { useRef, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
-import type { AppData, ThemePreference } from "../../types";
-import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION } from "../../types";
+import { useRoutines } from "../../hooks/useRoutines";
+import type { AppData, CountdownGoalsData, RoutinesData, ThemePreference } from "../../types";
+import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION, CURRENT_ROUTINES_VERSION } from "../../types";
 import { exportBackup, parseImportFile, getStorageUsageKb } from "../../utils/storageUtils";
 import {
   getNotificationPermission,
@@ -25,18 +26,25 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a valid Daily Check backup.";
 
+interface PendingImportState {
+  data: AppData;
+  countdownGoals?: CountdownGoalsData;
+  routines?: RoutinesData;
+}
+
 export default function Settings() {
   const { appData, setTheme, replaceAllData } = useTasks();
-  const { goals } = useCountdownGoals();
+  const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
+  const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pendingImport, setPendingImport] = useState<AppData | null>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [, setNotifStateVersion] = useState(0);
 
-  const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals]);
+  const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals, routines]);
 
   const isSupported = isNotificationSupported();
   const notifPermission = getNotificationPermission();
@@ -61,7 +69,7 @@ export default function Settings() {
   }
 
   function handleExport() {
-    exportBackup(appData);
+    exportBackup(appData, goalsData, routinesData);
     showToast("Backup downloaded.");
   }
 
@@ -74,7 +82,11 @@ export default function Settings() {
         showToast(result.error || IMPORT_ERROR);
         return;
       }
-      setPendingImport(result.data);
+      setPendingImport({
+        data: result.data,
+        countdownGoals: result.countdownGoals,
+        routines: result.routines
+      });
     };
     reader.onerror = () => showToast(IMPORT_ERROR);
     reader.readAsText(file);
@@ -82,7 +94,13 @@ export default function Settings() {
 
   function confirmImport() {
     if (!pendingImport) return;
-    replaceAllData(pendingImport);
+    replaceAllData(pendingImport.data);
+    if (pendingImport.countdownGoals) {
+      replaceAllGoals(pendingImport.countdownGoals);
+    }
+    if (pendingImport.routines) {
+      replaceAllRoutines(pendingImport.routines);
+    }
     setPendingImport(null);
     showToast("Data imported successfully.");
   }
@@ -314,6 +332,10 @@ export default function Settings() {
           <div className="about-row">
             <span className="about-label">Countdown Goals Schema:</span>
             <span className="about-val">v{CURRENT_COUNTDOWN_VERSION}</span>
+          </div>
+          <div className="about-row">
+            <span className="about-label">Daily Routines Schema:</span>
+            <span className="about-val">v{CURRENT_ROUTINES_VERSION}</span>
           </div>
         </div>
       </div>

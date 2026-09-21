@@ -5,6 +5,9 @@ import { dayStats } from "../../utils/progressUtils";
 import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
 import CountdownCard from "../../components/CountdownGoal/CountdownCard";
+import TodayRoutinesBar from "../../components/Routines/TodayRoutinesBar";
+import TodayFocusSection from "../../components/Focus/TodayFocusSection";
+import FocusSelectorModal from "../../components/Focus/FocusSelectorModal";
 import QuickAddTask from "../../components/QuickAddTask/QuickAddTask";
 import TaskList from "../../components/TaskList/TaskList";
 import EmptyState from "../../components/EmptyState/EmptyState";
@@ -12,17 +15,41 @@ import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
 
 export default function Today() {
-  const { getDay, addTask, toggleTask, saveEdit, deleteTask, moveTask, clearCompleted } = useTasks();
+  const {
+    getDay,
+    addTask,
+    toggleTask,
+    toggleFocus,
+    setFocusTasks,
+    saveEdit,
+    deleteTask,
+    moveTask,
+    clearCompleted
+  } = useTasks();
 
   const [viewDate, setViewDate] = useState(todayStr());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [focusSelectorOpen, setFocusSelectorOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const isToday = viewDate === todayStr();
   const day = getDay(viewDate);
   const stats = dayStats(day);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3200);
+  }
+
+  function handleToggleFocus(taskId: string) {
+    const res = toggleFocus(viewDate, taskId);
+    if (!res.ok && res.reason) {
+      showToast(res.reason);
+    }
+  }
 
   return (
     <div className="page today-page">
@@ -59,6 +86,15 @@ export default function Today() {
       {/* 4 & 5. Primary Countdown Goal + Secondary Countdown Goals */}
       <CountdownCard />
 
+      {/* Today's Focus Section */}
+      <TodayFocusSection
+        dateStr={viewDate}
+        tasks={day.tasks}
+        onToggleTask={(id) => toggleTask(viewDate, id)}
+        onToggleFocus={handleToggleFocus}
+        onOpenSelector={() => setFocusSelectorOpen(true)}
+      />
+
       {/* 6. Quick Add */}
       <div className="quick-add-section">
         <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
@@ -70,6 +106,9 @@ export default function Today() {
           + Add with priority, category &amp; notes
         </button>
       </div>
+
+      {/* Routines Quick Bar */}
+      <TodayRoutinesBar viewDate={viewDate} onToast={showToast} />
 
       {/* 7. Today's Checklist */}
       <div className="checklist-section">
@@ -93,6 +132,7 @@ export default function Today() {
               editingId={editingId}
               dateStr={viewDate}
               onToggle={(id) => toggleTask(viewDate, id)}
+              onToggleFocus={handleToggleFocus}
               onStartEdit={(id) => setEditingId(id)}
               onCancelEdit={() => setEditingId(null)}
               onSave={(id, updates) => {
@@ -109,6 +149,27 @@ export default function Today() {
           </>
         )}
       </div>
+
+      {focusSelectorOpen ? (
+        <FocusSelectorModal
+          dateStr={viewDate}
+          tasks={day.tasks}
+          initialFocusIds={day.tasks.filter((t) => t.focusDate === viewDate).map((t) => t.id)}
+          onSave={(selectedIds) => {
+            const res = setFocusTasks(viewDate, selectedIds);
+            if (!res.ok && res.reason) {
+              showToast(res.reason);
+            } else {
+              showToast(
+                selectedIds.length === 0
+                  ? "Focus tasks cleared."
+                  : `Focus updated (${selectedIds.length}/3).`
+              );
+            }
+          }}
+          onClose={() => setFocusSelectorOpen(false)}
+        />
+      ) : null}
 
       {confirmDeleteTask ? (
         <ConfirmModal
@@ -145,6 +206,12 @@ export default function Today() {
           }}
           onCancel={() => setAdvancedOpen(false)}
         />
+      ) : null}
+
+      {toast ? (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       ) : null}
     </div>
   );

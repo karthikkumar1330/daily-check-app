@@ -42,6 +42,13 @@ export interface Task {
   dueTime?: string | null;
   /** Optional reminder minutes relative to due time */
   reminderMinutes?: ReminderMinutes | null;
+  /** Optional origin tracking if created from a Routine template */
+  routineId?: string | null;
+  routineTaskId?: string | null;
+  /** Focus date "YYYY-MM-DD" e.g. "2026-09-21" */
+  focusDate?: string | null;
+  /** Per-date focus tracking for recurring tasks: date (YYYY-MM-DD) -> timestamp */
+  focusDates?: Record<string, number>;
 }
 
 export interface DayData {
@@ -75,6 +82,34 @@ export interface AppData {
 }
 
 export const CURRENT_DATA_VERSION = 1;
+
+/* ---------------- Daily Templates / Routines (stored separately from tasks) ---------------- */
+
+export interface RoutineTask {
+  id: string;
+  title: string;
+  priority: Priority;
+  category: CategoryId;
+  notes: string;
+  dueTime?: string | null;
+  reminderMinutes?: ReminderMinutes | null;
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  icon: string;
+  tasks: RoutineTask[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RoutinesData {
+  version: number;
+  routines: Record<string, Routine>;
+}
+
+export const CURRENT_ROUTINES_VERSION = 1;
 
 /* ---------------- Countdown Goals (calendar-day based, stored separately from tasks) ---------------- */
 

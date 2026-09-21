@@ -159,10 +159,12 @@ export function resolveDayData(
     if (isTaskScheduledOnDate(rt.recurrence, dateStr)) {
       const isCompleted = Boolean(rt.completedDates?.[dateStr]);
       const completedAt = isCompleted ? (rt.completedDates?.[dateStr] ?? Date.now()) : null;
+      const isFocus = Boolean(rt.focusDates?.[dateStr]) || rt.focusDate === dateStr;
       recurringOccurrences.push({
         ...rt,
         completed: isCompleted,
-        completedAt
+        completedAt,
+        focusDate: isFocus ? dateStr : null
       });
     }
   }

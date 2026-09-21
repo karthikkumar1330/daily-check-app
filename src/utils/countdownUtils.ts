@@ -1,5 +1,7 @@
-import type { CountdownGoal } from "../types";
-import { daysBetweenCalendar } from "./dateUtils";
+import type { CountdownGoal, DayData, Task } from "../types";
+import { daysBetweenCalendar, isValidDateStr } from "./dateUtils";
+import { dayStats } from "./progressUtils";
+import { resolveDayData } from "./recurrenceUtils";
 
 export type CountdownPhase = "upcoming" | "active" | "complete";
 
@@ -22,6 +24,15 @@ export interface CountdownStatus {
   dayNumber: number;
   /** 0-100, how far through the challenge "today" is (day 1 of N -> ~1/N). */
   progressPct: number;
+}
+
+export interface GoalExecutionStats {
+  /** Count of days within the elapsed challenge span that had at least one task */
+  activeDays: number;
+  /** Count of active days reaching >= 80% completion */
+  successfulDays: number;
+  /** (successfulDays / activeDays) * 100, or null if activeDays === 0 */
+  successfulPct: number | null;
 }
 
 /**
@@ -69,6 +80,70 @@ export function computeCountdownStatus(goal: CountdownGoal, today: string): Coun
   return { phase: "active", daysUntilStart: 0, daysLeft, elapsedDays, totalDays, dayNumber, progressPct };
 }
 
+/**
+ * Calculates daily execution metrics for a Countdown Goal.
+ * Considers all days from the goal's startDate up to min(today, targetDate).
+ * Zero-task days:
+ * - do not count as active or successful
+ * - do not count as failed
+ */
+export function computeGoalExecutionStats(
+  goal: CountdownGoal,
+  days: Record<string, DayData>,
+  recurringTasks: Task[] = [],
+  referenceDate: string
+): GoalExecutionStats {
+  if (!isValidDateStr(goal.startDate) || !isValidDateStr(goal.targetDate)) {
+    return { activeDays: 0, successfulDays: 0, successfulPct: null };
+  }
+
+  if (referenceDate < goal.startDate) {
+    return { activeDays: 0, successfulDays: 0, successfulPct: null };
+  }
+
+  const endEvalDate = referenceDate > goal.targetDate ? goal.targetDate : referenceDate;
+
+  let activeDays = 0;
+  let successfulDays = 0;
+
+  // Iterate day-by-day from startDate to endEvalDate
+  let cursor = goal.startDate;
+  let guard = 0;
+
+  while (cursor <= endEvalDate && guard < 5000) {
+    const day = recurringTasks.length > 0
+      ? resolveDayData(cursor, days[cursor], recurringTasks)
+      : days[cursor];
+    const st = dayStats(day);
+
+    if (st.total > 0 && st.pct !== null) {
+      activeDays++;
+      if (st.pct >= 80) {
+        successfulDays++;
+      }
+    }
+
+    // Increment cursor by 1 calendar day
+    const [y, m, d] = cursor.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + 1);
+    const ny = dateObj.getFullYear();
+    const nm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const nd = String(dateObj.getDate()).padStart(2, "0");
+    cursor = `${ny}-${nm}-${nd}`;
+    guard++;
+  }
+
+  const successfulPct = activeDays > 0 ? Math.round((successfulDays / activeDays) * 100) : null;
+
+  return {
+    activeDays,
+    successfulDays,
+    successfulPct
+  };
+}
+
 export function isValidGoalDateRange(startDate: string, targetDate: string): boolean {
   return targetDate >= startDate;
 }
+

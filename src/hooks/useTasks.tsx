@@ -19,7 +19,23 @@ interface TasksContextValue {
     reminderMinutes?: ReminderMinutes | null,
     dueDate?: string | null
   ) => void;
+  addTasks: (
+    date: string,
+    tasksToAdd: Array<{
+      title: string;
+      priority?: Priority;
+      category?: CategoryId;
+      notes?: string;
+      dueTime?: string | null;
+      reminderMinutes?: ReminderMinutes | null;
+      dueDate?: string | null;
+      routineId?: string | null;
+      routineTaskId?: string | null;
+    }>
+  ) => void;
   toggleTask: (date: string, id: string) => void;
+  toggleFocus: (date: string, id: string) => { ok: boolean; reason?: string };
+  setFocusTasks: (date: string, taskIds: string[]) => { ok: boolean; reason?: string };
   saveEdit: (date: string, id: string, updates: Partial<Task>) => void;
   deleteTask: (date: string, id: string) => void;
   moveTask: (date: string, id: string, direction: "up" | "down") => void;
@@ -86,6 +102,44 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  function addTasks(
+    date: string,
+    tasksToAdd: Array<{
+      title: string;
+      priority?: Priority;
+      category?: CategoryId;
+      notes?: string;
+      dueTime?: string | null;
+      reminderMinutes?: ReminderMinutes | null;
+      dueDate?: string | null;
+      routineId?: string | null;
+      routineTaskId?: string | null;
+    }>
+  ) {
+    if (!tasksToAdd || tasksToAdd.length === 0) return;
+    updateDay(date, (day) => {
+      const baseOrder = day.tasks.length > 0 ? Math.max(...day.tasks.map((t) => t.order)) + 100 : Date.now();
+      const valid = tasksToAdd.filter((item) => item.title && item.title.trim());
+      const created = valid.map((item, idx) => {
+        const task = newTask(
+          item.title.trim(),
+          item.priority ?? 2,
+          item.category ?? "",
+          null,
+          item.dueTime ?? null,
+          item.reminderMinutes ?? null,
+          item.dueDate ?? null,
+          item.routineId ?? null,
+          item.routineTaskId ?? null
+        );
+        if (item.notes && item.notes.trim()) task.notes = item.notes.trim();
+        task.order = baseOrder + idx * 10;
+        return task;
+      });
+      return { ...day, tasks: [...day.tasks, ...created], updatedAt: Date.now() };
+    });
+  }
+
   function toggleTask(date: string, id: string) {
     const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
     if (isRecurring) {
@@ -113,6 +167,111 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       ),
       updatedAt: Date.now()
     }));
+  }
+
+  function toggleFocus(date: string, id: string): { ok: boolean; reason?: string } {
+    const day = getDay(date);
+    const target = day.tasks.find((t) => t.id === id);
+    if (!target) return { ok: false, reason: "Task not found." };
+
+    const isCurrentlyFocused = target.focusDate === date;
+
+    if (isCurrentlyFocused) {
+      const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+      if (isRecurring) {
+        setAppData((prev) => ({
+          ...prev,
+          recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+            if (t.id !== id) return t;
+            const nextFocusDates = { ...(t.focusDates ?? {}) };
+            delete nextFocusDates[date];
+            return {
+              ...t,
+              focusDates: nextFocusDates,
+              focusDate: t.focusDate === date ? null : t.focusDate
+            };
+          })
+        }));
+      } else {
+        updateDay(date, (d) => ({
+          ...d,
+          tasks: d.tasks.map((t) => (t.id === id ? { ...t, focusDate: null } : t)),
+          updatedAt: Date.now()
+        }));
+      }
+      return { ok: true };
+    }
+
+    const currentFocusCount = day.tasks.filter((t) => t.focusDate === date).length;
+    if (currentFocusCount >= 3) {
+      return { ok: false, reason: "You can choose up to 3 focus tasks per day." };
+    }
+
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+    if (isRecurring) {
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+          if (t.id !== id) return t;
+          return {
+            ...t,
+            focusDates: { ...(t.focusDates ?? {}), [date]: Date.now() }
+          };
+        })
+      }));
+    } else {
+      updateDay(date, (d) => ({
+        ...d,
+        tasks: d.tasks.map((t) => (t.id === id ? { ...t, focusDate: date } : t)),
+        updatedAt: Date.now()
+      }));
+    }
+
+    return { ok: true };
+  }
+
+  function setFocusTasks(date: string, taskIds: string[]): { ok: boolean; reason?: string } {
+    if (taskIds.length > 3) {
+      return { ok: false, reason: "You can choose up to 3 focus tasks per day." };
+    }
+
+    const focusIdSet = new Set(taskIds);
+
+    setAppData((prev) => {
+      const updatedRecurring = (prev.recurringTasks ?? []).map((rt) => {
+        const nextFocusDates = { ...(rt.focusDates ?? {}) };
+        if (focusIdSet.has(rt.id)) {
+          nextFocusDates[date] = Date.now();
+        } else {
+          delete nextFocusDates[date];
+        }
+        return {
+          ...rt,
+          focusDates: nextFocusDates,
+          focusDate: rt.focusDate === date ? (focusIdSet.has(rt.id) ? date : null) : rt.focusDate
+        };
+      });
+
+      const day = prev.days[date] ?? newDay(date);
+      const updatedDayTasks = day.tasks.map((t) => {
+        if (t.recurrence) return t;
+        return {
+          ...t,
+          focusDate: focusIdSet.has(t.id) ? date : null
+        };
+      });
+
+      return {
+        ...prev,
+        recurringTasks: updatedRecurring,
+        days: {
+          ...prev.days,
+          [date]: { ...day, tasks: updatedDayTasks, updatedAt: Date.now() }
+        }
+      };
+    });
+
+    return { ok: true };
   }
 
   function saveEdit(date: string, id: string, updates: Partial<Task>) {
@@ -309,7 +468,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     appData,
     getDay,
     addTask,
+    addTasks,
     toggleTask,
+    toggleFocus,
+    setFocusTasks,
     saveEdit,
     deleteTask,
     moveTask,

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import MetricCard from "../../components/Insights/MetricCard";
 import BreakdownBar from "../../components/Insights/BreakdownBar";
+import TrendChart from "../../components/Insights/TrendChart";
 import { useTasks } from "../../hooks/useTasks";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
 import {
@@ -19,8 +20,9 @@ import {
 const PRESETS: { key: DateRangePreset; label: string }[] = [
   { key: "current_week", label: "This Week" },
   { key: "previous_week", label: "Last Week" },
-  { key: "last_7_days", label: "Last 7 Days" },
-  { key: "last_30_days", label: "Last 30 Days" },
+  { key: "last_7_days", label: "7 Days" },
+  { key: "last_30_days", label: "30 Days" },
+  { key: "last_90_days", label: "90 Days" },
   { key: "current_month", label: "This Month" }
 ];
 
@@ -72,7 +74,7 @@ export default function Insights() {
     [periodMetrics.dailyMetrics]
   );
 
-  const goalMetrics = useMemo(() => calculateGoalMetrics(goals), [goals]);
+  const goalMetrics = useMemo(() => calculateGoalMetrics(goals, undefined, appData), [goals, appData]);
 
   // Deterministic insights
   const insights = useMemo(
@@ -163,7 +165,7 @@ export default function Insights() {
       </section>
 
       {/* Key Metrics Grid */}
-      <section aria-label="Key Productivity Metrics" style={{ marginBottom: 24 }}>
+      <section aria-label="Key Productivity Metrics" style={{ marginBottom: 20 }}>
         <h2
           style={{
             fontSize: 14,
@@ -226,6 +228,11 @@ export default function Insights() {
             icon="⭐"
           />
         </div>
+      </section>
+
+      {/* Completion Trend Chart */}
+      <section aria-label="Completion Trend" style={{ marginBottom: 24 }}>
+        <TrendChart dailyMetrics={periodMetrics.dailyMetrics} height={140} />
       </section>
 
       {/* Performance & Comparison Section */}
@@ -724,6 +731,23 @@ export default function Insights() {
                       }}
                     />
                   </div>
+
+                  {g.executionStats && g.executionStats.activeDays > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: 11,
+                        color: "var(--ink-muted)",
+                        marginTop: 2
+                      }}
+                    >
+                      <span>Execution</span>
+                      <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                        {g.executionStats.successfulDays} / {g.executionStats.activeDays} successful days ({g.executionStats.successfulPct}%)
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

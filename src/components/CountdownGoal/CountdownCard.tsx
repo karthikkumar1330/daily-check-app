@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useTasks } from "../../hooks/useTasks";
 import { useTodayDate } from "../../hooks/useTodayDate";
-import { computeCountdownStatus } from "../../utils/countdownUtils";
+import { computeCountdownStatus, computeGoalExecutionStats } from "../../utils/countdownUtils";
 import { formatDateMedium } from "../../utils/dateUtils";
 import GoalsManagerModal from "./GoalsManagerModal";
 import GoalFormModal from "./GoalFormModal";
@@ -9,6 +10,7 @@ import SecondaryGoalsRail from "./SecondaryGoalsRail";
 
 export default function CountdownCard() {
   const { primaryGoal, goals, setPrimaryGoal, createGoal } = useCountdownGoals();
+  const { appData } = useTasks();
   const today = useTodayDate();
   const [managerOpen, setManagerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -47,6 +49,7 @@ export default function CountdownCard() {
   // Fallback: if primaryGoalId was unset or invalid, default to the first goal
   const activeGoal = primaryGoal || goals[0];
   const status = computeCountdownStatus(activeGoal, today);
+  const execStats = computeGoalExecutionStats(activeGoal, appData.days, appData.recurringTasks, today);
   const dateRange = `${formatDateMedium(activeGoal.startDate)} \u2192 ${formatDateMedium(activeGoal.targetDate)}`;
 
   let bigNumber: string;
@@ -120,8 +123,58 @@ export default function CountdownCard() {
         ) : null}
 
         <div className="countdown-meta">{metaInfo}</div>
-      </div>
 
+        {/* Goal ↔ Daily Execution Connection */}
+        <div
+          className="countdown-execution"
+          style={{
+            marginTop: 12,
+            paddingTop: 10,
+            borderTop: "1px solid var(--border)"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: 12,
+              marginBottom: 4
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                color: "var(--ink-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em"
+              }}
+            >
+              Execution
+            </span>
+            <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+              {execStats.activeDays > 0
+                ? `${execStats.successfulDays} / ${execStats.activeDays} successful days (${execStats.successfulPct}%)`
+                : "No active days"}
+            </span>
+          </div>
+          {execStats.activeDays > 0 ? (
+            <div
+              className="bar-track"
+              style={{ height: 5, background: "var(--surface-2)" }}
+              aria-hidden="true"
+            >
+              <div
+                className="bar-fill"
+                style={{
+                  width: `${execStats.successfulPct ?? 0}%`,
+                  background: "var(--accent, #0d9488)"
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       {/* Secondary Goals Rail when other goals exist or affordance to add */}
       <SecondaryGoalsRail

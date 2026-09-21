@@ -20,6 +20,7 @@ import {
   todayStr,
   weekdayFull
 } from "./dateUtils";
+import { computeGoalExecutionStats, type GoalExecutionStats } from "./countdownUtils";
 import { dayStats } from "./progressUtils";
 import { isTaskScheduledOnDate, resolveDayData } from "./recurrenceUtils";
 import { computeStreaks } from "./streakUtils";
@@ -33,6 +34,7 @@ export type DateRangePreset =
   | "previous_week"
   | "last_7_days"
   | "last_30_days"
+  | "last_90_days"
   | "current_month"
   | "previous_month";
 
@@ -147,6 +149,7 @@ export interface GoalInsight {
   daysTotal: number;
   daysRemaining: number;
   progressPct: number;
+  executionStats?: GoalExecutionStats;
 }
 
 export type InsightType =
@@ -235,6 +238,17 @@ export function getDateRangePreset(preset: DateRangePreset, anchorDate = todaySt
         endDate: anchorDate,
         dates,
         label: "Last 30 Days"
+      };
+    }
+    case "last_90_days": {
+      const start = addDays(anchorDate, -89);
+      const dates = getDateRange(start, anchorDate);
+      return {
+        preset,
+        startDate: start,
+        endDate: anchorDate,
+        dates,
+        label: "Last 90 Days"
       };
     }
     case "current_month": {
@@ -668,12 +682,13 @@ export function calculatePriorityMetrics(
    ========================================================================== */
 
 /**
- * Reads Countdown Goals and derives progress and timeline status safely.
+ * Reads Countdown Goals and derives progress, timeline status, and execution stats safely.
  * Never mutates input or persistence.
  */
 export function calculateGoalMetrics(
   goalsInput: CountdownGoal[] | CountdownGoalsData | null | undefined,
-  referenceDate = todayStr()
+  referenceDate = todayStr(),
+  appData?: AppData
 ): GoalInsight[] {
   if (!goalsInput) return [];
 
@@ -708,6 +723,10 @@ export function calculateGoalMetrics(
       progressPct = Math.min(100, Math.max(0, Math.round((daysElapsed / daysTotal) * 100)));
     }
 
+    const executionStats = appData
+      ? computeGoalExecutionStats(g, appData.days, appData.recurringTasks, referenceDate)
+      : undefined;
+
     results.push({
       id: g.id,
       title: g.title,
@@ -717,7 +736,8 @@ export function calculateGoalMetrics(
       status,
       daysTotal,
       daysRemaining,
-      progressPct
+      progressPct,
+      executionStats
     });
   }
 

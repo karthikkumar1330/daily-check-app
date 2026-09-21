@@ -17,11 +17,13 @@ export interface NewGoalInput {
 
 interface CountdownGoalsContextValue {
   goals: CountdownGoal[];
+  goalsData: CountdownGoalsData;
   primaryGoal: CountdownGoal | null;
   createGoal: (input: NewGoalInput) => { ok: boolean; error?: string };
   updateGoal: (id: string, input: NewGoalInput) => { ok: boolean; error?: string };
   deleteGoal: (id: string) => void;
   setPrimaryGoal: (id: string | null) => void;
+  replaceAllGoals: (data: CountdownGoalsData) => void;
 }
 
 const CountdownGoalsContext = createContext<CountdownGoalsContextValue | null>(null);
@@ -111,8 +113,23 @@ export function CountdownGoalsProvider({ children }: { children: ReactNode }) {
     setData((prev) => ({ ...prev, primaryGoalId: id }));
   }
 
+  function replaceAllGoals(newData: CountdownGoalsData) {
+    setData(newData);
+  }
+
   return (
-    <CountdownGoalsContext.Provider value={{ goals, primaryGoal, createGoal, updateGoal, deleteGoal, setPrimaryGoal }}>
+    <CountdownGoalsContext.Provider
+      value={{
+        goals,
+        goalsData: data,
+        primaryGoal,
+        createGoal,
+        updateGoal,
+        deleteGoal,
+        setPrimaryGoal,
+        replaceAllGoals
+      }}
+    >
       {children}
     </CountdownGoalsContext.Provider>
   );

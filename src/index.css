@@ -1902,10 +1902,30 @@ textarea:focus-visible,
   background: var(--accent);
   color: var(--accent-ink);
 }
+.calendar-cell.in-goal {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+.calendar-dot-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 4px;
+}
 .calendar-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
+}
+.calendar-focus-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ink-muted);
+  transform: rotate(45deg);
+}
+.calendar-cell.selected .calendar-focus-dot {
+  background: var(--accent-ink);
 }
 .calendar-dot-neutral {
   background: var(--ink-faint);

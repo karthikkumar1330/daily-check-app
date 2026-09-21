@@ -4,7 +4,7 @@ import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
-import { CheckIcon, DownIcon, EditIcon, MoreIcon, TrashIcon, UpIcon } from "../icons";
+import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, TrashIcon, UpIcon } from "../icons";
 
 interface TaskItemProps {
   task: Task;
@@ -18,6 +18,7 @@ interface TaskItemProps {
   /** Hide the reorder controls — irrelevant in cross-day lists. */
   hideReorder?: boolean;
   onToggle: () => void;
+  onToggleFocus?: () => void;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: (updates: Partial<Task>) => void;
@@ -35,6 +36,7 @@ export default function TaskItem({
   dateLabel,
   hideReorder,
   onToggle,
+  onToggleFocus,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -65,6 +67,7 @@ export default function TaskItem({
     return <EditForm task={task} onCancel={onCancelEdit} onSave={onSave} />;
   }
 
+  const isFocused = Boolean(dateStr && task.focusDate === dateStr);
   const cat = categoryMeta(task.category);
   const recurrenceLabel = formatRecurrenceLabel(task.recurrence);
   const timeFormatted = formatTimeDisplay(task.dueTime);
@@ -84,6 +87,29 @@ export default function TaskItem({
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
+
+          {/* Focus Badge */}
+          {isFocused ? (
+            <span
+              className="task-focus-badge"
+              title="Today's Focus task"
+              aria-label="Today's Focus task"
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "var(--accent-soft, rgba(16, 185, 129, 0.15))",
+                color: "var(--accent, #10b981)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3
+              }}
+            >
+              <span>🎯</span>
+              <span>Focus</span>
+            </span>
+          ) : null}
 
           {/* Time & Due Status Badges */}
           {timeFormatted ? (
@@ -139,7 +165,34 @@ export default function TaskItem({
         </div>
         {task.notes ? <div className="task-notes">{task.notes}</div> : null}
       </div>
-      <div className="task-actions" ref={menuRef} style={{ position: "relative" }}>
+      <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
+        {onToggleFocus ? (
+          <button
+            type="button"
+            className={"task-focus-toggle-btn" + (isFocused ? " is-focused" : "")}
+            onClick={onToggleFocus}
+            aria-label={isFocused ? `Remove "${task.title}" from today's focus` : `Mark "${task.title}" as today's focus`}
+            aria-pressed={isFocused}
+            title={isFocused ? "Focused task (click to remove)" : "Mark as today's focus"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "4px 8px",
+              borderRadius: 6,
+              border: isFocused ? "1px solid var(--accent, #10b981)" : "1px solid var(--border)",
+              background: isFocused ? "var(--accent-soft, rgba(16, 185, 129, 0.1))" : "transparent",
+              color: isFocused ? "var(--accent, #10b981)" : "var(--ink-muted)",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              minHeight: 36
+            }}
+          >
+            <span aria-hidden="true">{isFocused ? "🎯" : "☆"}</span>
+            <span>{isFocused ? "Focused" : "Focus"}</span>
+          </button>
+        ) : null}
         <button
           className="icon-btn task-more-btn"
           onClick={() => setMenuOpen((v) => !v)}
@@ -151,6 +204,17 @@ export default function TaskItem({
         </button>
         {menuOpen ? (
           <div className="task-menu" role="menu">
+            {onToggleFocus ? (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onToggleFocus();
+                }}
+              >
+                <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
+              </button>
+            ) : null}
             <button
               role="menuitem"
               onClick={() => {

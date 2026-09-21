@@ -6,6 +6,7 @@ import {
   HomeIcon,
   InsightsIcon,
   PriorityIcon,
+  RoutinesIcon,
   SettingsIcon,
   StarIcon,
   TasksIcon
@@ -35,6 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     heading: "PRODUCTIVITY",
     items: [
+      { to: "/routines", label: "Routines", icon: RoutinesIcon },
       { to: "/insights", label: "Insights", icon: InsightsIcon },
       { to: "/important", label: "Important", icon: StarIcon },
       { to: "/high-priority", label: "High Priority", icon: PriorityIcon },

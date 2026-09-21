@@ -1,4 +1,4 @@
-import type { DayData, Task } from "../../types";
+import type { CountdownGoal, DayData, Task } from "../../types";
 import { getMonthGrid, monthLabel, todayStr } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
 import { resolveDayData } from "../../utils/recurrenceUtils";
@@ -8,6 +8,7 @@ interface CalendarProps {
   selectedDate: string;
   days: Record<string, DayData>;
   recurringTasks?: Task[];
+  goals?: CountdownGoal[];
   onSelectDate: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -21,6 +22,7 @@ export default function Calendar({
   selectedDate,
   days,
   recurringTasks,
+  goals = [],
   onSelectDate,
   onPrevMonth,
   onNextMonth,
@@ -64,11 +66,19 @@ export default function Calendar({
           const isSelected = cell.date === selectedDate;
           const dayNum = Number(cell.date.slice(-2));
 
+          // Check if any active countdown goal spans this date
+          const inGoalPeriod = goals.some((g) => cell.date >= g.startDate && cell.date <= g.targetDate);
+
+          // Check if date has any focus tasks assigned
+          const hasFocusTasks = (day?.tasks ?? []).some(
+            (t) => t.focusDate === cell.date || (t.focusDates && Boolean(t.focusDates[cell.date]))
+          );
+
           // Subtle status dot: none for zero-task days, otherwise colored by
-          // completion — never a heatmap, just one small indicator.
+          // completion (>=80% = success, >0% = partial, 0% = neutral)
           let dotClass = "";
           if (st.total > 0 && st.pct !== null) {
-            if (st.pct === 100) dotClass = "calendar-dot-complete";
+            if (st.pct >= 80) dotClass = "calendar-dot-complete";
             else if (st.pct > 0) dotClass = "calendar-dot-partial";
             else dotClass = "calendar-dot-neutral";
           }
@@ -80,16 +90,23 @@ export default function Calendar({
                 "calendar-cell" +
                 (cell.inMonth ? "" : " outside") +
                 (isToday ? " today" : "") +
-                (isSelected ? " selected" : "")
+                (isSelected ? " selected" : "") +
+                (inGoalPeriod && cell.inMonth ? " in-goal" : "")
               }
               onClick={() => onSelectDate(cell.date)}
               aria-label={
-                cell.date + (st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks")
+                cell.date +
+                (st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks") +
+                (hasFocusTasks ? ", has focus tasks" : "") +
+                (inGoalPeriod ? ", in goal window" : "")
               }
               aria-pressed={isSelected}
             >
               <span>{dayNum}</span>
-              {dotClass ? <span className={"calendar-dot " + dotClass} aria-hidden="true" /> : null}
+              <span className="calendar-dot-indicators" aria-hidden="true">
+                {dotClass ? <span className={"calendar-dot " + dotClass} /> : null}
+                {hasFocusTasks ? <span className="calendar-focus-dot" /> : null}
+              </span>
             </button>
           );
         })}

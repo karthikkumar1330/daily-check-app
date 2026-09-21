@@ -7,6 +7,7 @@ interface TaskListProps {
   editingId: string | null;
   dateStr?: string;
   onToggle: (id: string) => void;
+  onToggleFocus?: (id: string) => void;
   onStartEdit: (id: string) => void;
   onCancelEdit: () => void;
   onSave: (id: string, updates: Partial<Task>) => void;
@@ -19,6 +20,7 @@ export default function TaskList({
   editingId,
   dateStr,
   onToggle,
+  onToggleFocus,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -40,6 +42,7 @@ export default function TaskList({
           isEditing={editingId === t.id}
           dateStr={dateStr}
           onToggle={() => onToggle(t.id)}
+          onToggleFocus={onToggleFocus ? () => onToggleFocus(t.id) : undefined}
           onStartEdit={() => onStartEdit(t.id)}
           onCancelEdit={onCancelEdit}
           onSave={(updates) => onSave(t.id, updates)}

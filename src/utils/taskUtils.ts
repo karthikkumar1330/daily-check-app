@@ -14,7 +14,9 @@ export function newTask(
   recurrence: TaskRecurrence | null = null,
   dueTime: string | null = null,
   reminderMinutes: ReminderMinutes | null = null,
-  dueDate: string | null = null
+  dueDate: string | null = null,
+  routineId: string | null = null,
+  routineTaskId: string | null = null
 ): Task {
   const now = Date.now();
   return {
@@ -31,7 +33,11 @@ export function newTask(
     completedDates: {},
     dueDate: dueDate ?? null,
     dueTime: dueTime ?? null,
-    reminderMinutes: dueTime ? (reminderMinutes ?? null) : null
+    reminderMinutes: dueTime ? (reminderMinutes ?? null) : null,
+    routineId: routineId ?? null,
+    routineTaskId: routineTaskId ?? null,
+    focusDate: null,
+    focusDates: {}
   };
 }
 
