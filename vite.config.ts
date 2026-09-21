@@ -52,9 +52,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true
       },
       devOptions: {
-        // Lets you test install/offline behavior with `npm run dev` too.
-        enabled: true,
-        type: "module"
+        enabled: false
       }
     })
   ],

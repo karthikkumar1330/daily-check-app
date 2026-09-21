@@ -119,11 +119,33 @@ export interface CategoryCount {
   completed: number;
 }
 
-/** Active/completed task counts per category, across all stored days. */
-export function categoryStats(days: Record<string, DayData>, recurringTasks: Task[] = []): CategoryCount[] {
-  const all = allTasksWithDates(days, recurringTasks);
+/** Active/completed task counts per category for a list of resolved tasks (e.g. from getDay(date).tasks) or all stored days. */
+export function categoryStats(
+  tasksOrDays: Task[] | Record<string, DayData>,
+  recurringTasks: Task[] = []
+): CategoryCount[] {
+  if (Array.isArray(tasksOrDays)) {
+    return CATEGORIES.filter((c) => c.id !== "").map((c) => {
+      const inCat = tasksOrDays.filter((t) => {
+        const taskCat = !t.category ? "other" : t.category;
+        return taskCat === c.id;
+      });
+      return {
+        id: c.id,
+        label: c.label,
+        emoji: c.emoji,
+        active: inCat.filter((t) => !t.completed).length,
+        completed: inCat.filter((t) => t.completed).length
+      };
+    });
+  }
+
+  const all = allTasksWithDates(tasksOrDays, recurringTasks);
   return CATEGORIES.filter((c) => c.id !== "").map((c) => {
-    const inCat = all.filter((dt) => dt.task.category === c.id);
+    const inCat = all.filter((dt) => {
+      const taskCat = !dt.task.category ? "other" : dt.task.category;
+      return taskCat === c.id;
+    });
     return {
       id: c.id,
       label: c.label,
@@ -134,10 +156,28 @@ export function categoryStats(days: Record<string, DayData>, recurringTasks: Tas
   });
 }
 
-/** Tasks in a given category, most recent day first. */
-export function tasksInCategory(days: Record<string, DayData>, category: CategoryId, recurringTasks: Task[] = []): DatedTask[] {
-  return allTasksWithDates(days, recurringTasks)
-    .filter((dt) => dt.task.category === category)
+/** Tasks in a given category. */
+export function tasksInCategory(
+  tasksOrDays: Task[] | Record<string, DayData>,
+  category: CategoryId,
+  recurringTasks: Task[] = [],
+  dateStr?: string
+): DatedTask[] {
+  if (Array.isArray(tasksOrDays)) {
+    const fallbackDate = dateStr ?? todayStr();
+    return tasksOrDays
+      .filter((t) => {
+        const taskCat = !t.category ? "other" : t.category;
+        return taskCat === category;
+      })
+      .map((task) => ({ task, date: fallbackDate }));
+  }
+
+  return allTasksWithDates(tasksOrDays, recurringTasks)
+    .filter((dt) => {
+      const taskCat = !dt.task.category ? "other" : dt.task.category;
+      return taskCat === category;
+    })
     .sort((a, b) => sortByDateThenCreated(b, a));
 }
 
