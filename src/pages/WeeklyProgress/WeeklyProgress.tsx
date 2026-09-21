@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { formatLong, addDays, getWeekDates, getWeekStart, todayStr, weekLabel } from "../../utils/dateUtils";
 import { dayStats, formatPct, weekSummary } from "../../utils/progressUtils";
@@ -7,9 +8,10 @@ import { computeStreaks } from "../../utils/streakUtils";
 import WeeklyChart from "../../components/WeeklyChart/WeeklyChart";
 import WeeklySummary from "../../components/WeeklySummary/WeeklySummary";
 import PrintWeek from "../../components/PrintWeek/PrintWeek";
-import { PrintIcon } from "../../components/icons";
+import { InsightsIcon, PrintIcon } from "../../components/icons";
 
 export default function WeeklyProgress() {
+  const navigate = useNavigate();
   const { appData } = useTasks();
   const [weekStart, setWeekStart] = useState(getWeekStart(todayStr()));
   const [selectedDate, setSelectedDate] = useState(todayStr());
@@ -26,15 +28,26 @@ export default function WeeklyProgress() {
 
   return (
     <div className="page">
-      <div className="section-row" style={{ margin: "0 0 16px" }}>
+      <div className="section-row" style={{ margin: "0 0 16px", flexWrap: "wrap", gap: 10 }}>
         <div className="page-title">Weekly Progress</div>
-        <button
-          className="link-btn"
-          onClick={() => window.print()}
-          style={{ display: "flex", alignItems: "center", gap: 5 }}
-        >
-          <PrintIcon /> Print Week
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => navigate("/insights")}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}
+          >
+            <InsightsIcon /> View Full Insights
+          </button>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => window.print()}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}
+          >
+            <PrintIcon /> Print Week
+          </button>
+        </div>
       </div>
 
       <div className="week-nav">

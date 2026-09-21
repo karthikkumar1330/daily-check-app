@@ -12,6 +12,7 @@ import WeeklyProgress from "./pages/WeeklyProgress/WeeklyProgress";
 import Important from "./pages/Important/Important";
 import HighPriority from "./pages/HighPriority/HighPriority";
 import Categories from "./pages/Categories/Categories";
+import Insights from "./pages/Insights/Insights";
 import Settings from "./pages/Settings/Settings";
 
 function Shell() {
@@ -27,6 +28,7 @@ function Shell() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="weekly" element={<WeeklyProgress />} />
+        <Route path="insights" element={<Insights />} />
         <Route path="important" element={<Important />} />
         <Route path="high-priority" element={<HighPriority />} />
         <Route path="categories" element={<Categories />} />
