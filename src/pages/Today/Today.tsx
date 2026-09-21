@@ -6,6 +6,7 @@ import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
 import CountdownCard from "../../components/CountdownGoal/CountdownCard";
 import TodayRoutinesBar from "../../components/Routines/TodayRoutinesBar";
+import TodayPlanSection from "../../components/Planner/TodayPlanSection";
 import TodayFocusSection from "../../components/Focus/TodayFocusSection";
 import FocusSelectorModal from "../../components/Focus/FocusSelectorModal";
 import QuickAddTask from "../../components/QuickAddTask/QuickAddTask";
@@ -85,6 +86,14 @@ export default function Today() {
 
       {/* 4 & 5. Primary Countdown Goal + Secondary Countdown Goals */}
       <CountdownCard />
+
+      {/* V11 Smart Today Planner */}
+      <TodayPlanSection
+        dateStr={viewDate}
+        tasks={day.tasks}
+        onToggleTask={(id) => toggleTask(viewDate, id)}
+        onToast={showToast}
+      />
 
       {/* Today's Focus Section */}
       <TodayFocusSection
