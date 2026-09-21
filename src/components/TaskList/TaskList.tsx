@@ -12,6 +12,8 @@ interface TaskListProps {
   onCancelEdit: () => void;
   onSave: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  onReschedule?: (id: string, targetDate: string) => void;
+  onToast?: (message: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
 }
 
@@ -25,6 +27,8 @@ export default function TaskList({
   onCancelEdit,
   onSave,
   onDelete,
+  onReschedule,
+  onToast,
   onMove
 }: TaskListProps) {
   const sorted = dateStr
@@ -47,6 +51,8 @@ export default function TaskList({
           onCancelEdit={onCancelEdit}
           onSave={(updates) => onSave(t.id, updates)}
           onDelete={() => onDelete(t.id)}
+          onReschedule={onReschedule ? (targetDate) => onReschedule(t.id, targetDate) : undefined}
+          onToast={onToast}
           onMoveUp={() => onMove(t.id, "up")}
           onMoveDown={() => onMove(t.id, "down")}
         />

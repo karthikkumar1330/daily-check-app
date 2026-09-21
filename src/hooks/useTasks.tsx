@@ -37,6 +37,7 @@ interface TasksContextValue {
   toggleFocus: (date: string, id: string) => { ok: boolean; reason?: string };
   setFocusTasks: (date: string, taskIds: string[]) => { ok: boolean; reason?: string };
   saveEdit: (date: string, id: string, updates: Partial<Task>) => void;
+  rescheduleTask: (sourceDate: string, id: string, targetDate: string) => { ok: boolean; reason?: string };
   deleteTask: (date: string, id: string) => void;
   moveTask: (date: string, id: string, direction: "up" | "down") => void;
   clearCompleted: (date: string) => void;
@@ -340,12 +341,122 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Normal one-time edit with date change
+    if (updates.dueDate && updates.dueDate !== date) {
+      const targetDate = updates.dueDate;
+      setAppData((prev) => {
+        const srcDay = prev.days[date] ?? newDay(date);
+        const dstDay = prev.days[targetDate] ?? newDay(targetDate);
+        const existing = srcDay.tasks.find((t) => t.id === id);
+        if (!existing) return prev;
+        const newOrder =
+          dstDay.tasks.length > 0 ? Math.max(...dstDay.tasks.map((t) => t.order)) + 100 : Date.now();
+        const updatedTask: Task = {
+          ...existing,
+          ...updates,
+          dueDate: targetDate,
+          focusDate: null,
+          order: newOrder
+        };
+        return {
+          ...prev,
+          days: {
+            ...prev.days,
+            [date]: { ...srcDay, tasks: srcDay.tasks.filter((t) => t.id !== id), updatedAt: Date.now() },
+            [targetDate]: { ...dstDay, tasks: [...dstDay.tasks, updatedTask], updatedAt: Date.now() }
+          }
+        };
+      });
+      return;
+    }
+
     // Normal one-time edit
     updateDay(date, (day) => ({
       ...day,
       tasks: day.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
       updatedAt: Date.now()
     }));
+  }
+
+  function rescheduleTask(
+    sourceDate: string,
+    id: string,
+    targetDate: string
+  ): { ok: boolean; reason?: string } {
+    if (!targetDate || typeof targetDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate.trim())) {
+      return { ok: false, reason: "Invalid target date." };
+    }
+
+    const cleanTargetDate = targetDate.trim();
+
+    // Protect recurring tasks: their recurrence definition must not be modified by normal rescheduling
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+    if (isRecurring) {
+      return { ok: false, reason: "Recurring task dates are controlled by its recurrence schedule." };
+    }
+
+    // Locate source task
+    let foundTask: Task | null = null;
+    let actualSourceDate = sourceDate;
+
+    if (appData.days[sourceDate]?.tasks.some((t) => t.id === id)) {
+      foundTask = appData.days[sourceDate].tasks.find((t) => t.id === id) ?? null;
+      actualSourceDate = sourceDate;
+    } else {
+      for (const [d, dayData] of Object.entries(appData.days)) {
+        const match = dayData.tasks.find((t) => t.id === id);
+        if (match) {
+          foundTask = match;
+          actualSourceDate = d;
+          break;
+        }
+      }
+    }
+
+    if (!foundTask) {
+      return { ok: false, reason: "Task not found." };
+    }
+
+    if (actualSourceDate === cleanTargetDate) {
+      return { ok: true, reason: "Task is already scheduled for this date." };
+    }
+
+    setAppData((prev) => {
+      const srcDay = prev.days[actualSourceDate] ?? newDay(actualSourceDate);
+      const dstDay = prev.days[cleanTargetDate] ?? newDay(cleanTargetDate);
+
+      const taskToMove = srcDay.tasks.find((t) => t.id === id) ?? foundTask!;
+      const remainingSrcTasks = srcDay.tasks.filter((t) => t.id !== id);
+
+      const newOrder =
+        dstDay.tasks.length > 0 ? Math.max(...dstDay.tasks.map((t) => t.order)) + 100 : Date.now();
+
+      const updatedTask: Task = {
+        ...taskToMove,
+        dueDate: cleanTargetDate,
+        focusDate: null, // Rescheduling removes from old day's focus; destination day does not auto-focus
+        order: newOrder
+      };
+
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [actualSourceDate]: {
+            ...srcDay,
+            tasks: remainingSrcTasks,
+            updatedAt: Date.now()
+          },
+          [cleanTargetDate]: {
+            ...dstDay,
+            tasks: [...dstDay.tasks, updatedTask],
+            updatedAt: Date.now()
+          }
+        }
+      };
+    });
+
+    return { ok: true };
   }
 
   function deleteTask(date: string, id: string) {
@@ -473,6 +584,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     toggleFocus,
     setFocusTasks,
     saveEdit,
+    rescheduleTask,
     deleteTask,
     moveTask,
     clearCompleted,

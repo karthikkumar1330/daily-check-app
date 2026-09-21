@@ -144,6 +144,7 @@ export default function Today() {
                 if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
               }}
               onMove={(id, dir) => moveTask(viewDate, id, dir)}
+              onToast={showToast}
             />
             {stats.remaining === 0 && stats.total > 0 ? <EmptyState variant="all-done" /> : null}
           </>

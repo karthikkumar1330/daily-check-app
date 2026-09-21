@@ -15,6 +15,12 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3000);
+  }
 
   const day = getDay(selectedDate);
   const stats = dayStats(day);
@@ -68,6 +74,7 @@ export default function CalendarPage() {
             if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
           }}
           onMove={(id, dir) => moveTask(selectedDate, id, dir)}
+          onToast={showToast}
         />
       )}
 
@@ -82,6 +89,12 @@ export default function CalendarPage() {
           }}
           onCancel={() => setConfirmDeleteTask(null)}
         />
+      ) : null}
+
+      {toast ? (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       ) : null}
     </div>
   );

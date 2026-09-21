@@ -313,6 +313,38 @@ export function FocusIcon() {
   );
 }
 
+export function RescheduleIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <path
+        d="M3 4.5A1.5 1.5 0 0 1 4.5 3h11A1.5 1.5 0 0 1 17 4.5V9"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 7.5h14M7 2v2M13 2v2"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 8v7.5A1.5 1.5 0 0 0 4.5 17h6"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M13 14h4.5m0 0l-2-2m2 2l-2 2"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 
 
 

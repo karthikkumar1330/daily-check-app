@@ -25,6 +25,12 @@ export default function Tasks() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [category, setCategory] = useState<CategoryId | "all">("all");
   const [query, setQuery] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3000);
+  }
 
   const isToday = viewDate === todayStr();
   const day = getDay(viewDate);
@@ -166,6 +172,7 @@ export default function Tasks() {
             if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
           }}
           onMove={(id, dir) => moveTask(viewDate, id, dir)}
+          onToast={showToast}
         />
       )}
 
@@ -210,6 +217,12 @@ export default function Tasks() {
           }}
           onCancel={() => setAdvancedOpen(false)}
         />
+      ) : null}
+
+      {toast ? (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       ) : null}
     </div>
   );

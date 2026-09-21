@@ -12,6 +12,12 @@ export default function Important() {
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ date: string; taskId: string; title: string } | null>(
     null
   );
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3000);
+  }
 
   const groups = useMemo(() => importantGroups(appData.days, appData.recurringTasks), [appData.days, appData.recurringTasks]);
   const isEmpty = groups.today.length === 0 && groups.upcoming.length === 0 && groups.completed.length === 0;
@@ -38,6 +44,7 @@ export default function Important() {
                 setEditing(null);
               }}
               onDelete={() => setConfirmDeleteTask({ date, taskId: task.id, title: task.title })}
+              onToast={showToast}
             />
           ))}
         </div>
@@ -78,6 +85,12 @@ export default function Important() {
           }}
           onCancel={() => setConfirmDeleteTask(null)}
         />
+      ) : null}
+
+      {toast ? (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       ) : null}
     </div>
   );

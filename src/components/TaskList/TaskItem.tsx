@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { CategoryId, Priority, RecurrenceType, ReminderMinutes, Task, TaskRecurrence } from "../../types";
-import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
+import { addDays, formatShort, getWeekStart, parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
-import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, TrashIcon, UpIcon } from "../icons";
+import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
+import RescheduleModal from "../Modals/RescheduleModal";
+import { useTasks } from "../../hooks/useTasks";
 
 interface TaskItemProps {
   task: Task;
@@ -23,6 +25,8 @@ interface TaskItemProps {
   onCancelEdit: () => void;
   onSave: (updates: Partial<Task>) => void;
   onDelete: () => void;
+  onReschedule?: (targetDate: string) => void;
+  onToast?: (message: string) => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }
@@ -41,10 +45,14 @@ export default function TaskItem({
   onCancelEdit,
   onSave,
   onDelete,
+  onReschedule,
+  onToast,
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
+  const { rescheduleTask } = useTasks();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -219,6 +227,15 @@ export default function TaskItem({
               role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
+                setRescheduleOpen(true);
+              }}
+            >
+              <RescheduleIcon /> Reschedule
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
                 onStartEdit();
               }}
             >
@@ -261,6 +278,44 @@ export default function TaskItem({
           </div>
         ) : null}
       </div>
+
+      {rescheduleOpen ? (
+        <RescheduleModal
+          task={task}
+          currentDate={dateStr || task.dueDate || todayStr()}
+          onReschedule={(targetDate) => {
+            setRescheduleOpen(false);
+            if (onReschedule) {
+              onReschedule(targetDate);
+            } else {
+              const sourceDate = dateStr || task.dueDate || todayStr();
+              const res = rescheduleTask(sourceDate, task.id, targetDate);
+              if (res.ok) {
+                const toastMsg =
+                  targetDate === todayStr()
+                    ? "Task moved to today."
+                    : targetDate === addDays(todayStr(), 1)
+                    ? "Task moved to tomorrow."
+                    : targetDate === addDays(getWeekStart(todayStr()), 7)
+                    ? "Task moved to next week."
+                    : `Task moved to ${formatShort(targetDate)}.`;
+                onToast?.(toastMsg);
+              } else if (res.reason) {
+                onToast?.(res.reason);
+              }
+            }
+          }}
+          onCancel={() => setRescheduleOpen(false)}
+          onEditRecurrence={
+            task.recurrence
+              ? () => {
+                  setRescheduleOpen(false);
+                  onStartEdit();
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </div>
   );
 }
