@@ -2074,6 +2074,103 @@ textarea:focus-visible,
   line-height: 1.4;
 }
 
+/* ================= Task Scheduling & Reminders (V7) ================= */
+.task-time-badge {
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.task-time-badge.upcoming {
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+}
+.task-time-badge.due {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  font-weight: 600;
+}
+.task-time-badge.overdue {
+  background: var(--red-soft);
+  color: var(--red);
+  border: 1px solid var(--red);
+  font-weight: 600;
+}
+.task-time-badge.completed {
+  background: var(--surface-2);
+  color: var(--ink-faint);
+  border: 1px solid var(--border);
+  text-decoration: none;
+}
+
+.task-reminder-badge {
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  line-height: 1.3;
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+}
+
+.schedule-control-group {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.schedule-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 2px;
+}
+.schedule-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.schedule-field {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.schedule-field .field-label {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.time-input {
+  min-height: 44px;
+}
+.schedule-hint {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  font-style: italic;
+  margin-top: 2px;
+}
+
 /* ---------- Print: "Print Week" ---------- */
 .print-only {
   display: none;

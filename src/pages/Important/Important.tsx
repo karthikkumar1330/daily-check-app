@@ -26,6 +26,7 @@ export default function Important() {
             <TaskItem
               key={task.id}
               task={task}
+              dateStr={date}
               dateLabel={formatShort(date)}
               hideReorder
               isEditing={editing?.id === task.id && editing.date === date}

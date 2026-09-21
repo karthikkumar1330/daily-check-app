@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { CategoryId, Priority, RecurrenceType, Task, TaskRecurrence } from "../../types";
+import type { CategoryId, Priority, RecurrenceType, ReminderMinutes, Task, TaskRecurrence } from "../../types";
 import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
+import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
 import { CheckIcon, DownIcon, EditIcon, MoreIcon, TrashIcon, UpIcon } from "../icons";
 
 interface TaskItemProps {
@@ -10,6 +11,8 @@ interface TaskItemProps {
   isFirst?: boolean;
   isLast?: boolean;
   isEditing: boolean;
+  /** Specific calendar date for evaluating time status (e.g. today, overdue) */
+  dateStr?: string;
   /** Shown as a small badge when the task is listed outside its own day (Important, High Priority). */
   dateLabel?: string;
   /** Hide the reorder controls — irrelevant in cross-day lists. */
@@ -28,6 +31,7 @@ export default function TaskItem({
   isFirst,
   isLast,
   isEditing,
+  dateStr,
   dateLabel,
   hideReorder,
   onToggle,
@@ -63,6 +67,8 @@ export default function TaskItem({
 
   const cat = categoryMeta(task.category);
   const recurrenceLabel = formatRecurrenceLabel(task.recurrence);
+  const timeFormatted = formatTimeDisplay(task.dueTime);
+  const scheduleStatus = getTaskScheduleStatus(task, dateStr || todayStr());
 
   return (
     <div className={"task" + (task.completed ? " completed" : "")}>
@@ -78,6 +84,47 @@ export default function TaskItem({
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
+
+          {/* Time & Due Status Badges */}
+          {timeFormatted ? (
+            task.completed ? (
+              <span className="task-time-badge completed" title={`Due at ${timeFormatted}`}>
+                🕒 {timeFormatted}
+              </span>
+            ) : scheduleStatus === "overdue" ? (
+              <span
+                className="task-time-badge overdue"
+                title={`Overdue · Due at ${timeFormatted}`}
+                aria-label={`Overdue · Due at ${timeFormatted}`}
+              >
+                ⚠️ Overdue · {timeFormatted}
+              </span>
+            ) : scheduleStatus === "due" ? (
+              <span
+                className="task-time-badge due"
+                title={`Due · ${timeFormatted}`}
+                aria-label={`Due at ${timeFormatted}`}
+              >
+                ⏰ Due · {timeFormatted}
+              </span>
+            ) : (
+              <span className="task-time-badge upcoming" title={`Due at ${timeFormatted}`}>
+                🕒 {timeFormatted}
+              </span>
+            )
+          ) : null}
+
+          {/* Reminder Badge */}
+          {task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed ? (
+            <span
+              className="task-reminder-badge"
+              title={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
+              aria-label={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
+            >
+              🔔 {task.reminderMinutes === 0 ? "At due time" : `${task.reminderMinutes} min before`}
+            </span>
+          ) : null}
+
           {recurrenceLabel ? (
             <span className="task-recurrence-badge" title={`Repeats: ${recurrenceLabel}`}>
               🔁 {recurrenceLabel}
@@ -176,6 +223,10 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
   const [category, setCategory] = useState<CategoryId>(task.category);
   const [notes, setNotes] = useState(task.notes);
 
+  const [dueDate, setDueDate] = useState(task.dueDate ?? "");
+  const [dueTime, setDueTime] = useState(task.dueTime ?? "");
+  const [reminder, setReminder] = useState<ReminderMinutes | "none">(task.reminderMinutes ?? "none");
+
   const initialRepeat: RepeatOption = task.recurrence?.type ?? "none";
   const [repeat, setRepeat] = useState<RepeatOption>(initialRepeat);
   const [startDate, setStartDate] = useState(task.recurrence?.startDate ?? todayStr());
@@ -226,12 +277,19 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
       }
     }
 
+    const cleanDueTime = dueTime.trim() || null;
+    const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
+    const cleanDueDate = repeat === "none" ? (dueDate.trim() || null) : null;
+
     onSave({
       title: trimmed || task.title,
       priority,
       category,
       notes: notes.trim(),
-      recurrence: rec
+      recurrence: rec,
+      dueDate: cleanDueDate,
+      dueTime: cleanDueTime,
+      reminderMinutes: cleanReminder
     });
   }
 
@@ -282,11 +340,11 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
 
         {/* Recurrence repeat selector */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--ink-muted)" }} htmlFor="edit-task-repeat">
+          <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--ink-muted)" }} htmlFor={`edit-task-repeat-${task.id}`}>
             Repeat
           </label>
           <select
-            id="edit-task-repeat"
+            id={`edit-task-repeat-${task.id}`}
             value={repeat}
             onChange={(e) => {
               setRepeat(e.target.value as RepeatOption);
@@ -306,11 +364,11 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
           <div className="recurrence-control-group">
             <div className="recurrence-dates-row">
               <div className="recurrence-date-field">
-                <label className="recurrence-sublabel" htmlFor="edit-recurrence-start-date">
+                <label className="recurrence-sublabel" htmlFor={`edit-recurrence-start-date-${task.id}`}>
                   Start date
                 </label>
                 <input
-                  id="edit-recurrence-start-date"
+                  id={`edit-recurrence-start-date-${task.id}`}
                   type="date"
                   className="modal-input"
                   value={startDate}
@@ -322,11 +380,11 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
               </div>
 
               <div className="recurrence-date-field">
-                <label className="recurrence-sublabel" htmlFor="edit-recurrence-end-date">
+                <label className="recurrence-sublabel" htmlFor={`edit-recurrence-end-date-${task.id}`}>
                   End date (optional)
                 </label>
                 <input
-                  id="edit-recurrence-end-date"
+                  id={`edit-recurrence-end-date-${task.id}`}
                   type="date"
                   className="modal-input"
                   value={endDate}
@@ -372,6 +430,75 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
             {error ? <div className="recurrence-error-msg">{error}</div> : null}
           </div>
         ) : null}
+
+        {/* SCHEDULE Section */}
+        <div className="schedule-control-group">
+          <div className="schedule-section-title">SCHEDULE</div>
+
+          {repeat === "none" ? (
+            <div className="schedule-field" style={{ marginBottom: 4 }}>
+              <label className="field-label" htmlFor={`edit-task-due-date-${task.id}`}>
+                Due date
+              </label>
+              <input
+                id={`edit-task-due-date-${task.id}`}
+                type="date"
+                className="modal-input"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                aria-label="Due date"
+              />
+            </div>
+          ) : null}
+
+          <div className="schedule-row">
+            <div className="schedule-field">
+              <label className="field-label" htmlFor={`edit-task-due-time-${task.id}`}>
+                Due time (optional)
+              </label>
+              <input
+                id={`edit-task-due-time-${task.id}`}
+                type="time"
+                className="modal-input time-input"
+                value={dueTime}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDueTime(val);
+                  if (!val) setReminder("none");
+                }}
+                aria-label="Due time"
+              />
+            </div>
+
+            <div className="schedule-field">
+              <label className="field-label" htmlFor={`edit-task-reminder-${task.id}`}>
+                Reminder
+              </label>
+              <select
+                id={`edit-task-reminder-${task.id}`}
+                className="modal-input"
+                value={reminder}
+                disabled={!dueTime}
+                onChange={(e) => {
+                  const val = e.target.value === "none" ? "none" : (Number(e.target.value) as ReminderMinutes);
+                  setReminder(val);
+                }}
+                aria-label="Reminder notification"
+              >
+                {REMINDER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {!dueTime ? (
+            <div className="schedule-hint">Set a due time to enable reminders.</div>
+          ) : (
+            <div className="schedule-hint">Notifications can be enabled later in Settings.</div>
+          )}
+        </div>
 
         <textarea
           placeholder="Notes (optional)"

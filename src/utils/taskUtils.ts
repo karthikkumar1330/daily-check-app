@@ -1,4 +1,4 @@
-import type { CategoryId, DayData, Priority, Task, TaskRecurrence } from "../types";
+import type { CategoryId, DayData, Priority, ReminderMinutes, Task, TaskRecurrence } from "../types";
 
 let counter = 0;
 
@@ -11,7 +11,10 @@ export function newTask(
   title: string,
   priority: Priority = 2,
   category: CategoryId = "",
-  recurrence: TaskRecurrence | null = null
+  recurrence: TaskRecurrence | null = null,
+  dueTime: string | null = null,
+  reminderMinutes: ReminderMinutes | null = null,
+  dueDate: string | null = null
 ): Task {
   const now = Date.now();
   return {
@@ -25,7 +28,10 @@ export function newTask(
     completedAt: null,
     order: now,
     recurrence: recurrence ?? null,
-    completedDates: {}
+    completedDates: {},
+    dueDate: dueDate ?? null,
+    dueTime: dueTime ?? null,
+    reminderMinutes: dueTime ? (reminderMinutes ?? null) : null
   };
 }
 

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TasksProvider, useTasks } from "./hooks/useTasks";
 import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
 import { useTheme } from "./hooks/useTheme";
+import { useTaskReminders } from "./hooks/useTaskReminders";
 import AppShell from "./components/Layout/AppShell";
 
 import Today from "./pages/Today/Today";
@@ -16,6 +17,7 @@ import Settings from "./pages/Settings/Settings";
 function Shell() {
   const { appData, setTheme } = useTasks();
   const { isDark, toggle } = useTheme(appData.theme, setTheme);
+  useTaskReminders(appData);
 
   return (
     <Routes>

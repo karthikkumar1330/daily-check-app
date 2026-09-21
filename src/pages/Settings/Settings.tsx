@@ -5,6 +5,12 @@ import { useCountdownGoals } from "../../hooks/useCountdownGoals";
 import type { AppData, ThemePreference } from "../../types";
 import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION } from "../../types";
 import { exportBackup, parseImportFile, getStorageUsageKb } from "../../utils/storageUtils";
+import {
+  getNotificationPermission,
+  isNotificationSupported,
+  requestNotificationPermission,
+  sendTestNotification
+} from "../../utils/notificationUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
 import { DownloadIcon, InstallIcon, PrintIcon, UploadIcon } from "../../components/icons";
@@ -28,12 +34,30 @@ export default function Settings() {
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [goalsOpen, setGoalsOpen] = useState(false);
+  const [, setNotifStateVersion] = useState(0);
 
   const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals]);
+
+  const isSupported = isNotificationSupported();
+  const notifPermission = getNotificationPermission();
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3200);
+  }
+
+  async function handleEnableReminders() {
+    if (!isSupported) {
+      showToast("Notifications are not supported by this browser.");
+      return;
+    }
+    const res = await requestNotificationPermission();
+    setNotifStateVersion((v) => v + 1);
+    if (res === "granted") {
+      showToast("Reminders enabled.");
+    } else if (res === "denied") {
+      showToast("Notifications are blocked in browser settings.");
+    }
   }
 
   function handleExport() {
@@ -108,6 +132,91 @@ export default function Settings() {
           actionLabel="Manage"
           onAction={() => setGoalsOpen(true)}
         />
+      </div>
+
+      {/* Reminders & Notifications */}
+      <div className="card settings-card">
+        <div className="settings-heading">Reminders &amp; Notifications</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="about-details" style={{ margin: 0 }}>
+            <div className="about-row">
+              <span className="about-label">Notification support:</span>
+              <span className="about-val" style={{ fontWeight: 600 }}>
+                {isSupported ? "Supported" : "Unsupported"}
+              </span>
+            </div>
+            <div className="about-row">
+              <span className="about-label">Permission:</span>
+              <span className="about-val" style={{ fontWeight: 600 }}>
+                {notifPermission === "granted"
+                  ? "Granted"
+                  : notifPermission === "denied"
+                  ? "Denied"
+                  : notifPermission === "unsupported"
+                  ? "Unsupported"
+                  : "Not granted"}
+              </span>
+            </div>
+          </div>
+
+          {/* Status Message / Actions */}
+          {notifPermission === "unsupported" ? (
+            <div className="settings-subtext" style={{ padding: "0 2px", fontSize: 13, color: "var(--ink-muted)" }}>
+              Notifications are not supported by this browser.
+            </div>
+          ) : notifPermission === "denied" ? (
+            <div className="settings-subtext" style={{ padding: "0 2px", fontSize: 13, color: "var(--danger, #ef4444)" }}>
+              Notifications are blocked. Enable them in your browser/device settings.
+            </div>
+          ) : notifPermission === "granted" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", padding: "0 2px" }}>
+                ✓ Reminders enabled
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ minHeight: 44, padding: "0 16px" }}
+                  onClick={async () => {
+                    const sent = await sendTestNotification();
+                    if (sent) {
+                      showToast("Test notification sent.");
+                    } else {
+                      showToast("Could not send test notification.");
+                    }
+                  }}
+                >
+                  🔔 Send test notification
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ minHeight: 44, padding: "0 18px", width: "100%", justifyContent: "center" }}
+                onClick={handleEnableReminders}
+              >
+                Enable Reminders
+              </button>
+            </div>
+          )}
+
+          <div
+            className="settings-subtext"
+            style={{
+              paddingTop: 10,
+              borderTop: "1px solid var(--border)",
+              fontSize: 12,
+              color: "var(--ink-muted)",
+              lineHeight: 1.45
+            }}
+          >
+            Reminders work while Daily Check is running. Browser or operating-system restrictions may delay notifications when the app is suspended or completely closed.
+          </div>
+        </div>
       </div>
 
       {/* App Install */}

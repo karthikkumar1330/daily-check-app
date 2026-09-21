@@ -153,6 +153,7 @@ export default function Tasks() {
         <TaskList
           tasks={filtered}
           editingId={editingId}
+          dateStr={viewDate}
           onToggle={(id) => toggleTask(viewDate, id)}
           onStartEdit={(id) => setEditingId(id)}
           onCancelEdit={() => setEditingId(null)}
@@ -203,8 +204,8 @@ export default function Tasks() {
       {advancedOpen ? (
         <AddTaskModal
           initialDate={viewDate}
-          onAdd={(title, priority, cat, notes, recurrence) => {
-            addTask(viewDate, title, priority, cat, notes, recurrence);
+          onAdd={(title, priority, cat, notes, recurrence, dueTime, reminderMinutes, dueDate) => {
+            addTask(viewDate, title, priority, cat, notes, recurrence, dueTime, reminderMinutes, dueDate);
             setAdvancedOpen(false);
           }}
           onCancel={() => setAdvancedOpen(false)}

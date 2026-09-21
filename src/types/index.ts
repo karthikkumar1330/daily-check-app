@@ -21,6 +21,8 @@ export interface TaskRecurrence {
   endDate?: string;
 }
 
+export type ReminderMinutes = 0 | 5 | 15 | 30 | 60;
+
 export interface Task {
   id: string;
   title: string;
@@ -34,6 +36,12 @@ export interface Task {
   recurrence?: TaskRecurrence | null;
   /** Per-date completion tracking: date (YYYY-MM-DD) -> completedAt timestamp */
   completedDates?: Record<string, number>;
+  /** Optional date override "YYYY-MM-DD" e.g. "2026-09-21" */
+  dueDate?: string | null;
+  /** Optional 24-hour time "HH:MM" e.g. "14:30" */
+  dueTime?: string | null;
+  /** Optional reminder minutes relative to due time */
+  reminderMinutes?: ReminderMinutes | null;
 }
 
 export interface DayData {

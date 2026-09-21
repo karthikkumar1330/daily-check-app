@@ -52,6 +52,7 @@ export default function CalendarPage() {
         <TaskList
           tasks={day.tasks}
           editingId={editingId}
+          dateStr={selectedDate}
           onToggle={(id) => toggleTask(selectedDate, id)}
           onStartEdit={(id) => setEditingId(id)}
           onCancelEdit={() => setEditingId(null)}

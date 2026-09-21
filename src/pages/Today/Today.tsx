@@ -91,6 +91,7 @@ export default function Today() {
             <TaskList
               tasks={day.tasks}
               editingId={editingId}
+              dateStr={viewDate}
               onToggle={(id) => toggleTask(viewDate, id)}
               onStartEdit={(id) => setEditingId(id)}
               onCancelEdit={() => setEditingId(null)}
@@ -138,8 +139,8 @@ export default function Today() {
       {advancedOpen ? (
         <AddTaskModal
           initialDate={viewDate}
-          onAdd={(title, priority, category, notes, recurrence) => {
-            addTask(viewDate, title, priority, category, notes, recurrence);
+          onAdd={(title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate) => {
+            addTask(viewDate, title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate);
             setAdvancedOpen(false);
           }}
           onCancel={() => setAdvancedOpen(false)}

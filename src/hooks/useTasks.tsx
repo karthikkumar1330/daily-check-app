@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { AppData, CategoryId, DayData, Priority, Task, TaskRecurrence, ThemePreference } from "../types";
+import type { AppData, CategoryId, DayData, Priority, ReminderMinutes, Task, TaskRecurrence, ThemePreference } from "../types";
 import { addDays } from "../utils/dateUtils";
 import { resolveDayData } from "../utils/recurrenceUtils";
 import { loadData, saveData } from "../utils/storageUtils";
@@ -14,7 +14,10 @@ interface TasksContextValue {
     priority?: Priority,
     category?: CategoryId,
     notes?: string,
-    recurrence?: TaskRecurrence | null
+    recurrence?: TaskRecurrence | null,
+    dueTime?: string | null,
+    reminderMinutes?: ReminderMinutes | null,
+    dueDate?: string | null
   ) => void;
   toggleTask: (date: string, id: string) => void;
   saveEdit: (date: string, id: string, updates: Partial<Task>) => void;
@@ -52,7 +55,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     priority: Priority = 2,
     category: CategoryId = "",
     notes = "",
-    recurrence: TaskRecurrence | null = null
+    recurrence: TaskRecurrence | null = null,
+    dueTime: string | null = null,
+    reminderMinutes: ReminderMinutes | null = null,
+    dueDate: string | null = null
   ) {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -62,7 +68,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         ...recurrence,
         startDate: recurrence.startDate || date
       };
-      const task = newTask(trimmed, priority, category, recWithStart);
+      const task = newTask(trimmed, priority, category, recWithStart, dueTime, reminderMinutes, null);
       if (notes.trim()) task.notes = notes.trim();
 
       setAppData((prev) => ({
@@ -72,8 +78,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    updateDay(date, (day) => {
-      const task = newTask(trimmed, priority, category);
+    const targetDate = dueDate && dueDate.trim() ? dueDate.trim() : date;
+    updateDay(targetDate, (day) => {
+      const task = newTask(trimmed, priority, category, null, dueTime, reminderMinutes, dueDate || null);
       if (notes.trim()) task.notes = notes.trim();
       return { ...day, tasks: [...day.tasks, task], updatedAt: Date.now() };
     });

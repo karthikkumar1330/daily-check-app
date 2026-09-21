@@ -1,9 +1,11 @@
 import type { Task } from "../../types";
+import { sortTasksWithSchedule } from "../../utils/scheduleUtils";
 import TaskItem from "./TaskItem";
 
 interface TaskListProps {
   tasks: Task[];
   editingId: string | null;
+  dateStr?: string;
   onToggle: (id: string) => void;
   onStartEdit: (id: string) => void;
   onCancelEdit: () => void;
@@ -15,6 +17,7 @@ interface TaskListProps {
 export default function TaskList({
   tasks,
   editingId,
+  dateStr,
   onToggle,
   onStartEdit,
   onCancelEdit,
@@ -22,7 +25,9 @@ export default function TaskList({
   onDelete,
   onMove
 }: TaskListProps) {
-  const sorted = [...tasks].sort((a, b) => a.order - b.order);
+  const sorted = dateStr
+    ? sortTasksWithSchedule(tasks, dateStr)
+    : [...tasks].sort((a, b) => a.order - b.order);
 
   return (
     <div className="task-list">
@@ -33,6 +38,7 @@ export default function TaskList({
           isFirst={idx === 0}
           isLast={idx === sorted.length - 1}
           isEditing={editingId === t.id}
+          dateStr={dateStr}
           onToggle={() => onToggle(t.id)}
           onStartEdit={() => onStartEdit(t.id)}
           onCancelEdit={onCancelEdit}

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { CategoryId, Priority, RecurrenceType, TaskRecurrence } from "../../types";
+import type { CategoryId, Priority, RecurrenceType, ReminderMinutes, TaskRecurrence } from "../../types";
 import { parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES } from "../../utils/taskUtils";
+import { REMINDER_OPTIONS } from "../../utils/scheduleUtils";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 interface AddTaskModalProps {
@@ -12,7 +13,10 @@ interface AddTaskModalProps {
     priority: Priority,
     category: CategoryId,
     notes: string,
-    recurrence?: TaskRecurrence | null
+    recurrence?: TaskRecurrence | null,
+    dueTime?: string | null,
+    reminderMinutes?: ReminderMinutes | null,
+    dueDate?: string | null
   ) => void;
   onCancel: () => void;
 }
@@ -39,7 +43,11 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
   const [category, setCategory] = useState<CategoryId>("");
   const [notes, setNotes] = useState("");
 
+  const [dueTime, setDueTime] = useState("");
+  const [reminder, setReminder] = useState<ReminderMinutes | "none">("none");
+
   const effectiveStart = initialDate && initialDate.trim() ? initialDate : todayStr();
+  const [dueDate, setDueDate] = useState(effectiveStart);
   const [repeat, setRepeat] = useState<RepeatOption>("none");
   const [startDate, setStartDate] = useState(effectiveStart);
   const [endDate, setEndDate] = useState("");
@@ -74,8 +82,12 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
       return;
     }
 
+    const cleanDueTime = dueTime.trim() || null;
+    const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
+
     if (repeat === "none") {
-      onAdd(trimmed, priority, category, notes.trim(), null);
+      const cleanDueDate = dueDate.trim() || effectiveStart;
+      onAdd(trimmed, priority, category, notes.trim(), null, cleanDueTime, cleanReminder, cleanDueDate);
       return;
     }
 
@@ -97,7 +109,7 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
       return;
     }
 
-    onAdd(trimmed, priority, category, notes.trim(), rec);
+    onAdd(trimmed, priority, category, notes.trim(), rec, cleanDueTime, cleanReminder, null);
   }
 
   const weeklyDayName = weekdayFull(startDate || effectiveStart);
@@ -256,6 +268,75 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
             {error ? <div className="recurrence-error-msg">{error}</div> : null}
           </div>
         ) : null}
+
+        {/* SCHEDULE Section */}
+        <div className="schedule-control-group">
+          <div className="schedule-section-title">SCHEDULE</div>
+
+          {repeat === "none" ? (
+            <div className="schedule-field" style={{ marginBottom: 4 }}>
+              <label className="field-label" htmlFor="add-task-due-date">
+                Due date
+              </label>
+              <input
+                id="add-task-due-date"
+                type="date"
+                className="modal-input"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                aria-label="Due date"
+              />
+            </div>
+          ) : null}
+
+          <div className="schedule-row">
+            <div className="schedule-field">
+              <label className="field-label" htmlFor="add-task-due-time">
+                Due time (optional)
+              </label>
+              <input
+                id="add-task-due-time"
+                type="time"
+                className="modal-input time-input"
+                value={dueTime}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDueTime(val);
+                  if (!val) setReminder("none");
+                }}
+                aria-label="Due time"
+              />
+            </div>
+
+            <div className="schedule-field">
+              <label className="field-label" htmlFor="add-task-reminder">
+                Reminder
+              </label>
+              <select
+                id="add-task-reminder"
+                className="modal-input"
+                value={reminder}
+                disabled={!dueTime}
+                onChange={(e) => {
+                  const val = e.target.value === "none" ? "none" : (Number(e.target.value) as ReminderMinutes);
+                  setReminder(val);
+                }}
+                aria-label="Reminder notification"
+              >
+                {REMINDER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {!dueTime ? (
+            <div className="schedule-hint">Set a due time to enable reminders.</div>
+          ) : (
+            <div className="schedule-hint">Notifications can be enabled later in Settings.</div>
+          )}
+        </div>
 
         <label className="field-label" htmlFor="add-task-notes">
           Notes (optional)

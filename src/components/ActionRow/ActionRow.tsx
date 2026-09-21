@@ -4,8 +4,8 @@ interface ActionRowProps {
   icon: ReactNode;
   title: string;
   description?: string;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export default function ActionRow({ icon, title, description, actionLabel, onAction }: ActionRowProps) {
@@ -18,9 +18,11 @@ export default function ActionRow({ icon, title, description, actionLabel, onAct
         <div className="action-row-title">{title}</div>
         {description ? <div className="action-row-desc">{description}</div> : null}
       </div>
-      <button type="button" className="btn-ghost action-row-btn" onClick={onAction}>
-        {actionLabel}
-      </button>
+      {actionLabel && onAction ? (
+        <button type="button" className="btn-ghost action-row-btn" onClick={onAction}>
+          {actionLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

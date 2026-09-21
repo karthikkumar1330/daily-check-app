@@ -1,4 +1,4 @@
-import type { AppData, CategoryId, DayData, Task, TaskRecurrence, ThemePreference } from "../types";
+import type { AppData, CategoryId, DayData, Priority, ReminderMinutes, Task, TaskRecurrence, ThemePreference } from "../types";
 import { CURRENT_DATA_VERSION } from "../types";
 import { isValidDateStr } from "./dateUtils";
 
@@ -6,6 +6,28 @@ const STORAGE_KEY = "dailyCheck.data";
 
 function emptyAppData(): AppData {
   return { version: CURRENT_DATA_VERSION, days: {}, theme: "auto", recurringTasks: [] };
+}
+
+function sanitizeDueDate(raw: any): string | null {
+  if (typeof raw === "string" && isValidDateStr(raw.trim())) {
+    return raw.trim();
+  }
+  return null;
+}
+
+function sanitizeDueTime(raw: any): string | null {
+  if (typeof raw === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.trim())) {
+    return raw.trim();
+  }
+  return null;
+}
+
+function sanitizeReminderMinutes(raw: any, dueTime: string | null): ReminderMinutes | null {
+  if (!dueTime) return null;
+  if (typeof raw === "number" && [0, 5, 15, 30, 60].includes(raw)) {
+    return raw as ReminderMinutes;
+  }
+  return null;
 }
 
 function sanitizeRecurrence(raw: any): TaskRecurrence | null {
@@ -46,6 +68,9 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
     const item = t as Record<string, any>;
     const rec = sanitizeRecurrence(item.recurrence);
     if (!rec) continue;
+    const dueDate = sanitizeDueDate(item.dueDate);
+    const dueTime = sanitizeDueTime(item.dueTime);
+    const reminderMinutes = sanitizeReminderMinutes(item.reminderMinutes, dueTime);
     tasks.push({
       id: item.id,
       title: item.title,
@@ -57,7 +82,10 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
       completedAt: null,
       order: typeof item.order === "number" ? item.order : Date.now(),
       recurrence: rec,
-      completedDates: sanitizeCompletedDates(item.completedDates)
+      completedDates: sanitizeCompletedDates(item.completedDates),
+      dueDate,
+      dueTime,
+      reminderMinutes
     });
   }
   return tasks;
@@ -85,19 +113,27 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
         typeof (t as any).title === "string" &&
         typeof (t as any).completed === "boolean"
       );
-    }).map((t) => ({
-      id: t.id,
-      title: t.title,
-      completed: !!t.completed,
-      priority: [1, 2, 3].includes((t as any).priority) ? (t as any).priority : 2,
-      category: typeof (t as any).category === "string" ? (t as any).category : "",
-      notes: typeof (t as any).notes === "string" ? (t as any).notes : "",
-      createdAt: typeof (t as any).createdAt === "number" ? (t as any).createdAt : Date.now(),
-      completedAt: typeof (t as any).completedAt === "number" ? (t as any).completedAt : null,
-      order: typeof (t as any).order === "number" ? (t as any).order : Date.now(),
-      recurrence: sanitizeRecurrence((t as any).recurrence),
-      completedDates: sanitizeCompletedDates((t as any).completedDates)
-    }));
+    }).map((t) => {
+      const dueDate = sanitizeDueDate((t as any).dueDate);
+      const dueTime = sanitizeDueTime((t as any).dueTime);
+      const reminderMinutes = sanitizeReminderMinutes((t as any).reminderMinutes, dueTime);
+      return {
+        id: t.id,
+        title: t.title,
+        completed: !!t.completed,
+        priority: [1, 2, 3].includes((t as any).priority) ? (t as any).priority : 2,
+        category: typeof (t as any).category === "string" ? (t as any).category : "",
+        notes: typeof (t as any).notes === "string" ? (t as any).notes : "",
+        createdAt: typeof (t as any).createdAt === "number" ? (t as any).createdAt : Date.now(),
+        completedAt: typeof (t as any).completedAt === "number" ? (t as any).completedAt : null,
+        order: typeof (t as any).order === "number" ? (t as any).order : Date.now(),
+        recurrence: sanitizeRecurrence((t as any).recurrence),
+        completedDates: sanitizeCompletedDates((t as any).completedDates),
+        dueDate,
+        dueTime,
+        reminderMinutes
+      };
+    });
 
     clean[key] = {
       date: key,
