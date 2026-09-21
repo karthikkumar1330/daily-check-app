@@ -3,6 +3,7 @@ import type { Task } from "../../types";
 import { categoryMeta, prioClass, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay } from "../../utils/scheduleUtils";
 import { CheckIcon, CloseIcon, FocusIcon } from "../icons";
+import { useScrollLock } from "../../utils/scrollLock";
 
 interface FocusSelectorModalProps {
   dateStr: string;
@@ -22,16 +23,15 @@ export default function FocusSelectorModal({
   const [selectedIds, setSelectedIds] = useState<string[]>(() => initialFocusIds);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useScrollLock(true);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
     };
   }, [onClose]);
 

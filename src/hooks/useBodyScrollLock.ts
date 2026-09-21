@@ -1,13 +1,12 @@
-import { useEffect } from "react";
+import { useScrollLock } from "../utils/scrollLock";
 
-/** Locks page scroll behind a modal/drawer while `active` is true. */
-export function useBodyScrollLock(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [active]);
+/**
+ * Locks page scroll behind a modal/drawer using the centralized, reference-counted manager.
+ * Multiple simultaneous locks are safe; locks decrement cleanly on unmount or close.
+ */
+export function useBodyScrollLock(active: boolean): void {
+  useScrollLock(active);
 }
+
+export { useScrollLock };
+

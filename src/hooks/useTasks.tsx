@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppData, CategoryId, DayData, Priority, ReminderMinutes, Task, TaskRecurrence, ThemePreference } from "../types";
 import { addDays } from "../utils/dateUtils";
 import { resolveDayData } from "../utils/recurrenceUtils";
 import { loadData, saveData } from "../utils/storageUtils";
+import { flushPendingStorage, scheduleSaveAppData } from "../utils/debounceStorage";
 import { newDay, newTask } from "../utils/taskUtils";
 
 interface TasksContextValue {
@@ -49,10 +50,23 @@ const TasksContext = createContext<TasksContextValue | null>(null);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
   const [appData, setAppData] = useState<AppData>(() => loadData());
+  const isInitialMount = useRef(true);
 
+  // Debounced + idle-scheduled persistence
   useEffect(() => {
-    saveData(appData);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    scheduleSaveAppData(appData);
   }, [appData]);
+
+  // Flush pending persistence on unmount
+  useEffect(() => {
+    return () => {
+      flushPendingStorage();
+    };
+  }, []);
 
   function updateDay(date: string, updater: (day: DayData) => DayData) {
     setAppData((prev) => {
