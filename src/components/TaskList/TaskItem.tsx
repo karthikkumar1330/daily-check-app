@@ -8,6 +8,7 @@ import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, Tra
 import RescheduleModal from "../Modals/RescheduleModal";
 import LogTimeModal from "../Modals/LogTimeModal";
 import EditQuantityModal from "../Modals/EditQuantityModal";
+import TaskDetailsModal from "../TaskDetails/TaskDetailsModal";
 import QuantityGoalDetails from "../QuantityGoal/QuantityGoalDetails";
 import { useTasks } from "../../hooks/useTasks";
 import { useFocusTimer } from "../../hooks/useFocusTimer";
@@ -62,6 +63,7 @@ export default function TaskItem({
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
   const [editQuantityOpen, setEditQuantityOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [quantityDetailsOpen, setQuantityDetailsOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [achievementData, setAchievementData] = useState<{
@@ -336,9 +338,27 @@ export default function TaskItem({
                 marginBottom: 4
               }}
             >
-              <span style={{ fontWeight: 600, color: "var(--ink)" }}>
-                {formatDuration(completedMins)} / {formatDuration(task.durationTargetMinutes)}
-              </span>
+              <button
+                type="button"
+                className="btn text-btn"
+                onClick={() => setDetailsOpen(true)}
+                style={{
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  padding: 0,
+                  fontSize: "0.82rem",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                title="View duration goal details"
+              >
+                <span>
+                  {formatDuration(completedMins)} / {formatDuration(task.durationTargetMinutes)}
+                </span>
+                <span style={{ fontSize: "0.74rem", opacity: 0.75, color: "var(--teal, #0d9488)" }}>📊 Details ›</span>
+              </button>
               <span
                 style={{
                   fontWeight: 700,
@@ -356,11 +376,13 @@ export default function TaskItem({
               aria-valuemax={task.durationTargetMinutes}
               aria-valuenow={completedMins}
               aria-label={`Progress: ${pct}%`}
+              onClick={() => setDetailsOpen(true)}
               style={{
                 height: 6,
                 borderRadius: 3,
                 background: "var(--border, rgba(0,0,0,0.08))",
-                overflow: "hidden"
+                overflow: "hidden",
+                cursor: "pointer"
               }}
             >
               <div
@@ -442,6 +464,28 @@ export default function TaskItem({
                 aria-label={`Log time for ${task.title}`}
               >
                 <span>+ Log Time</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn text-btn duration-details-btn"
+                onClick={() => setDetailsOpen(true)}
+                style={{
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  color: "var(--teal, #0d9488)",
+                  background: "rgba(13, 148, 136, 0.08)",
+                  border: "1px solid rgba(13, 148, 136, 0.2)",
+                  borderRadius: 6,
+                  padding: "4px 8px",
+                  minHeight: 32,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                aria-label={`View details for ${task.title}`}
+              >
+                <span>📊 Details</span>
               </button>
             </div>
           </div>
@@ -663,15 +707,35 @@ export default function TaskItem({
                 <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
               </button>
             ) : null}
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setDetailsOpen(true);
+              }}
+            >
+              📊 Details
+            </button>
+            {task.durationTargetMinutes ? (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setLogTimeOpen(true);
+                }}
+              >
+                ⏱ Log Time
+              </button>
+            ) : null}
             {task.quantityTarget ? (
               <button
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  setQuantityDetailsOpen(true);
+                  setEditQuantityOpen(true);
                 }}
               >
-                📊 Goal Details
+                + Log / Set
               </button>
             ) : null}
             <button
@@ -828,11 +892,14 @@ export default function TaskItem({
         />
       ) : null}
 
-      {quantityDetailsOpen ? (
-        <QuantityGoalDetails
+      {detailsOpen || quantityDetailsOpen ? (
+        <TaskDetailsModal
           task={task}
           initialDate={effectiveDate}
-          onClose={() => setQuantityDetailsOpen(false)}
+          onClose={() => {
+            setDetailsOpen(false);
+            setQuantityDetailsOpen(false);
+          }}
           onToast={onToast}
         />
       ) : null}
