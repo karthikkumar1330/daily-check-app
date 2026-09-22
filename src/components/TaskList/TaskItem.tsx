@@ -53,13 +53,17 @@ export default function TaskItem({
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
-  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted } = useTasks();
+  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, getDay } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
-  const [achievementText, setAchievementText] = useState<string | null>(null);
+  const [achievementData, setAchievementData] = useState<{
+    text: string;
+    sub?: string;
+    isDayComplete?: boolean;
+  } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -69,61 +73,97 @@ export default function TaskItem({
     };
   }, []);
 
-  function triggerAchievement(text: string) {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate([18, 40, 18]);
-      } catch {}
-    }
-    setAchievementText(text);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      setAchievementText(null);
-    }, 1400);
-  }
+  const effectiveDate = dateStr || task.dueDate || todayStr();
 
-  function handleCheckClick() {
-    if (task.completed) {
-      // Unchecking: immediate, no achievement
-      setIsCompleting(false);
-      setAchievementText(null);
-      onToggle();
-      return;
-    }
-
-    // Completing:
-    const text = task.durationTargetMinutes
-      ? `🎯 Target reached! ${task.title} complete`
-      : "✓ Completed! 🎯";
-
+  function triggerAchievement(
+    text: string,
+    sub?: string,
+    isDayComplete = false,
+    shouldToggle = false
+  ) {
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       try {
-        navigator.vibrate(18);
+        navigator.vibrate(isDayComplete ? [25, 35, 25] : 20);
       } catch {}
     }
 
     if (prefersReduced) {
-      onToggle();
+      if (shouldToggle) onToggle();
       return;
     }
 
     setIsCompleting(true);
-    setAchievementText(text);
+    setAchievementData({ text, sub, isDayComplete });
 
-    timerRef.current = window.setTimeout(() => {
-      onToggle();
-      setTimeout(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (shouldToggle) {
+      timerRef.current = window.setTimeout(() => {
+        onToggle();
+        setTimeout(() => {
+          setIsCompleting(false);
+          setAchievementData(null);
+        }, 450);
+      }, 420);
+    } else {
+      timerRef.current = window.setTimeout(() => {
         setIsCompleting(false);
-        setAchievementText(null);
-      }, 500);
-    }, 380);
+        setAchievementData(null);
+      }, 850);
+    }
   }
 
-  const effectiveDate = dateStr || task.dueDate || todayStr();
+  // Listen for target completion events from Focus timer or external sources
+  useEffect(() => {
+    function handleCelebrationEvent(e: Event) {
+      const custom = e as CustomEvent<{
+        taskId: string;
+        text: string;
+        sub?: string;
+        isDayComplete?: boolean;
+      }>;
+      if (custom.detail && custom.detail.taskId === task.id) {
+        triggerAchievement(custom.detail.text, custom.detail.sub, Boolean(custom.detail.isDayComplete), false);
+      }
+    }
+    window.addEventListener("dailyCheck:taskCelebration", handleCelebrationEvent);
+    return () => window.removeEventListener("dailyCheck:taskCelebration", handleCelebrationEvent);
+  }, [task.id]);
+
+  function handleCheckClick() {
+    if (task.completed) {
+      // Unchecking: immediate, no achievement
+      setIsCompleting(false);
+      setAchievementData(null);
+      onToggle();
+      return;
+    }
+
+    // Check if this is the final active task of the day
+    const dayData = getDay(effectiveDate);
+    const activeTasks = (dayData?.tasks ?? []).filter((t) => !t.completed);
+    const isLastActiveTask = activeTasks.length === 1 && activeTasks[0].id === task.id;
+
+    let text = "✓ Completed! 🎯";
+    let sub: string | undefined = "Nice work";
+    let isDayComplete = false;
+
+    if (isLastActiveTask && dayData && dayData.tasks.length > 0) {
+      text = "🎉 Day Complete!";
+      sub = `${dayData.tasks.length} / ${dayData.tasks.length} tasks finished`;
+      isDayComplete = true;
+    } else if (task.durationTargetMinutes) {
+      text = "🎯 Target reached!";
+      sub = `${formatDuration(task.durationTargetMinutes)} complete`;
+    }
+
+    triggerAchievement(text, sub, isDayComplete, true);
+  }
+
   const isTimerActiveOnThis = session?.taskId === task.id;
   const target = task.durationTargetMinutes;
   const completedMins = task.durationCompletedMinutes || 0;
@@ -163,7 +203,7 @@ export default function TaskItem({
       className={
         "task" +
         (isChecked ? " completed" : "") +
-        (isCompleting ? " task-completing" : "")
+        (isCompleting ? " task-completing task-completing-highlight" : "")
       }
     >
       <button
@@ -173,15 +213,31 @@ export default function TaskItem({
         aria-pressed={isChecked}
       >
         <CheckIcon />
+        {isCompleting ? (
+          <span className="check-particles" aria-hidden="true">
+            <span className="p1" />
+            <span className="p2" />
+            <span className="p3" />
+            <span className="p4" />
+          </span>
+        ) : null}
       </button>
       <div className="task-main">
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
 
-          {achievementText ? (
-            <span className="completion-achievement-pill" role="status" aria-live="polite">
-              {achievementText}
+          {achievementData ? (
+            <span
+              className={
+                "completion-achievement-pill" +
+                (achievementData.isDayComplete ? " day-complete" : "")
+              }
+              role="status"
+              aria-live="polite"
+            >
+              <span className="pill-main">{achievementData.text}</span>
+              {achievementData.sub ? <span className="pill-sub">{achievementData.sub}</span> : null}
             </span>
           ) : null}
 
@@ -538,7 +594,7 @@ export default function TaskItem({
             const res = logTaskDuration(effectiveDate, task.id, delta);
             if (res.ok) {
               if (res.completed) {
-                triggerAchievement(`🎯 Target reached! ${task.title} complete`);
+                triggerAchievement("🎯 Target reached!", `${formatDuration(task.durationTargetMinutes || 0)} complete`, false, false);
                 onToast?.(`🎯 Target reached! ${task.title} — ${formatDuration(task.durationTargetMinutes)} complete`);
               } else {
                 onToast?.(`Logged ${delta}m · ${formatDuration(res.newTotal)} / ${formatDuration(task.durationTargetMinutes)}`);
@@ -549,7 +605,7 @@ export default function TaskItem({
             const res = setTaskDurationCompleted(effectiveDate, task.id, total);
             if (res.ok) {
               if (res.completed) {
-                triggerAchievement(`🎯 Target reached! ${task.title} complete`);
+                triggerAchievement("🎯 Target reached!", `${formatDuration(task.durationTargetMinutes || 0)} complete`, false, false);
                 onToast?.(`🎯 Target reached! ${task.title} — ${formatDuration(task.durationTargetMinutes)} complete`);
               } else {
                 onToast?.(`Updated · ${formatDuration(res.newTotal)} / ${formatDuration(task.durationTargetMinutes)}`);

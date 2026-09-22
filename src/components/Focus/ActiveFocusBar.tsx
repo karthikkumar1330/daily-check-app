@@ -90,7 +90,7 @@ export default function ActiveFocusBar() {
 
   return (
     <aside
-      className="active-focus-bar"
+      className={"active-focus-bar" + (isTargetReached ? " target-reached" : "")}
       aria-label="Active Focus Session"
       style={{
         position: "fixed",

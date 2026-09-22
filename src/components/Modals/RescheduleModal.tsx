@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Task } from "../../types";
 import { addDays, formatShort, getWeekStart, todayStr } from "../../utils/dateUtils";
 import { isValidDateString } from "../../utils/scheduleUtils";
@@ -60,9 +61,9 @@ export default function RescheduleModal({
     onReschedule(customDate.trim());
   }
 
-  return (
+  const content = (
     <div
-      className="overlay"
+      className="overlay modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -241,4 +242,6 @@ export default function RescheduleModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : content;
 }

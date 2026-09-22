@@ -54,6 +54,7 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
 
   const [tick, setTick] = useState(0);
   const lastSyncRef = useRef<number>(0);
+  const celebratedRef = useRef<boolean>(false);
 
   // Save session changes to localStorage
   useEffect(() => {
@@ -94,7 +95,26 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       if (now - lastSyncRef.current >= 10000 || isTargetReached) {
         lastSyncRef.current = now;
-        setTaskDurationCompleted(session.dateStr, session.taskId, currentCompletedMinutes);
+        const res = setTaskDurationCompleted(session.dateStr, session.taskId, currentCompletedMinutes);
+        if (isTargetReached && !celebratedRef.current) {
+          celebratedRef.current = true;
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            try {
+              navigator.vibrate(20);
+            } catch {}
+          }
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("dailyCheck:taskCelebration", {
+                detail: {
+                  taskId: session.taskId,
+                  text: "🎯 Target reached!",
+                  sub: `${Math.round(session.targetMinutes / 60 >= 1 ? session.targetMinutes / 60 : session.targetMinutes)}${session.targetMinutes >= 60 ? "h" : "m"} complete`
+                }
+              })
+            );
+          }
+        }
       }
     }, 1000);
 
@@ -112,6 +132,8 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     if (task.focusDate !== dateStr) {
       toggleFocus(dateStr, task.id);
     }
+
+    celebratedRef.current = initial >= target;
 
     const newSession: FocusSession = {
       taskId: task.id,

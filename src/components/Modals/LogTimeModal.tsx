@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Task } from "../../types";
 import { formatDuration, calculateDurationPct } from "../../utils/durationUtils";
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 interface LogTimeModalProps {
   task: Task;
@@ -22,6 +24,8 @@ export default function LogTimeModal({
     String(task.durationCompletedMinutes || 0)
   );
   const modalRef = useRef<HTMLDivElement>(null);
+
+  useBodyScrollLock(true);
 
   const target = task.durationTargetMinutes || 60;
   const current = task.durationCompletedMinutes || 0;
@@ -61,19 +65,21 @@ export default function LogTimeModal({
     }
   }
 
-  return (
+  const content = (
     <div
-      className="modal-overlay"
+      className="overlay modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="log-time-title"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
-        className="modal-card log-time-modal"
+        className="modal modal-card log-time-modal"
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 440 }}
+        style={{ maxWidth: 440, width: "100%" }}
       >
         <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h2 id="log-time-title" style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "var(--ink)" }}>
@@ -255,4 +261,6 @@ export default function LogTimeModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : content;
 }
