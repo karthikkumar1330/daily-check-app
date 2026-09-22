@@ -2,6 +2,7 @@ import type { Task } from "../../types";
 import { categoryMeta, prioClass, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay } from "../../utils/scheduleUtils";
 import { calculateDurationPct, formatDuration } from "../../utils/durationUtils";
+import { calculateQuantityPct, formatQuantity } from "../../utils/quantityUtils";
 import { CheckIcon, FocusIcon } from "../icons";
 
 interface TodayFocusSectionProps {
@@ -239,6 +240,22 @@ export default function TodayFocusSection({
                     }}
                   >
                     ⏱ {formatDuration(task.durationCompletedMinutes || 0)} / {formatDuration(task.durationTargetMinutes)} ({calculateDurationPct(task.durationCompletedMinutes || 0, task.durationTargetMinutes)}%)
+                  </span>
+                ) : null}
+
+                {task.quantityTarget ? (
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color:
+                        (task.quantityCompleted || 0) >= task.quantityTarget
+                          ? "var(--accent, #10b981)"
+                          : "var(--teal, #0d9488)",
+                      flexShrink: 0
+                    }}
+                  >
+                    📊 {formatQuantity(task.quantityCompleted || 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)} ({calculateQuantityPct(task.quantityCompleted || 0, task.quantityTarget)}%)
                   </span>
                 ) : null}
 

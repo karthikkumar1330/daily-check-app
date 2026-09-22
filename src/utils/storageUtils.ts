@@ -104,6 +104,43 @@ function sanitizeDurationCompletedDates(raw: any, targetMinutes: number | null):
   return clean;
 }
 
+function sanitizeQuantityTarget(raw: any): number | null {
+  if (typeof raw === "number" && !isNaN(raw) && raw > 0) {
+    return raw;
+  }
+  return null;
+}
+
+function sanitizeQuantityCompleted(raw: any, target: number | null): number | null {
+  if (!target) return null;
+  if (typeof raw === "number" && !isNaN(raw) && raw >= 0) {
+    return raw;
+  }
+  return 0;
+}
+
+function sanitizeQuantityUnit(raw: any): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function sanitizeQuantityStep(raw: any): number {
+  if (typeof raw === "number" && !isNaN(raw) && raw > 0) {
+    return raw;
+  }
+  return 1;
+}
+
+function sanitizeQuantityCompletedDates(raw: any): Record<string, number> {
+  const clean: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return clean;
+  Object.entries(raw).forEach(([date, val]) => {
+    if (isValidDateStr(date) && typeof val === "number" && !isNaN(val) && val >= 0) {
+      clean[date] = val;
+    }
+  });
+  return clean;
+}
+
 function sanitizeRecurringTasks(raw: unknown): Task[] {
   if (!Array.isArray(raw)) return [];
   const tasks: Task[] = [];
@@ -119,6 +156,10 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
     const reminderMinutes = sanitizeReminderMinutes(item.reminderMinutes, dueTime);
     const durationTargetMinutes = sanitizeDurationTargetMinutes(item.durationTargetMinutes);
     const durationCompletedDates = sanitizeDurationCompletedDates(item.durationCompletedDates, durationTargetMinutes);
+    const quantityTarget = sanitizeQuantityTarget(item.quantityTarget);
+    const quantityCompletedDates = sanitizeQuantityCompletedDates(item.quantityCompletedDates);
+    const quantityUnit = sanitizeQuantityUnit(item.quantityUnit);
+    const quantityStep = sanitizeQuantityStep(item.quantityStep);
 
     tasks.push({
       id: item.id,
@@ -139,7 +180,12 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
       focusDates: sanitizeFocusDates(item.focusDates),
       durationTargetMinutes,
       durationCompletedMinutes: durationTargetMinutes ? 0 : null,
-      durationCompletedDates
+      durationCompletedDates,
+      quantityTarget,
+      quantityCompleted: quantityTarget ? 0 : null,
+      quantityUnit,
+      quantityStep,
+      quantityCompletedDates
     });
   }
   return tasks;
@@ -175,6 +221,11 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
       const routineTaskId = typeof (t as any).routineTaskId === "string" ? (t as any).routineTaskId : null;
       const durationTargetMinutes = sanitizeDurationTargetMinutes((t as any).durationTargetMinutes);
       const durationCompletedMinutes = sanitizeDurationCompletedMinutes((t as any).durationCompletedMinutes, durationTargetMinutes);
+      const quantityTarget = sanitizeQuantityTarget((t as any).quantityTarget);
+      const quantityCompleted = sanitizeQuantityCompleted((t as any).quantityCompleted, quantityTarget);
+      const quantityUnit = sanitizeQuantityUnit((t as any).quantityUnit);
+      const quantityStep = sanitizeQuantityStep((t as any).quantityStep);
+      const quantityCompletedDates = sanitizeQuantityCompletedDates((t as any).quantityCompletedDates);
 
       return {
         id: t.id,
@@ -197,7 +248,12 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
         focusDates: sanitizeFocusDates((t as any).focusDates),
         durationTargetMinutes,
         durationCompletedMinutes,
-        durationCompletedDates: sanitizeDurationCompletedDates((t as any).durationCompletedDates, durationTargetMinutes)
+        durationCompletedDates: sanitizeDurationCompletedDates((t as any).durationCompletedDates, durationTargetMinutes),
+        quantityTarget,
+        quantityCompleted,
+        quantityUnit,
+        quantityStep,
+        quantityCompletedDates
       };
     });
 

@@ -17,13 +17,26 @@ export function newTask(
   dueDate: string | null = null,
   routineId: string | null = null,
   routineTaskId: string | null = null,
-  durationTargetMinutes: number | null = null
+  durationTargetMinutes: number | null = null,
+  quantityTarget: number | null = null,
+  quantityUnit: string = "",
+  quantityStep: number = 1
 ): Task {
   const now = Date.now();
   const cleanTarget =
     typeof durationTargetMinutes === "number" && !isNaN(durationTargetMinutes) && durationTargetMinutes > 0
       ? Math.round(durationTargetMinutes)
       : null;
+
+  const cleanQuantityTarget =
+    typeof quantityTarget === "number" && !isNaN(quantityTarget) && quantityTarget > 0
+      ? quantityTarget
+      : null;
+
+  const cleanQuantityStep =
+    typeof quantityStep === "number" && !isNaN(quantityStep) && quantityStep > 0
+      ? quantityStep
+      : 1;
 
   return {
     id: uid(),
@@ -46,7 +59,12 @@ export function newTask(
     focusDates: {},
     durationTargetMinutes: cleanTarget,
     durationCompletedMinutes: cleanTarget ? 0 : null,
-    durationCompletedDates: {}
+    durationCompletedDates: {},
+    quantityTarget: cleanQuantityTarget,
+    quantityCompleted: cleanQuantityTarget ? 0 : null,
+    quantityUnit: cleanQuantityTarget ? (quantityUnit ?? "").trim() : "",
+    quantityStep: cleanQuantityStep,
+    quantityCompletedDates: {}
   };
 }
 

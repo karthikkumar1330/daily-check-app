@@ -179,6 +179,26 @@ export function resolveDayData(
         }
       }
 
+      const quantityTarget =
+        typeof rt.quantityTarget === "number" && rt.quantityTarget > 0
+          ? rt.quantityTarget
+          : null;
+
+      let quantityCompleted: number | null = null;
+
+      if (quantityTarget) {
+        const storedQty = rt.quantityCompletedDates?.[dateStr];
+        if (typeof storedQty === "number") {
+          quantityCompleted = Math.max(0, storedQty);
+          isCompleted = quantityCompleted >= quantityTarget;
+        } else if (isCompleted) {
+          quantityCompleted = quantityTarget;
+        } else {
+          quantityCompleted = 0;
+          isCompleted = false;
+        }
+      }
+
       const completedAt = isCompleted ? (rt.completedDates?.[dateStr] ?? Date.now()) : null;
       const isFocus = Boolean(rt.focusDates?.[dateStr]) || rt.focusDate === dateStr;
 
@@ -188,7 +208,12 @@ export function resolveDayData(
         completedAt,
         focusDate: isFocus ? dateStr : null,
         durationTargetMinutes: durationTarget,
-        durationCompletedMinutes: durationCompleted
+        durationCompletedMinutes: durationCompleted,
+        quantityTarget,
+        quantityCompleted,
+        quantityUnit: rt.quantityUnit ?? "",
+        quantityStep: rt.quantityStep ?? 1,
+        quantityCompletedDates: rt.quantityCompletedDates
       });
     }
   }

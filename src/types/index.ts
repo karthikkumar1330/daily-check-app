@@ -55,6 +55,16 @@ export interface Task {
   durationCompletedMinutes?: number | null;
   /** Per-date duration completion tracking for recurring tasks: date (YYYY-MM-DD) -> completed minutes */
   durationCompletedDates?: Record<string, number>;
+  /** Optional quantity goal target (e.g. 4 for 4 L, 10000 for 10000 steps). Undefined/null for ordinary tasks */
+  quantityTarget?: number | null;
+  /** Completed quantity for this instance (e.g. 3) */
+  quantityCompleted?: number | null;
+  /** Quantity unit label (e.g. "L", "ml", "steps", "pages") */
+  quantityUnit?: string;
+  /** Quick-add step amount (e.g. 0.5, 1, 250) */
+  quantityStep?: number;
+  /** Per-date quantity completion tracking: date (YYYY-MM-DD) -> completed quantity */
+  quantityCompletedDates?: Record<string, number>;
 }
 
 export interface DayData {
@@ -100,6 +110,9 @@ export interface RoutineTask {
   dueTime?: string | null;
   reminderMinutes?: ReminderMinutes | null;
   durationTargetMinutes?: number | null;
+  quantityTarget?: number | null;
+  quantityUnit?: string;
+  quantityStep?: number;
 }
 
 export interface Routine {

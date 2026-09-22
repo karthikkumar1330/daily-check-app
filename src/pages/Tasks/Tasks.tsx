@@ -211,8 +211,35 @@ export default function Tasks() {
       {advancedOpen ? (
         <AddTaskModal
           initialDate={viewDate}
-          onAdd={(title, priority, cat, notes, recurrence, dueTime, reminderMinutes, dueDate, durationTargetMinutes) => {
-            addTask(viewDate, title, priority, cat, notes, recurrence, dueTime, reminderMinutes, dueDate, durationTargetMinutes);
+          onAdd={(
+            title,
+            priority,
+            cat,
+            notes,
+            recurrence,
+            dueTime,
+            reminderMinutes,
+            dueDate,
+            durationTargetMinutes,
+            quantityTarget,
+            quantityUnit,
+            quantityStep
+          ) => {
+            addTask(
+              viewDate,
+              title,
+              priority,
+              cat,
+              notes,
+              recurrence,
+              dueTime,
+              reminderMinutes,
+              dueDate,
+              durationTargetMinutes,
+              quantityTarget,
+              quantityUnit,
+              quantityStep
+            );
             setAdvancedOpen(false);
           }}
           onCancel={() => setAdvancedOpen(false)}

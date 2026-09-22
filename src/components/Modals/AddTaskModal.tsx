@@ -18,7 +18,10 @@ interface AddTaskModalProps {
     dueTime?: string | null,
     reminderMinutes?: ReminderMinutes | null,
     dueDate?: string | null,
-    durationTargetMinutes?: number | null
+    durationTargetMinutes?: number | null,
+    quantityTarget?: number | null,
+    quantityUnit?: string,
+    quantityStep?: number
   ) => void;
   onCancel: () => void;
 }
@@ -39,6 +42,8 @@ const REPEAT_OPTIONS: { value: RepeatOption; label: string }[] = [
   { value: "custom", label: "Custom days" }
 ];
 
+const COMMON_UNITS = ["glasses", "cups", "L", "ml", "pages", "steps", "reps", "km", "items"];
+
 export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskModalProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>(2);
@@ -54,8 +59,15 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
   const [startDate, setStartDate] = useState(effectiveStart);
   const [endDate, setEndDate] = useState("");
   const [customDays, setCustomDays] = useState<number[]>([1, 3, 5]);
+
+  const [goalType, setGoalType] = useState<"standard" | "duration" | "quantity">("standard");
   const [durationPreset, setDurationPreset] = useState<string>("none");
   const [customDurationMinutes, setCustomDurationMinutes] = useState<string>("");
+
+  const [quantityTarget, setQuantityTarget] = useState<string>("8");
+  const [quantityUnit, setQuantityUnit] = useState<string>("glasses");
+  const [quantityStep, setQuantityStep] = useState<string>("1");
+
   const [error, setError] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
@@ -90,19 +102,46 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
     const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
 
     let cleanDuration: number | null = null;
-    if (durationPreset !== "none") {
-      if (durationPreset === "custom") {
-        const val = parseInt(customDurationMinutes, 10);
-        if (!isNaN(val) && val > 0) cleanDuration = val;
-      } else {
-        const val = parseInt(durationPreset, 10);
-        if (!isNaN(val) && val > 0) cleanDuration = val;
+    let cleanQtyTarget: number | null = null;
+    let cleanQtyUnit = "";
+    let cleanQtyStep = 1;
+
+    if (goalType === "duration") {
+      if (durationPreset !== "none") {
+        if (durationPreset === "custom") {
+          const val = parseInt(customDurationMinutes, 10);
+          if (!isNaN(val) && val > 0) cleanDuration = val;
+        } else {
+          const val = parseInt(durationPreset, 10);
+          if (!isNaN(val) && val > 0) cleanDuration = val;
+        }
+      }
+    } else if (goalType === "quantity") {
+      const qVal = parseFloat(quantityTarget);
+      if (!isNaN(qVal) && qVal > 0) {
+        cleanQtyTarget = qVal;
+        cleanQtyUnit = quantityUnit.trim();
+        const sVal = parseFloat(quantityStep);
+        cleanQtyStep = !isNaN(sVal) && sVal > 0 ? sVal : 1;
       }
     }
 
     if (repeat === "none") {
       const cleanDueDate = dueDate.trim() || effectiveStart;
-      onAdd(trimmed, priority, category, notes.trim(), null, cleanDueTime, cleanReminder, cleanDueDate, cleanDuration);
+      onAdd(
+        trimmed,
+        priority,
+        category,
+        notes.trim(),
+        null,
+        cleanDueTime,
+        cleanReminder,
+        cleanDueDate,
+        cleanDuration,
+        cleanQtyTarget,
+        cleanQtyUnit,
+        cleanQtyStep
+      );
       return;
     }
 
@@ -124,7 +163,20 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
       return;
     }
 
-    onAdd(trimmed, priority, category, notes.trim(), rec, cleanDueTime, cleanReminder, null, cleanDuration);
+    onAdd(
+      trimmed,
+      priority,
+      category,
+      notes.trim(),
+      rec,
+      cleanDueTime,
+      cleanReminder,
+      null,
+      cleanDuration,
+      cleanQtyTarget,
+      cleanQtyUnit,
+      cleanQtyStep
+    );
   }
 
   const weeklyDayName = weekdayFull(startDate || effectiveStart);
@@ -353,67 +405,176 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
           )}
         </div>
 
-        {/* DURATION (Optional) Section */}
-        <div className="duration-control-group" style={{ marginBottom: 12 }}>
-          <label className="field-label" id="duration-label">
-            Target Duration (optional)
+        {/* Goal Type / Measurement Section */}
+        <div style={{ marginBottom: 12 }}>
+          <label className="field-label" id="task-type-label">
+            Task Type
           </label>
           <div
-            className="duration-preset-grid"
             role="radiogroup"
-            aria-labelledby="duration-label"
-            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+            aria-labelledby="task-type-label"
+            style={{ display: "flex", gap: 6, marginBottom: 8 }}
           >
             <button
               type="button"
-              className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
-              onClick={() => setDurationPreset("none")}
+              className={"chip-btn" + (goalType === "standard" ? " active" : "")}
+              onClick={() => setGoalType("standard")}
               role="radio"
-              aria-checked={durationPreset === "none"}
+              aria-checked={goalType === "standard"}
             >
-              None
+              Standard
             </button>
-            {DURATION_PRESETS.map((p) => (
-              <button
-                key={p.minutes}
-                type="button"
-                className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
-                onClick={() => setDurationPreset(String(p.minutes))}
-                role="radio"
-                aria-checked={durationPreset === String(p.minutes)}
-              >
-                {p.label}
-              </button>
-            ))}
             <button
               type="button"
-              className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
-              onClick={() => setDurationPreset("custom")}
+              className={"chip-btn" + (goalType === "duration" ? " active" : "")}
+              onClick={() => setGoalType("duration")}
               role="radio"
-              aria-checked={durationPreset === "custom"}
+              aria-checked={goalType === "duration"}
             >
-              Custom
+              ⏱ Duration
+            </button>
+            <button
+              type="button"
+              className={"chip-btn" + (goalType === "quantity" ? " active" : "")}
+              onClick={() => setGoalType("quantity")}
+              role="radio"
+              aria-checked={goalType === "quantity"}
+            >
+              📊 Quantity
             </button>
           </div>
 
-          {durationPreset === "custom" ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="number"
-                min="1"
-                max="1440"
-                className="modal-input"
-                style={{ width: 140 }}
-                placeholder="Minutes"
-                value={customDurationMinutes}
-                onChange={(e) => setCustomDurationMinutes(e.target.value)}
-                aria-label="Custom duration in minutes"
-              />
-              <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
-                {customDurationMinutes && !isNaN(Number(customDurationMinutes))
-                  ? formatDuration(Number(customDurationMinutes))
-                  : "minutes"}
-              </span>
+          {goalType === "duration" ? (
+            <div className="duration-control-group" style={{ marginTop: 8 }}>
+              <label className="field-label" id="duration-label">
+                Target Duration
+              </label>
+              <div
+                className="duration-preset-grid"
+                role="radiogroup"
+                aria-labelledby="duration-label"
+                style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+              >
+                <button
+                  type="button"
+                  className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
+                  onClick={() => setDurationPreset("none")}
+                  role="radio"
+                  aria-checked={durationPreset === "none"}
+                >
+                  None
+                </button>
+                {DURATION_PRESETS.map((p) => (
+                  <button
+                    key={p.minutes}
+                    type="button"
+                    className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
+                    onClick={() => setDurationPreset(String(p.minutes))}
+                    role="radio"
+                    aria-checked={durationPreset === String(p.minutes)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
+                  onClick={() => setDurationPreset("custom")}
+                  role="radio"
+                  aria-checked={durationPreset === "custom"}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {durationPreset === "custom" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    className="modal-input"
+                    style={{ width: 140 }}
+                    placeholder="Minutes"
+                    value={customDurationMinutes}
+                    onChange={(e) => setCustomDurationMinutes(e.target.value)}
+                    aria-label="Custom duration in minutes"
+                  />
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+                    {customDurationMinutes && !isNaN(Number(customDurationMinutes))
+                      ? formatDuration(Number(customDurationMinutes))
+                      : "minutes"}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : goalType === "quantity" ? (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <label className="field-label" htmlFor="add-task-qty-target">
+                    Daily / Target Amount
+                  </label>
+                  <input
+                    id="add-task-qty-target"
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    className="modal-input"
+                    value={quantityTarget}
+                    onChange={(e) => setQuantityTarget(e.target.value)}
+                    placeholder="e.g. 8"
+                  />
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="add-task-qty-unit">
+                    Unit
+                  </label>
+                  <input
+                    id="add-task-qty-unit"
+                    type="text"
+                    className="modal-input"
+                    value={quantityUnit}
+                    onChange={(e) => setQuantityUnit(e.target.value)}
+                    placeholder="e.g. glasses, L, steps"
+                  />
+                </div>
+              </div>
+
+              {/* Unit suggestions */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {COMMON_UNITS.map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    className={"chip-btn" + (quantityUnit.toLowerCase() === u.toLowerCase() ? " active" : "")}
+                    style={{ fontSize: "0.72rem", padding: "2px 8px" }}
+                    onClick={() => setQuantityUnit(u)}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="add-task-qty-step">
+                  Quick-add Step
+                </label>
+                <input
+                  id="add-task-qty-step"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  className="modal-input"
+                  style={{ width: 120 }}
+                  value={quantityStep}
+                  onChange={(e) => setQuantityStep(e.target.value)}
+                  placeholder="e.g. 1"
+                />
+                <span style={{ fontSize: "0.76rem", color: "var(--ink-muted)", marginLeft: 8 }}>
+                  Amount added per tap (e.g. 1 glass, 0.5 L, 250 ml)
+                </span>
+              </div>
             </div>
           ) : null}
         </div>

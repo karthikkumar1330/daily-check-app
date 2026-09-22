@@ -4,6 +4,7 @@ import { getTodayPlan } from "../../utils/todayPlannerUtils";
 import { categoryMeta, prioClass } from "../../utils/taskUtils";
 import { formatTimeDisplay, getTaskScheduleStatus } from "../../utils/scheduleUtils";
 import { calculateDurationPct, formatDuration } from "../../utils/durationUtils";
+import { calculateQuantityPct, formatQuantity } from "../../utils/quantityUtils";
 import { CheckIcon } from "../icons";
 
 interface TodayPlanSectionProps {
@@ -182,6 +183,26 @@ export default function TodayPlanSection({
                         }}
                       >
                         ⏱ {formatDuration(task.durationCompletedMinutes || 0)} / {formatDuration(task.durationTargetMinutes)} ({calculateDurationPct(task.durationCompletedMinutes || 0, task.durationTargetMinutes)}%)
+                      </span>
+                    ) : null}
+
+                    {/* Quantity badge */}
+                    {task.quantityTarget ? (
+                      <span
+                        className="planner-badge"
+                        style={{
+                          background:
+                            (task.quantityCompleted || 0) >= task.quantityTarget
+                              ? "var(--accent-soft, rgba(16, 185, 129, 0.15))"
+                              : "var(--teal-soft, rgba(13, 148, 136, 0.12))",
+                          color:
+                            (task.quantityCompleted || 0) >= task.quantityTarget
+                              ? "var(--accent, #10b981)"
+                              : "var(--teal, #0d9488)",
+                          fontWeight: 600
+                        }}
+                      >
+                        📊 {formatQuantity(task.quantityCompleted || 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)} ({calculateQuantityPct(task.quantityCompleted || 0, task.quantityTarget)}%)
                       </span>
                     ) : null}
                   </div>

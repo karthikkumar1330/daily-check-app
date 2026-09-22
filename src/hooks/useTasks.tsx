@@ -19,7 +19,10 @@ interface TasksContextValue {
     dueTime?: string | null,
     reminderMinutes?: ReminderMinutes | null,
     dueDate?: string | null,
-    durationTargetMinutes?: number | null
+    durationTargetMinutes?: number | null,
+    quantityTarget?: number | null,
+    quantityUnit?: string,
+    quantityStep?: number
   ) => void;
   addTasks: (
     date: string,
@@ -34,6 +37,9 @@ interface TasksContextValue {
       routineId?: string | null;
       routineTaskId?: string | null;
       durationTargetMinutes?: number | null;
+      quantityTarget?: number | null;
+      quantityUnit?: string;
+      quantityStep?: number;
     }>
   ) => void;
   toggleTask: (date: string, id: string) => void;
@@ -46,6 +52,16 @@ interface TasksContextValue {
     date: string,
     id: string,
     totalMinutes: number
+  ) => { ok: boolean; newTotal?: number; completed?: boolean };
+  logTaskQuantity: (
+    date: string,
+    id: string,
+    delta: number
+  ) => { ok: boolean; newTotal?: number; completed?: boolean };
+  setTaskQuantityCompleted: (
+    date: string,
+    id: string,
+    total: number
   ) => { ok: boolean; newTotal?: number; completed?: boolean };
   toggleFocus: (date: string, id: string) => { ok: boolean; reason?: string };
   setFocusTasks: (date: string, taskIds: string[]) => { ok: boolean; reason?: string };
@@ -102,7 +118,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     dueTime: string | null = null,
     reminderMinutes: ReminderMinutes | null = null,
     dueDate: string | null = null,
-    durationTargetMinutes: number | null = null
+    durationTargetMinutes: number | null = null,
+    quantityTarget: number | null = null,
+    quantityUnit: string = "",
+    quantityStep: number = 1
   ) {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -112,7 +131,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         ...recurrence,
         startDate: recurrence.startDate || date
       };
-      const task = newTask(trimmed, priority, category, recWithStart, dueTime, reminderMinutes, null, null, null, durationTargetMinutes);
+      const task = newTask(
+        trimmed,
+        priority,
+        category,
+        recWithStart,
+        dueTime,
+        reminderMinutes,
+        null,
+        null,
+        null,
+        durationTargetMinutes,
+        quantityTarget,
+        quantityUnit,
+        quantityStep
+      );
       if (notes.trim()) task.notes = notes.trim();
 
       setAppData((prev) => ({
@@ -124,7 +157,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const targetDate = dueDate && dueDate.trim() ? dueDate.trim() : date;
     updateDay(targetDate, (day) => {
-      const task = newTask(trimmed, priority, category, null, dueTime, reminderMinutes, dueDate || null, null, null, durationTargetMinutes);
+      const task = newTask(
+        trimmed,
+        priority,
+        category,
+        null,
+        dueTime,
+        reminderMinutes,
+        dueDate || null,
+        null,
+        null,
+        durationTargetMinutes,
+        quantityTarget,
+        quantityUnit,
+        quantityStep
+      );
       if (notes.trim()) task.notes = notes.trim();
       return { ...day, tasks: [...day.tasks, task], updatedAt: Date.now() };
     });
@@ -143,6 +190,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       routineId?: string | null;
       routineTaskId?: string | null;
       durationTargetMinutes?: number | null;
+      quantityTarget?: number | null;
+      quantityUnit?: string;
+      quantityStep?: number;
     }>
   ) {
     if (!tasksToAdd || tasksToAdd.length === 0) return;
@@ -160,7 +210,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           item.dueDate ?? null,
           item.routineId ?? null,
           item.routineTaskId ?? null,
-          item.durationTargetMinutes ?? null
+          item.durationTargetMinutes ?? null,
+          item.quantityTarget ?? null,
+          item.quantityUnit ?? "",
+          item.quantityStep ?? 1
         );
         if (item.notes && item.notes.trim()) task.notes = item.notes.trim();
         task.order = baseOrder + idx * 10;
@@ -180,22 +233,30 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           const isDone = Boolean(t.completedDates?.[date]);
           const nextDates = { ...(t.completedDates ?? {}) };
           const nextDurationDates = { ...(t.durationCompletedDates ?? {}) };
+          const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
 
           if (isDone) {
             delete nextDates[date];
             if (t.durationTargetMinutes) {
               nextDurationDates[date] = 0;
             }
+            if (t.quantityTarget) {
+              nextQuantityDates[date] = 0;
+            }
           } else {
             nextDates[date] = Date.now();
             if (t.durationTargetMinutes) {
               nextDurationDates[date] = t.durationTargetMinutes;
             }
+            if (t.quantityTarget) {
+              nextQuantityDates[date] = t.quantityTarget;
+            }
           }
           return {
             ...t,
             completedDates: nextDates,
-            durationCompletedDates: nextDurationDates
+            durationCompletedDates: nextDurationDates,
+            quantityCompletedDates: nextQuantityDates
           };
         })
       }));
@@ -211,11 +272,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         if (t.durationTargetMinutes) {
           newDurationCompleted = willBeCompleted ? t.durationTargetMinutes : 0;
         }
+        let newQuantityCompleted = t.quantityCompleted;
+        if (t.quantityTarget) {
+          newQuantityCompleted = willBeCompleted ? t.quantityTarget : 0;
+        }
+        const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
+        if (t.quantityTarget) {
+          nextQuantityDates[date] = newQuantityCompleted ?? 0;
+        }
         return {
           ...t,
           completed: willBeCompleted,
           completedAt: willBeCompleted ? Date.now() : null,
-          durationCompletedMinutes: newDurationCompleted
+          durationCompletedMinutes: newDurationCompleted,
+          quantityCompleted: newQuantityCompleted,
+          quantityCompletedDates: nextQuantityDates
         };
       }),
       updatedAt: Date.now()
@@ -342,6 +413,145 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         return {
           ...t,
           durationCompletedMinutes: newTotal,
+          completed: isDone,
+          completedAt: isDone ? (t.completedAt ?? Date.now()) : null
+        };
+      }),
+      updatedAt: Date.now()
+    }));
+    return result !== null
+      ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+      : { ok: false };
+  }
+
+  function logTaskQuantity(
+    date: string,
+    id: string,
+    delta: number
+  ): { ok: boolean; newTotal?: number; completed?: boolean } {
+    if (delta === 0) return { ok: false };
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+
+    if (isRecurring) {
+      let result: { newTotal: number; completed: boolean } | null = null;
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+          if (t.id !== id || !t.quantityTarget) return t;
+          const target = t.quantityTarget;
+          const current = t.quantityCompletedDates?.[date] ?? 0;
+          const newTotal = Math.max(0, current + delta);
+          const isDone = newTotal >= target;
+          result = { newTotal, completed: isDone };
+
+          const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
+          nextQuantityDates[date] = newTotal;
+
+          const nextCompletedDates = { ...(t.completedDates ?? {}) };
+          if (isDone) {
+            nextCompletedDates[date] = Date.now();
+          } else {
+            delete nextCompletedDates[date];
+          }
+
+          return {
+            ...t,
+            quantityCompletedDates: nextQuantityDates,
+            completedDates: nextCompletedDates
+          };
+        })
+      }));
+      return result !== null
+        ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+        : { ok: false };
+    }
+
+    let result: { newTotal: number; completed: boolean } | null = null;
+    updateDay(date, (day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => {
+        if (t.id !== id || !t.quantityTarget) return t;
+        const target = t.quantityTarget;
+        const current = t.quantityCompletedDates?.[date] ?? t.quantityCompleted ?? 0;
+        const newTotal = Math.max(0, current + delta);
+        const isDone = newTotal >= target;
+        result = { newTotal, completed: isDone };
+
+        const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
+        nextQuantityDates[date] = newTotal;
+
+        return {
+          ...t,
+          quantityCompleted: newTotal,
+          quantityCompletedDates: nextQuantityDates,
+          completed: isDone,
+          completedAt: isDone ? (t.completedAt ?? Date.now()) : null
+        };
+      }),
+      updatedAt: Date.now()
+    }));
+    return result !== null
+      ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+      : { ok: false };
+  }
+
+  function setTaskQuantityCompleted(
+    date: string,
+    id: string,
+    total: number
+  ): { ok: boolean; newTotal?: number; completed?: boolean } {
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+
+    if (isRecurring) {
+      let result: { newTotal: number; completed: boolean } | null = null;
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+          if (t.id !== id || !t.quantityTarget) return t;
+          const target = t.quantityTarget;
+          const newTotal = Math.max(0, total);
+          const isDone = newTotal >= target;
+          result = { newTotal, completed: isDone };
+
+          const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
+          nextQuantityDates[date] = newTotal;
+
+          const nextCompletedDates = { ...(t.completedDates ?? {}) };
+          if (isDone) {
+            nextCompletedDates[date] = Date.now();
+          } else {
+            delete nextCompletedDates[date];
+          }
+
+          return {
+            ...t,
+            quantityCompletedDates: nextQuantityDates,
+            completedDates: nextCompletedDates
+          };
+        })
+      }));
+      return result !== null
+        ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+        : { ok: false };
+    }
+
+    let result: { newTotal: number; completed: boolean } | null = null;
+    updateDay(date, (day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => {
+        if (t.id !== id || !t.quantityTarget) return t;
+        const target = t.quantityTarget;
+        const newTotal = Math.max(0, total);
+        const isDone = newTotal >= target;
+        result = { newTotal, completed: isDone };
+
+        const nextQuantityDates = { ...(t.quantityCompletedDates ?? {}) };
+        nextQuantityDates[date] = newTotal;
+
+        return {
+          ...t,
+          quantityCompleted: newTotal,
+          quantityCompletedDates: nextQuantityDates,
           completed: isDone,
           completedAt: isDone ? (t.completedAt ?? Date.now()) : null
         };
@@ -766,6 +976,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     toggleTask,
     logTaskDuration,
     setTaskDurationCompleted,
+    logTaskQuantity,
+    setTaskQuantityCompleted,
     toggleFocus,
     setFocusTasks,
     saveEdit,

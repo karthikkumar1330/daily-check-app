@@ -7,9 +7,12 @@ import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OP
 import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
 import RescheduleModal from "../Modals/RescheduleModal";
 import LogTimeModal from "../Modals/LogTimeModal";
+import EditQuantityModal from "../Modals/EditQuantityModal";
+import QuantityGoalDetails from "../QuantityGoal/QuantityGoalDetails";
 import { useTasks } from "../../hooks/useTasks";
 import { useFocusTimer } from "../../hooks/useFocusTimer";
 import { calculateDurationPct, DURATION_PRESETS, formatDuration } from "../../utils/durationUtils";
+import { calculateQuantityPct, formatQuantity, getQuickAddOptions } from "../../utils/quantityUtils";
 
 interface TaskItemProps {
   task: Task;
@@ -53,11 +56,13 @@ export default function TaskItem({
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
-  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, getDay } = useTasks();
+  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
+  const [editQuantityOpen, setEditQuantityOpen] = useState(false);
+  const [quantityDetailsOpen, setQuantityDetailsOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [achievementData, setAchievementData] = useState<{
     text: string;
@@ -441,6 +446,172 @@ export default function TaskItem({
             </div>
           </div>
         ) : null}
+
+        {/* Quantity Task Progress & Controls */}
+        {task.quantityTarget ? (
+          <div className="task-quantity-container" style={{ marginTop: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "0.8rem",
+                color: "var(--ink-muted)",
+                marginBottom: 4
+              }}
+            >
+              <button
+                type="button"
+                className="btn text-btn"
+                onClick={() => setQuantityDetailsOpen(true)}
+                style={{
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  padding: 0,
+                  fontSize: "0.82rem",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                title="View quantity goal details"
+              >
+                <span>
+                  {formatQuantity(task.quantityCompleted ?? 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)}
+                </span>
+                <span style={{ fontSize: "0.74rem", opacity: 0.75, color: "var(--teal, #0d9488)" }}>📊 Details ›</span>
+              </button>
+
+              <span
+                style={{
+                  fontWeight: 700,
+                  color: (task.quantityCompleted ?? 0) >= task.quantityTarget ? "var(--accent, #10b981)" : "var(--ink-muted)"
+                }}
+              >
+                {calculateQuantityPct(task.quantityCompleted ?? 0, task.quantityTarget)}%
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={task.quantityTarget}
+              aria-valuenow={task.quantityCompleted ?? 0}
+              aria-label={`Progress: ${calculateQuantityPct(task.quantityCompleted ?? 0, task.quantityTarget)}%`}
+              onClick={() => setQuantityDetailsOpen(true)}
+              style={{
+                height: 6,
+                borderRadius: 3,
+                background: "var(--border, rgba(0,0,0,0.08))",
+                overflow: "hidden",
+                cursor: "pointer"
+              }}
+            >
+              <div
+                style={{
+                  width: `${calculateQuantityPct(task.quantityCompleted ?? 0, task.quantityTarget)}%`,
+                  height: "100%",
+                  background:
+                    (task.quantityCompleted ?? 0) >= task.quantityTarget
+                      ? "var(--accent, #10b981)"
+                      : "var(--teal, #0d9488)",
+                  borderRadius: 3,
+                  transition: "width 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+              />
+            </div>
+
+            {/* Quantity Actions */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 8,
+                flexWrap: "wrap"
+              }}
+            >
+              {(task.quantityCompleted ?? 0) >= task.quantityTarget ? (
+                <span
+                  className="completion-achievement-pill"
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "3px 8px"
+                  }}
+                >
+                  ✓ Target Reached
+                </span>
+              ) : null}
+
+              {/* Quick Add Buttons */}
+              {getQuickAddOptions(task.quantityStep || 1, task.quantityUnit || "").map((opt) => (
+                <button
+                  key={opt.delta}
+                  type="button"
+                  className="btn secondary-btn"
+                  onClick={() => {
+                    const res = logTaskQuantity(effectiveDate, task.id, opt.delta);
+                    if (res.ok) {
+                      if (res.completed && (task.quantityCompleted ?? 0) < (task.quantityTarget ?? 0)) {
+                        triggerAchievement("🎯 Target reached!", `${formatQuantity(task.quantityTarget, task.quantityUnit)} completed!`);
+                        onToast?.(`🎯 Target reached! ${task.title}`);
+                      } else {
+                        onToast?.(`+${formatQuantity(opt.delta, task.quantityUnit)} logged`);
+                      }
+                    }
+                  }}
+                  style={{
+                    fontSize: "0.76rem",
+                    fontWeight: 600,
+                    padding: "3px 8px",
+                    minHeight: 28,
+                    borderRadius: 6
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                className="btn text-btn"
+                onClick={() => setEditQuantityOpen(true)}
+                style={{
+                  fontSize: "0.76rem",
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  background: "var(--surface-subtle, rgba(0,0,0,0.04))",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "3px 8px",
+                  minHeight: 28
+                }}
+                aria-label={`Log custom quantity for ${task.title}`}
+              >
+                + Log / Set
+              </button>
+
+              <button
+                type="button"
+                className="btn text-btn"
+                onClick={() => setQuantityDetailsOpen(true)}
+                style={{
+                  fontSize: "0.76rem",
+                  fontWeight: 600,
+                  color: "var(--teal, #0d9488)",
+                  background: "rgba(13, 148, 136, 0.08)",
+                  borderRadius: 6,
+                  padding: "3px 8px",
+                  minHeight: 28
+                }}
+                aria-label={`View quantity goal details for ${task.title}`}
+              >
+                📊 Details
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
         {onToggleFocus ? (
@@ -490,6 +661,17 @@ export default function TaskItem({
                 }}
               >
                 <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
+              </button>
+            ) : null}
+            {task.quantityTarget ? (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setQuantityDetailsOpen(true);
+                }}
+              >
+                📊 Goal Details
               </button>
             ) : null}
             <button
@@ -615,6 +797,45 @@ export default function TaskItem({
           onClose={() => setLogTimeOpen(false)}
         />
       ) : null}
+
+      {editQuantityOpen ? (
+        <EditQuantityModal
+          task={task}
+          dateStr={effectiveDate}
+          onLogDelta={(delta) => {
+            const res = logTaskQuantity(effectiveDate, task.id, delta);
+            if (res.ok) {
+              if (res.completed && (task.quantityCompleted ?? 0) < (task.quantityTarget ?? 0)) {
+                triggerAchievement("🎯 Target reached!", `${formatQuantity(task.quantityTarget, task.quantityUnit)} completed!`, false, false);
+                onToast?.(`🎯 Target reached! ${task.title}`);
+              } else {
+                onToast?.(`Logged +${formatQuantity(delta, task.quantityUnit)}`);
+              }
+            }
+          }}
+          onSetTotal={(total) => {
+            const res = setTaskQuantityCompleted(effectiveDate, task.id, total);
+            if (res.ok) {
+              if (res.completed && (task.quantityCompleted ?? 0) < (task.quantityTarget ?? 0)) {
+                triggerAchievement("🎯 Target reached!", `${formatQuantity(task.quantityTarget, task.quantityUnit)} completed!`, false, false);
+                onToast?.(`🎯 Target reached! ${task.title}`);
+              } else {
+                onToast?.(`Updated: ${formatQuantity(res.newTotal, task.quantityUnit)}`);
+              }
+            }
+          }}
+          onClose={() => setEditQuantityOpen(false)}
+        />
+      ) : null}
+
+      {quantityDetailsOpen ? (
+        <QuantityGoalDetails
+          task={task}
+          initialDate={effectiveDate}
+          onClose={() => setQuantityDetailsOpen(false)}
+          onToast={onToast}
+        />
+      ) : null}
     </div>
   );
 }
@@ -663,6 +884,18 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
   const [customDurationMinutes, setCustomDurationMinutes] = useState<string>(
     task.durationTargetMinutes ? String(task.durationTargetMinutes) : ""
   );
+
+  const [goalType, setGoalType] = useState<"standard" | "duration" | "quantity">(
+    task.quantityTarget ? "quantity" : task.durationTargetMinutes ? "duration" : "standard"
+  );
+  const [quantityTarget, setQuantityTarget] = useState<string>(
+    task.quantityTarget ? String(task.quantityTarget) : "8"
+  );
+  const [quantityUnit, setQuantityUnit] = useState<string>(task.quantityUnit || "glasses");
+  const [quantityStep, setQuantityStep] = useState<string>(
+    task.quantityStep ? String(task.quantityStep) : "1"
+  );
+
   const [error, setError] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
@@ -709,13 +942,27 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
     const cleanDueDate = repeat === "none" ? (dueDate.trim() || null) : null;
 
     let cleanDuration: number | null = null;
-    if (durationPreset !== "none") {
-      if (durationPreset === "custom") {
-        const val = parseInt(customDurationMinutes, 10);
-        if (!isNaN(val) && val > 0) cleanDuration = val;
-      } else {
-        const val = parseInt(durationPreset, 10);
-        if (!isNaN(val) && val > 0) cleanDuration = val;
+    let cleanQtyTarget: number | null = null;
+    let cleanQtyUnit = "";
+    let cleanQtyStep = 1;
+
+    if (goalType === "duration") {
+      if (durationPreset !== "none") {
+        if (durationPreset === "custom") {
+          const val = parseInt(customDurationMinutes, 10);
+          if (!isNaN(val) && val > 0) cleanDuration = val;
+        } else {
+          const val = parseInt(durationPreset, 10);
+          if (!isNaN(val) && val > 0) cleanDuration = val;
+        }
+      }
+    } else if (goalType === "quantity") {
+      const qVal = parseFloat(quantityTarget);
+      if (!isNaN(qVal) && qVal > 0) {
+        cleanQtyTarget = qVal;
+        cleanQtyUnit = quantityUnit.trim();
+        const sVal = parseFloat(quantityStep);
+        cleanQtyStep = !isNaN(sVal) && sVal > 0 ? sVal : 1;
       }
     }
 
@@ -728,7 +975,10 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
       dueDate: cleanDueDate,
       dueTime: cleanDueTime,
       reminderMinutes: cleanReminder,
-      durationTargetMinutes: cleanDuration
+      durationTargetMinutes: cleanDuration,
+      quantityTarget: cleanQtyTarget,
+      quantityUnit: cleanQtyUnit,
+      quantityStep: cleanQtyStep
     });
   }
 
@@ -939,67 +1189,157 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
           )}
         </div>
 
-        {/* DURATION (Optional) Section */}
-        <div className="duration-control-group" style={{ marginBottom: 12 }}>
-          <label className="field-label" id={`edit-duration-label-${task.id}`}>
-            Target Duration (optional)
+        {/* Goal Type / Measurement Section */}
+        <div style={{ marginBottom: 12 }}>
+          <label className="field-label" id={`edit-goal-type-label-${task.id}`}>
+            Task Type
           </label>
           <div
-            className="duration-preset-grid"
             role="radiogroup"
-            aria-labelledby={`edit-duration-label-${task.id}`}
-            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+            aria-labelledby={`edit-goal-type-label-${task.id}`}
+            style={{ display: "flex", gap: 6, marginBottom: 8 }}
           >
             <button
               type="button"
-              className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
-              onClick={() => setDurationPreset("none")}
+              className={"chip-btn" + (goalType === "standard" ? " active" : "")}
+              onClick={() => setGoalType("standard")}
               role="radio"
-              aria-checked={durationPreset === "none"}
+              aria-checked={goalType === "standard"}
             >
-              None
+              Standard
             </button>
-            {DURATION_PRESETS.map((p) => (
-              <button
-                key={p.minutes}
-                type="button"
-                className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
-                onClick={() => setDurationPreset(String(p.minutes))}
-                role="radio"
-                aria-checked={durationPreset === String(p.minutes)}
-              >
-                {p.label}
-              </button>
-            ))}
             <button
               type="button"
-              className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
-              onClick={() => setDurationPreset("custom")}
+              className={"chip-btn" + (goalType === "duration" ? " active" : "")}
+              onClick={() => setGoalType("duration")}
               role="radio"
-              aria-checked={durationPreset === "custom"}
+              aria-checked={goalType === "duration"}
             >
-              Custom
+              ⏱ Duration
+            </button>
+            <button
+              type="button"
+              className={"chip-btn" + (goalType === "quantity" ? " active" : "")}
+              onClick={() => setGoalType("quantity")}
+              role="radio"
+              aria-checked={goalType === "quantity"}
+            >
+              📊 Quantity
             </button>
           </div>
 
-          {durationPreset === "custom" ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="number"
-                min="1"
-                max="1440"
-                className="modal-input"
-                style={{ width: 140 }}
-                placeholder="Minutes"
-                value={customDurationMinutes}
-                onChange={(e) => setCustomDurationMinutes(e.target.value)}
-                aria-label="Custom duration in minutes"
-              />
-              <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
-                {customDurationMinutes && !isNaN(Number(customDurationMinutes))
-                  ? formatDuration(Number(customDurationMinutes))
-                  : "minutes"}
-              </span>
+          {goalType === "duration" ? (
+            <div className="duration-control-group" style={{ marginTop: 8 }}>
+              <label className="field-label" id={`edit-duration-label-${task.id}`}>
+                Target Duration
+              </label>
+              <div
+                className="duration-preset-grid"
+                role="radiogroup"
+                aria-labelledby={`edit-duration-label-${task.id}`}
+                style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+              >
+                <button
+                  type="button"
+                  className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
+                  onClick={() => setDurationPreset("none")}
+                  role="radio"
+                  aria-checked={durationPreset === "none"}
+                >
+                  None
+                </button>
+                {DURATION_PRESETS.map((p) => (
+                  <button
+                    key={p.minutes}
+                    type="button"
+                    className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
+                    onClick={() => setDurationPreset(String(p.minutes))}
+                    role="radio"
+                    aria-checked={durationPreset === String(p.minutes)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
+                  onClick={() => setDurationPreset("custom")}
+                  role="radio"
+                  aria-checked={durationPreset === "custom"}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {durationPreset === "custom" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    className="modal-input"
+                    style={{ width: 140 }}
+                    placeholder="Minutes"
+                    value={customDurationMinutes}
+                    onChange={(e) => setCustomDurationMinutes(e.target.value)}
+                    aria-label="Custom duration in minutes"
+                  />
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+                    {customDurationMinutes && !isNaN(Number(customDurationMinutes))
+                      ? formatDuration(Number(customDurationMinutes))
+                      : "minutes"}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : goalType === "quantity" ? (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <label className="field-label" htmlFor={`edit-qty-target-${task.id}`}>
+                    Target Amount
+                  </label>
+                  <input
+                    id={`edit-qty-target-${task.id}`}
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    className="modal-input"
+                    value={quantityTarget}
+                    onChange={(e) => setQuantityTarget(e.target.value)}
+                    placeholder="e.g. 8"
+                  />
+                </div>
+                <div>
+                  <label className="field-label" htmlFor={`edit-qty-unit-${task.id}`}>
+                    Unit
+                  </label>
+                  <input
+                    id={`edit-qty-unit-${task.id}`}
+                    type="text"
+                    className="modal-input"
+                    value={quantityUnit}
+                    onChange={(e) => setQuantityUnit(e.target.value)}
+                    placeholder="e.g. glasses, L, steps"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="field-label" htmlFor={`edit-qty-step-${task.id}`}>
+                  Quick-add Step
+                </label>
+                <input
+                  id={`edit-qty-step-${task.id}`}
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  className="modal-input"
+                  style={{ width: 120 }}
+                  value={quantityStep}
+                  onChange={(e) => setQuantityStep(e.target.value)}
+                  placeholder="e.g. 1"
+                />
+              </div>
             </div>
           ) : null}
         </div>
