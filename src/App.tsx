@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TasksProvider, useTasks } from "./hooks/useTasks";
+import { FocusTimerProvider } from "./hooks/useFocusTimer";
 import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
 import { RoutinesProvider } from "./hooks/useRoutines";
 import { useTheme } from "./hooks/useTheme";
@@ -46,11 +47,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <TasksProvider>
-        <CountdownGoalsProvider>
-          <RoutinesProvider>
-            <Shell />
-          </RoutinesProvider>
-        </CountdownGoalsProvider>
+        <FocusTimerProvider>
+          <CountdownGoalsProvider>
+            <RoutinesProvider>
+              <Shell />
+            </RoutinesProvider>
+          </CountdownGoalsProvider>
+        </FocusTimerProvider>
       </TasksProvider>
     </BrowserRouter>
   );

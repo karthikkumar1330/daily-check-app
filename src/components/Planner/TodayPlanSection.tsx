@@ -3,6 +3,7 @@ import type { Task } from "../../types";
 import { getTodayPlan } from "../../utils/todayPlannerUtils";
 import { categoryMeta, prioClass } from "../../utils/taskUtils";
 import { formatTimeDisplay, getTaskScheduleStatus } from "../../utils/scheduleUtils";
+import { calculateDurationPct, formatDuration } from "../../utils/durationUtils";
 import { CheckIcon } from "../icons";
 
 interface TodayPlanSectionProps {
@@ -161,6 +162,26 @@ export default function TodayPlanSection({
                     {cat.id ? (
                       <span className="task-cat" aria-label={`Category: ${cat.label}`}>
                         {cat.emoji} {cat.label}
+                      </span>
+                    ) : null}
+
+                    {/* Duration badge */}
+                    {task.durationTargetMinutes ? (
+                      <span
+                        className="planner-badge"
+                        style={{
+                          background:
+                            (task.durationCompletedMinutes || 0) >= task.durationTargetMinutes
+                              ? "var(--accent-soft, rgba(16, 185, 129, 0.15))"
+                              : "var(--teal-soft, rgba(13, 148, 136, 0.12))",
+                          color:
+                            (task.durationCompletedMinutes || 0) >= task.durationTargetMinutes
+                              ? "var(--accent, #10b981)"
+                              : "var(--teal, #0d9488)",
+                          fontWeight: 600
+                        }}
+                      >
+                        ⏱ {formatDuration(task.durationCompletedMinutes || 0)} / {formatDuration(task.durationTargetMinutes)} ({calculateDurationPct(task.durationCompletedMinutes || 0, task.durationTargetMinutes)}%)
                       </span>
                     ) : null}
                   </div>

@@ -157,14 +157,38 @@ export function resolveDayData(
   const recurringOccurrences: Task[] = [];
   for (const rt of recurringTasks) {
     if (isTaskScheduledOnDate(rt.recurrence, dateStr)) {
-      const isCompleted = Boolean(rt.completedDates?.[dateStr]);
+      const durationTarget =
+        typeof rt.durationTargetMinutes === "number" && rt.durationTargetMinutes > 0
+          ? rt.durationTargetMinutes
+          : null;
+
+      let isCompleted = Boolean(rt.completedDates?.[dateStr]);
+      let durationCompleted: number | null = null;
+
+      if (durationTarget) {
+        const storedCompleted = rt.durationCompletedDates?.[dateStr];
+        if (typeof storedCompleted === "number") {
+          durationCompleted = Math.max(0, Math.min(durationTarget, storedCompleted));
+          isCompleted = durationCompleted >= durationTarget;
+        } else if (isCompleted) {
+          // If marked completed directly (e.g. checkmark), treat as 100%
+          durationCompleted = durationTarget;
+        } else {
+          durationCompleted = 0;
+          isCompleted = false;
+        }
+      }
+
       const completedAt = isCompleted ? (rt.completedDates?.[dateStr] ?? Date.now()) : null;
       const isFocus = Boolean(rt.focusDates?.[dateStr]) || rt.focusDate === dateStr;
+
       recurringOccurrences.push({
         ...rt,
         completed: isCompleted,
         completedAt,
-        focusDate: isFocus ? dateStr : null
+        focusDate: isFocus ? dateStr : null,
+        durationTargetMinutes: durationTarget,
+        durationCompletedMinutes: durationCompleted
       });
     }
   }

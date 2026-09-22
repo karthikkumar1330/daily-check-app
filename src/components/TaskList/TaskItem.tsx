@@ -6,7 +6,10 @@ import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../..
 import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
 import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
 import RescheduleModal from "../Modals/RescheduleModal";
+import LogTimeModal from "../Modals/LogTimeModal";
 import { useTasks } from "../../hooks/useTasks";
+import { useFocusTimer } from "../../hooks/useFocusTimer";
+import { calculateDurationPct, DURATION_PRESETS, formatDuration } from "../../utils/durationUtils";
 
 interface TaskItemProps {
   task: Task;
@@ -50,10 +53,82 @@ export default function TaskItem({
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
-  const { rescheduleTask } = useTasks();
+  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted } = useTasks();
+  const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [logTimeOpen, setLogTimeOpen] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [achievementText, setAchievementText] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  function triggerAchievement(text: string) {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([18, 40, 18]);
+      } catch {}
+    }
+    setAchievementText(text);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      setAchievementText(null);
+    }, 1400);
+  }
+
+  function handleCheckClick() {
+    if (task.completed) {
+      // Unchecking: immediate, no achievement
+      setIsCompleting(false);
+      setAchievementText(null);
+      onToggle();
+      return;
+    }
+
+    // Completing:
+    const text = task.durationTargetMinutes
+      ? `🎯 Target reached! ${task.title} complete`
+      : "✓ Completed! 🎯";
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(18);
+      } catch {}
+    }
+
+    if (prefersReduced) {
+      onToggle();
+      return;
+    }
+
+    setIsCompleting(true);
+    setAchievementText(text);
+
+    timerRef.current = window.setTimeout(() => {
+      onToggle();
+      setTimeout(() => {
+        setIsCompleting(false);
+        setAchievementText(null);
+      }, 500);
+    }, 380);
+  }
+
+  const effectiveDate = dateStr || task.dueDate || todayStr();
+  const isTimerActiveOnThis = session?.taskId === task.id;
+  const target = task.durationTargetMinutes;
+  const completedMins = task.durationCompletedMinutes || 0;
+  const pct = target ? calculateDurationPct(completedMins, target) : 0;
+  const isTargetReached = Boolean(target && completedMins >= target);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -81,13 +156,21 @@ export default function TaskItem({
   const timeFormatted = formatTimeDisplay(task.dueTime);
   const scheduleStatus = getTaskScheduleStatus(task, dateStr || todayStr());
 
+  const isChecked = task.completed || isCompleting;
+
   return (
-    <div className={"task" + (task.completed ? " completed" : "")}>
+    <div
+      className={
+        "task" +
+        (isChecked ? " completed" : "") +
+        (isCompleting ? " task-completing" : "")
+      }
+    >
       <button
-        className="check"
-        onClick={onToggle}
-        aria-label={task.completed ? `Mark "${task.title}" incomplete` : `Mark "${task.title}" complete`}
-        aria-pressed={task.completed}
+        className={"check" + (isChecked ? " is-checked" : "") + (isCompleting ? " check-pop" : "")}
+        onClick={handleCheckClick}
+        aria-label={isChecked ? `Mark "${task.title}" incomplete` : `Mark "${task.title}" complete`}
+        aria-pressed={isChecked}
       >
         <CheckIcon />
       </button>
@@ -95,6 +178,12 @@ export default function TaskItem({
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
+
+          {achievementText ? (
+            <span className="completion-achievement-pill" role="status" aria-live="polite">
+              {achievementText}
+            </span>
+          ) : null}
 
           {/* Focus Badge */}
           {isFocused ? (
@@ -172,6 +261,130 @@ export default function TaskItem({
           ) : null}
         </div>
         {task.notes ? <div className="task-notes">{task.notes}</div> : null}
+
+        {/* Duration Task Progress & Controls */}
+        {task.durationTargetMinutes ? (
+          <div className="task-duration-container" style={{ marginTop: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "0.8rem",
+                color: "var(--ink-muted)",
+                marginBottom: 4
+              }}
+            >
+              <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                {formatDuration(completedMins)} / {formatDuration(task.durationTargetMinutes)}
+              </span>
+              <span
+                style={{
+                  fontWeight: 700,
+                  color: isTargetReached ? "var(--accent, #10b981)" : "var(--ink-muted)"
+                }}
+              >
+                {pct}%
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={task.durationTargetMinutes}
+              aria-valuenow={completedMins}
+              aria-label={`Progress: ${pct}%`}
+              style={{
+                height: 6,
+                borderRadius: 3,
+                background: "var(--border, rgba(0,0,0,0.08))",
+                overflow: "hidden"
+              }}
+            >
+              <div
+                style={{
+                  width: `${pct}%`,
+                  height: "100%",
+                  background: isTargetReached ? "var(--accent, #10b981)" : "var(--teal, #0d9488)",
+                  borderRadius: 3,
+                  transition: "width 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+              />
+            </div>
+
+            {/* Duration Actions */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 8,
+                flexWrap: "wrap"
+              }}
+            >
+              {isTargetReached ? (
+                <span
+                  className="completion-achievement-pill"
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "3px 8px"
+                  }}
+                >
+                  ✓ Target Reached
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn text-btn duration-focus-btn"
+                  onClick={() => startFocus(task, effectiveDate)}
+                  style={{
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: isTimerActiveOnThis ? "var(--accent, #10b981)" : "var(--ink)",
+                    background: isTimerActiveOnThis
+                      ? "var(--accent-soft, rgba(16,185,129,0.12))"
+                      : "var(--surface-subtle, rgba(0,0,0,0.04))",
+                    border: isTimerActiveOnThis
+                      ? "1px solid var(--accent, #10b981)"
+                      : "1px solid var(--border)",
+                    borderRadius: 6,
+                    padding: "4px 10px",
+                    minHeight: 32,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5
+                  }}
+                  aria-label={isTimerActiveOnThis ? "Focus timer active" : `Start Focus for ${task.title}`}
+                >
+                  <span>{isTimerActiveOnThis ? (isRunning ? "⏸ Focus Running" : "▶ Resume Focus") : "▶ Start Focus"}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="btn text-btn duration-log-btn"
+                onClick={() => setLogTimeOpen(true)}
+                style={{
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  background: "var(--surface-subtle, rgba(0,0,0,0.04))",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  minHeight: 32,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                aria-label={`Log time for ${task.title}`}
+              >
+                <span>+ Log Time</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
         {onToggleFocus ? (
@@ -316,6 +529,36 @@ export default function TaskItem({
           }
         />
       ) : null}
+
+      {logTimeOpen ? (
+        <LogTimeModal
+          task={task}
+          dateStr={effectiveDate}
+          onLogDelta={(delta) => {
+            const res = logTaskDuration(effectiveDate, task.id, delta);
+            if (res.ok) {
+              if (res.completed) {
+                triggerAchievement(`🎯 Target reached! ${task.title} complete`);
+                onToast?.(`🎯 Target reached! ${task.title} — ${formatDuration(task.durationTargetMinutes)} complete`);
+              } else {
+                onToast?.(`Logged ${delta}m · ${formatDuration(res.newTotal)} / ${formatDuration(task.durationTargetMinutes)}`);
+              }
+            }
+          }}
+          onSetTotal={(total) => {
+            const res = setTaskDurationCompleted(effectiveDate, task.id, total);
+            if (res.ok) {
+              if (res.completed) {
+                triggerAchievement(`🎯 Target reached! ${task.title} complete`);
+                onToast?.(`🎯 Target reached! ${task.title} — ${formatDuration(task.durationTargetMinutes)} complete`);
+              } else {
+                onToast?.(`Updated · ${formatDuration(res.newTotal)} / ${formatDuration(task.durationTargetMinutes)}`);
+              }
+            }
+          }}
+          onClose={() => setLogTimeOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -354,6 +597,15 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
     task.recurrence?.daysOfWeek && task.recurrence.daysOfWeek.length > 0
       ? task.recurrence.daysOfWeek
       : [1, 3, 5]
+  );
+  const initialDuration = task.durationTargetMinutes ? String(task.durationTargetMinutes) : "none";
+  const isCustomInitial =
+    Boolean(task.durationTargetMinutes && ![15, 30, 45, 60, 120, 180].includes(task.durationTargetMinutes));
+  const [durationPreset, setDurationPreset] = useState<string>(
+    isCustomInitial ? "custom" : initialDuration
+  );
+  const [customDurationMinutes, setCustomDurationMinutes] = useState<string>(
+    task.durationTargetMinutes ? String(task.durationTargetMinutes) : ""
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -400,6 +652,17 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
     const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
     const cleanDueDate = repeat === "none" ? (dueDate.trim() || null) : null;
 
+    let cleanDuration: number | null = null;
+    if (durationPreset !== "none") {
+      if (durationPreset === "custom") {
+        const val = parseInt(customDurationMinutes, 10);
+        if (!isNaN(val) && val > 0) cleanDuration = val;
+      } else {
+        const val = parseInt(durationPreset, 10);
+        if (!isNaN(val) && val > 0) cleanDuration = val;
+      }
+    }
+
     onSave({
       title: trimmed || task.title,
       priority,
@@ -408,7 +671,8 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
       recurrence: rec,
       dueDate: cleanDueDate,
       dueTime: cleanDueTime,
-      reminderMinutes: cleanReminder
+      reminderMinutes: cleanReminder,
+      durationTargetMinutes: cleanDuration
     });
   }
 
@@ -617,6 +881,71 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
           ) : (
             <div className="schedule-hint">Notifications can be enabled later in Settings.</div>
           )}
+        </div>
+
+        {/* DURATION (Optional) Section */}
+        <div className="duration-control-group" style={{ marginBottom: 12 }}>
+          <label className="field-label" id={`edit-duration-label-${task.id}`}>
+            Target Duration (optional)
+          </label>
+          <div
+            className="duration-preset-grid"
+            role="radiogroup"
+            aria-labelledby={`edit-duration-label-${task.id}`}
+            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+          >
+            <button
+              type="button"
+              className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
+              onClick={() => setDurationPreset("none")}
+              role="radio"
+              aria-checked={durationPreset === "none"}
+            >
+              None
+            </button>
+            {DURATION_PRESETS.map((p) => (
+              <button
+                key={p.minutes}
+                type="button"
+                className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
+                onClick={() => setDurationPreset(String(p.minutes))}
+                role="radio"
+                aria-checked={durationPreset === String(p.minutes)}
+              >
+                {p.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
+              onClick={() => setDurationPreset("custom")}
+              role="radio"
+              aria-checked={durationPreset === "custom"}
+            >
+              Custom
+            </button>
+          </div>
+
+          {durationPreset === "custom" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min="1"
+                max="1440"
+                className="modal-input"
+                style={{ width: 140 }}
+                placeholder="Minutes"
+                value={customDurationMinutes}
+                onChange={(e) => setCustomDurationMinutes(e.target.value)}
+                aria-label="Custom duration in minutes"
+              />
+              <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+                {customDurationMinutes && !isNaN(Number(customDurationMinutes))
+                  ? formatDuration(Number(customDurationMinutes))
+                  : "minutes"}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <textarea

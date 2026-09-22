@@ -16,9 +16,15 @@ export function newTask(
   reminderMinutes: ReminderMinutes | null = null,
   dueDate: string | null = null,
   routineId: string | null = null,
-  routineTaskId: string | null = null
+  routineTaskId: string | null = null,
+  durationTargetMinutes: number | null = null
 ): Task {
   const now = Date.now();
+  const cleanTarget =
+    typeof durationTargetMinutes === "number" && !isNaN(durationTargetMinutes) && durationTargetMinutes > 0
+      ? Math.round(durationTargetMinutes)
+      : null;
+
   return {
     id: uid(),
     title,
@@ -37,7 +43,10 @@ export function newTask(
     routineId: routineId ?? null,
     routineTaskId: routineTaskId ?? null,
     focusDate: null,
-    focusDates: {}
+    focusDates: {},
+    durationTargetMinutes: cleanTarget,
+    durationCompletedMinutes: cleanTarget ? 0 : null,
+    durationCompletedDates: {}
   };
 }
 

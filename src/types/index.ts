@@ -49,6 +49,12 @@ export interface Task {
   focusDate?: string | null;
   /** Per-date focus tracking for recurring tasks: date (YYYY-MM-DD) -> timestamp */
   focusDates?: Record<string, number>;
+  /** Optional target duration in minutes (e.g. 180 for 3 hours). Undefined/null for ordinary tasks */
+  durationTargetMinutes?: number | null;
+  /** Completed minutes for this instance (0 <= completed <= target) */
+  durationCompletedMinutes?: number | null;
+  /** Per-date duration completion tracking for recurring tasks: date (YYYY-MM-DD) -> completed minutes */
+  durationCompletedDates?: Record<string, number>;
 }
 
 export interface DayData {
@@ -93,6 +99,7 @@ export interface RoutineTask {
   notes: string;
   dueTime?: string | null;
   reminderMinutes?: ReminderMinutes | null;
+  durationTargetMinutes?: number | null;
 }
 
 export interface Routine {

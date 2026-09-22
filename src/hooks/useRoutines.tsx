@@ -71,7 +71,8 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
         category: t.category ?? "",
         notes: t.notes ? t.notes.trim() : "",
         dueTime: t.dueTime ?? null,
-        reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null
+        reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null,
+        durationTargetMinutes: t.durationTargetMinutes ?? null
       }))
       .filter((t) => t.title.length > 0);
 
@@ -122,7 +123,8 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
         category: t.category ?? "",
         notes: t.notes ? t.notes.trim() : "",
         dueTime: t.dueTime ?? null,
-        reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null
+        reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null,
+        durationTargetMinutes: t.durationTargetMinutes ?? null
       }))
       .filter((t) => t.title.length > 0);
 
@@ -217,6 +219,7 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
       notes: rt.notes,
       dueTime: rt.dueTime,
       reminderMinutes: rt.reminderMinutes,
+      durationTargetMinutes: rt.durationTargetMinutes ?? null,
       routineId: routine.id,
       routineTaskId: rt.id
     }));

@@ -210,8 +210,8 @@ export default function Today() {
       {advancedOpen ? (
         <AddTaskModal
           initialDate={viewDate}
-          onAdd={(title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate) => {
-            addTask(viewDate, title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate);
+          onAdd={(title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate, durationTargetMinutes) => {
+            addTask(viewDate, title, priority, category, notes, recurrence, dueTime, reminderMinutes, dueDate, durationTargetMinutes);
             setAdvancedOpen(false);
           }}
           onCancel={() => setAdvancedOpen(false)}

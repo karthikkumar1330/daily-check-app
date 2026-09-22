@@ -5,6 +5,7 @@ import { useCountdownGoals } from "../../hooks/useCountdownGoals";
 import { useRoutines } from "../../hooks/useRoutines";
 import type { AppData, CountdownGoalsData, RoutinesData, ThemePreference } from "../../types";
 import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION, CURRENT_ROUTINES_VERSION } from "../../types";
+import { APP_VERSION } from "../../version";
 import { exportBackup, parseImportFile, getStorageUsageKb } from "../../utils/storageUtils";
 import {
   getNotificationPermission,
@@ -323,7 +324,7 @@ export default function Settings() {
         <div className="about-details">
           <div className="about-row">
             <span className="about-label">Application Version:</span>
-            <span className="about-val">V5.1</span>
+            <span className="about-val">v{APP_VERSION}</span>
           </div>
           <div className="about-row">
             <span className="about-label">Task Schema:</span>

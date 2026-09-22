@@ -18,7 +18,8 @@ interface TasksContextValue {
     recurrence?: TaskRecurrence | null,
     dueTime?: string | null,
     reminderMinutes?: ReminderMinutes | null,
-    dueDate?: string | null
+    dueDate?: string | null,
+    durationTargetMinutes?: number | null
   ) => void;
   addTasks: (
     date: string,
@@ -32,9 +33,20 @@ interface TasksContextValue {
       dueDate?: string | null;
       routineId?: string | null;
       routineTaskId?: string | null;
+      durationTargetMinutes?: number | null;
     }>
   ) => void;
   toggleTask: (date: string, id: string) => void;
+  logTaskDuration: (
+    date: string,
+    id: string,
+    minutesDelta: number
+  ) => { ok: boolean; newTotal?: number; completed?: boolean };
+  setTaskDurationCompleted: (
+    date: string,
+    id: string,
+    totalMinutes: number
+  ) => { ok: boolean; newTotal?: number; completed?: boolean };
   toggleFocus: (date: string, id: string) => { ok: boolean; reason?: string };
   setFocusTasks: (date: string, taskIds: string[]) => { ok: boolean; reason?: string };
   saveEdit: (date: string, id: string, updates: Partial<Task>) => void;
@@ -89,7 +101,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     recurrence: TaskRecurrence | null = null,
     dueTime: string | null = null,
     reminderMinutes: ReminderMinutes | null = null,
-    dueDate: string | null = null
+    dueDate: string | null = null,
+    durationTargetMinutes: number | null = null
   ) {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -99,7 +112,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         ...recurrence,
         startDate: recurrence.startDate || date
       };
-      const task = newTask(trimmed, priority, category, recWithStart, dueTime, reminderMinutes, null);
+      const task = newTask(trimmed, priority, category, recWithStart, dueTime, reminderMinutes, null, null, null, durationTargetMinutes);
       if (notes.trim()) task.notes = notes.trim();
 
       setAppData((prev) => ({
@@ -111,7 +124,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const targetDate = dueDate && dueDate.trim() ? dueDate.trim() : date;
     updateDay(targetDate, (day) => {
-      const task = newTask(trimmed, priority, category, null, dueTime, reminderMinutes, dueDate || null);
+      const task = newTask(trimmed, priority, category, null, dueTime, reminderMinutes, dueDate || null, null, null, durationTargetMinutes);
       if (notes.trim()) task.notes = notes.trim();
       return { ...day, tasks: [...day.tasks, task], updatedAt: Date.now() };
     });
@@ -129,6 +142,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       dueDate?: string | null;
       routineId?: string | null;
       routineTaskId?: string | null;
+      durationTargetMinutes?: number | null;
     }>
   ) {
     if (!tasksToAdd || tasksToAdd.length === 0) return;
@@ -145,7 +159,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           item.reminderMinutes ?? null,
           item.dueDate ?? null,
           item.routineId ?? null,
-          item.routineTaskId ?? null
+          item.routineTaskId ?? null,
+          item.durationTargetMinutes ?? null
         );
         if (item.notes && item.notes.trim()) task.notes = item.notes.trim();
         task.order = baseOrder + idx * 10;
@@ -164,12 +179,24 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           if (t.id !== id) return t;
           const isDone = Boolean(t.completedDates?.[date]);
           const nextDates = { ...(t.completedDates ?? {}) };
+          const nextDurationDates = { ...(t.durationCompletedDates ?? {}) };
+
           if (isDone) {
             delete nextDates[date];
+            if (t.durationTargetMinutes) {
+              nextDurationDates[date] = 0;
+            }
           } else {
             nextDates[date] = Date.now();
+            if (t.durationTargetMinutes) {
+              nextDurationDates[date] = t.durationTargetMinutes;
+            }
           }
-          return { ...t, completedDates: nextDates };
+          return {
+            ...t,
+            completedDates: nextDates,
+            durationCompletedDates: nextDurationDates
+          };
         })
       }));
       return;
@@ -177,11 +204,153 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     updateDay(date, (day) => ({
       ...day,
-      tasks: day.tasks.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: !t.completed ? Date.now() : null } : t
-      ),
+      tasks: day.tasks.map((t) => {
+        if (t.id !== id) return t;
+        const willBeCompleted = !t.completed;
+        let newDurationCompleted = t.durationCompletedMinutes;
+        if (t.durationTargetMinutes) {
+          newDurationCompleted = willBeCompleted ? t.durationTargetMinutes : 0;
+        }
+        return {
+          ...t,
+          completed: willBeCompleted,
+          completedAt: willBeCompleted ? Date.now() : null,
+          durationCompletedMinutes: newDurationCompleted
+        };
+      }),
       updatedAt: Date.now()
     }));
+  }
+
+  function logTaskDuration(
+    date: string,
+    id: string,
+    minutesDelta: number
+  ): { ok: boolean; newTotal?: number; completed?: boolean } {
+    if (minutesDelta === 0) return { ok: false };
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+
+    if (isRecurring) {
+      let result: { newTotal: number; completed: boolean } | null = null;
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+          if (t.id !== id || !t.durationTargetMinutes) return t;
+          const target = t.durationTargetMinutes;
+          const current = t.durationCompletedDates?.[date] ?? 0;
+          const newTotal = Math.max(0, Math.min(target, current + minutesDelta));
+          const isDone = newTotal >= target;
+          result = { newTotal, completed: isDone };
+
+          const nextDurationDates = { ...(t.durationCompletedDates ?? {}) };
+          nextDurationDates[date] = newTotal;
+
+          const nextCompletedDates = { ...(t.completedDates ?? {}) };
+          if (isDone) {
+            nextCompletedDates[date] = Date.now();
+          } else {
+            delete nextCompletedDates[date];
+          }
+
+          return {
+            ...t,
+            durationCompletedDates: nextDurationDates,
+            completedDates: nextCompletedDates
+          };
+        })
+      }));
+      return result !== null
+        ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+        : { ok: false };
+    }
+
+    let result: { newTotal: number; completed: boolean } | null = null;
+    updateDay(date, (day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => {
+        if (t.id !== id || !t.durationTargetMinutes) return t;
+        const target = t.durationTargetMinutes;
+        const current = t.durationCompletedMinutes ?? 0;
+        const newTotal = Math.max(0, Math.min(target, current + minutesDelta));
+        const isDone = newTotal >= target;
+        result = { newTotal, completed: isDone };
+
+        return {
+          ...t,
+          durationCompletedMinutes: newTotal,
+          completed: isDone,
+          completedAt: isDone ? (t.completedAt ?? Date.now()) : null
+        };
+      }),
+      updatedAt: Date.now()
+    }));
+    return result !== null
+      ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+      : { ok: false };
+  }
+
+  function setTaskDurationCompleted(
+    date: string,
+    id: string,
+    totalMinutes: number
+  ): { ok: boolean; newTotal?: number; completed?: boolean } {
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+
+    if (isRecurring) {
+      let result: { newTotal: number; completed: boolean } | null = null;
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) => {
+          if (t.id !== id || !t.durationTargetMinutes) return t;
+          const target = t.durationTargetMinutes;
+          const newTotal = Math.max(0, Math.min(target, Math.round(totalMinutes)));
+          const isDone = newTotal >= target;
+          result = { newTotal, completed: isDone };
+
+          const nextDurationDates = { ...(t.durationCompletedDates ?? {}) };
+          nextDurationDates[date] = newTotal;
+
+          const nextCompletedDates = { ...(t.completedDates ?? {}) };
+          if (isDone) {
+            nextCompletedDates[date] = Date.now();
+          } else {
+            delete nextCompletedDates[date];
+          }
+
+          return {
+            ...t,
+            durationCompletedDates: nextDurationDates,
+            completedDates: nextCompletedDates
+          };
+        })
+      }));
+      return result !== null
+        ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+        : { ok: false };
+    }
+
+    let result: { newTotal: number; completed: boolean } | null = null;
+    updateDay(date, (day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => {
+        if (t.id !== id || !t.durationTargetMinutes) return t;
+        const target = t.durationTargetMinutes;
+        const newTotal = Math.max(0, Math.min(target, Math.round(totalMinutes)));
+        const isDone = newTotal >= target;
+        result = { newTotal, completed: isDone };
+
+        return {
+          ...t,
+          durationCompletedMinutes: newTotal,
+          completed: isDone,
+          completedAt: isDone ? (t.completedAt ?? Date.now()) : null
+        };
+      }),
+      updatedAt: Date.now()
+    }));
+    return result !== null
+      ? { ok: true, newTotal: (result as { newTotal: number; completed: boolean }).newTotal, completed: (result as { newTotal: number; completed: boolean }).completed }
+      : { ok: false };
   }
 
   function toggleFocus(date: string, id: string): { ok: boolean; reason?: string } {
@@ -595,6 +764,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     addTask,
     addTasks,
     toggleTask,
+    logTaskDuration,
+    setTaskDurationCompleted,
     toggleFocus,
     setFocusTasks,
     saveEdit,

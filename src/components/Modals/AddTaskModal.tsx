@@ -5,6 +5,7 @@ import { DAYS_OF_WEEK_OPTIONS, validateRecurrence } from "../../utils/recurrence
 import { CATEGORIES } from "../../utils/taskUtils";
 import { REMINDER_OPTIONS } from "../../utils/scheduleUtils";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
+import { DURATION_PRESETS, formatDuration } from "../../utils/durationUtils";
 
 interface AddTaskModalProps {
   initialDate?: string;
@@ -16,7 +17,8 @@ interface AddTaskModalProps {
     recurrence?: TaskRecurrence | null,
     dueTime?: string | null,
     reminderMinutes?: ReminderMinutes | null,
-    dueDate?: string | null
+    dueDate?: string | null,
+    durationTargetMinutes?: number | null
   ) => void;
   onCancel: () => void;
 }
@@ -52,6 +54,8 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
   const [startDate, setStartDate] = useState(effectiveStart);
   const [endDate, setEndDate] = useState("");
   const [customDays, setCustomDays] = useState<number[]>([1, 3, 5]);
+  const [durationPreset, setDurationPreset] = useState<string>("none");
+  const [customDurationMinutes, setCustomDurationMinutes] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
@@ -85,9 +89,20 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
     const cleanDueTime = dueTime.trim() || null;
     const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
 
+    let cleanDuration: number | null = null;
+    if (durationPreset !== "none") {
+      if (durationPreset === "custom") {
+        const val = parseInt(customDurationMinutes, 10);
+        if (!isNaN(val) && val > 0) cleanDuration = val;
+      } else {
+        const val = parseInt(durationPreset, 10);
+        if (!isNaN(val) && val > 0) cleanDuration = val;
+      }
+    }
+
     if (repeat === "none") {
       const cleanDueDate = dueDate.trim() || effectiveStart;
-      onAdd(trimmed, priority, category, notes.trim(), null, cleanDueTime, cleanReminder, cleanDueDate);
+      onAdd(trimmed, priority, category, notes.trim(), null, cleanDueTime, cleanReminder, cleanDueDate, cleanDuration);
       return;
     }
 
@@ -109,7 +124,7 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
       return;
     }
 
-    onAdd(trimmed, priority, category, notes.trim(), rec, cleanDueTime, cleanReminder, null);
+    onAdd(trimmed, priority, category, notes.trim(), rec, cleanDueTime, cleanReminder, null, cleanDuration);
   }
 
   const weeklyDayName = weekdayFull(startDate || effectiveStart);
@@ -336,6 +351,71 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
           ) : (
             <div className="schedule-hint">Notifications can be enabled later in Settings.</div>
           )}
+        </div>
+
+        {/* DURATION (Optional) Section */}
+        <div className="duration-control-group" style={{ marginBottom: 12 }}>
+          <label className="field-label" id="duration-label">
+            Target Duration (optional)
+          </label>
+          <div
+            className="duration-preset-grid"
+            role="radiogroup"
+            aria-labelledby="duration-label"
+            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
+          >
+            <button
+              type="button"
+              className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
+              onClick={() => setDurationPreset("none")}
+              role="radio"
+              aria-checked={durationPreset === "none"}
+            >
+              None
+            </button>
+            {DURATION_PRESETS.map((p) => (
+              <button
+                key={p.minutes}
+                type="button"
+                className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
+                onClick={() => setDurationPreset(String(p.minutes))}
+                role="radio"
+                aria-checked={durationPreset === String(p.minutes)}
+              >
+                {p.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
+              onClick={() => setDurationPreset("custom")}
+              role="radio"
+              aria-checked={durationPreset === "custom"}
+            >
+              Custom
+            </button>
+          </div>
+
+          {durationPreset === "custom" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min="1"
+                max="1440"
+                className="modal-input"
+                style={{ width: 140 }}
+                placeholder="Minutes"
+                value={customDurationMinutes}
+                onChange={(e) => setCustomDurationMinutes(e.target.value)}
+                aria-label="Custom duration in minutes"
+              />
+              <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+                {customDurationMinutes && !isNaN(Number(customDurationMinutes))
+                  ? formatDuration(Number(customDurationMinutes))
+                  : "minutes"}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <label className="field-label" htmlFor="add-task-notes">

@@ -1,15 +1,19 @@
 :root {
-  --bg: #f8f9f7;
+  --bg: #f9faf8;
   --surface: #ffffff;
   --surface-2: #f2f4f1;
-  --border: #e3e7e2;
+  --surface-subtle: rgba(0, 0, 0, 0.025);
+  --surface-hover: rgba(0, 0, 0, 0.04);
+  --border: #e2e6e1;
   --ink: #141715;
   --ink-muted: #5e6661;
-  --ink-faint: #929c95;
+  --ink-faint: #8e9891;
   --accent: #246a56;
   --accent-ink: #ffffff;
   --accent-soft: #e8f3ee;
   --accent-border: #c8e2d7;
+  --teal: #0d9488;
+  --teal-soft: #e6f7f5;
   --red: #d3454c;
   --red-soft: #fae9e9;
   --amber: #b97d19;
@@ -26,47 +30,55 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121413;
-    --surface: #1a1d1b;
-    --surface-2: #222623;
-    --border: #2a302c;
+    --bg: #141615;
+    --surface: #1c1f1d;
+    --surface-2: #242825;
+    --surface-subtle: rgba(255, 255, 255, 0.035);
+    --surface-hover: rgba(255, 255, 255, 0.06);
+    --border: #2c322e;
     --ink: #edf1ed;
     --ink-muted: #9ba39d;
-    --ink-faint: #636c65;
+    --ink-faint: #677169;
     --accent: #4eb696;
     --accent-ink: #0d1411;
-    --accent-soft: #162922;
-    --accent-border: #234337;
+    --accent-soft: #172b23;
+    --accent-border: #244639;
+    --teal: #2dd4bf;
+    --teal-soft: #132d29;
     --red: #e67579;
     --red-soft: #2e1a1c;
     --amber: #dcab50;
     --amber-soft: #2e2615;
     --green: #5ec48f;
     --green-soft: #142a1e;
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121413;
-  --surface: #1a1d1b;
-  --surface-2: #222623;
-  --border: #2a302c;
+  --bg: #141615;
+  --surface: #1c1f1d;
+  --surface-2: #242825;
+  --surface-subtle: rgba(255, 255, 255, 0.035);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border: #2c322e;
   --ink: #edf1ed;
   --ink-muted: #9ba39d;
-  --ink-faint: #636c65;
+  --ink-faint: #677169;
   --accent: #4eb696;
   --accent-ink: #0d1411;
-  --accent-soft: #162922;
-  --accent-border: #234337;
+  --accent-soft: #172b23;
+  --accent-border: #244639;
+  --teal: #2dd4bf;
+  --teal-soft: #132d29;
   --red: #e67579;
   --red-soft: #2e1a1c;
   --amber: #dcab50;
   --amber-soft: #2e2615;
   --green: #5ec48f;
   --green-soft: #142a1e;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -93,6 +105,29 @@ body {
 }
 button {
   font-family: inherit;
+}
+
+button,
+.btn,
+.btn-primary,
+.btn-ghost,
+.icon-btn,
+.chip-btn,
+.sec-primary-btn,
+.icon-round,
+.plan-check-btn {
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+button:active:not(:disabled),
+.btn:active:not(:disabled),
+.btn-primary:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.chip-btn:active:not(:disabled),
+.sec-primary-btn:active:not(:disabled),
+.icon-round:active:not(:disabled),
+.plan-check-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .wrap {
   max-width: 640px;
@@ -772,19 +807,30 @@ textarea:focus-visible,
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px 12px;
+  padding: 12px 14px;
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 18, 0.02);
+}
+.task:hover {
+  border-color: var(--ink-faint);
 }
 .task.completed {
-  opacity: 0.55;
+  opacity: 0.58;
+}
+.task.task-completing {
+  opacity: 1 !important;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 .check {
   flex: none;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   border-radius: 9px;
   border: 1.8px solid var(--border);
   background: var(--surface);
@@ -794,21 +840,72 @@ textarea:focus-visible,
   justify-content: center;
   margin-top: 0;
   padding: 0;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  color: var(--accent-ink);
+  transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: visible;
 }
+.check:active {
+  transform: scale(0.9);
+}
+.check.is-checked,
 .task.completed .check {
   background: var(--accent);
   border-color: var(--accent);
 }
+.check.check-pop {
+  animation: checkPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 0 0 6px var(--accent-soft);
+}
+@keyframes checkPop {
+  0% { transform: scale(0.88); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
 .check svg {
   width: 16px;
   height: 16px;
-  display: none;
   stroke: var(--accent-ink);
   stroke-width: 2.5;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.16s ease;
 }
+.check.is-checked svg,
 .task.completed .check svg {
   display: block;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.completion-achievement-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 2px 8px rgba(36, 106, 86, 0.12);
+  animation: achievementPopIn 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@keyframes achievementPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 .task-main {
   flex: 1;
@@ -1138,13 +1235,20 @@ textarea:focus-visible,
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  .check.check-pop {
+    animation: none !important;
+  }
+  .completion-achievement-pill {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 /* Overlay / modal (delete confirm, import confirm, settings) */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 10, 0.45);
+  background: rgba(10, 14, 12, 0.48);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1152,20 +1256,36 @@ textarea:focus-visible,
   padding-top: calc(20px + env(safe-area-inset-top));
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 50;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: overlayFadeIn 0.18s ease-out;
 }
 .modal {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
-  max-width: 360px;
+  padding: 22px;
+  max-width: 380px;
   width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
   max-height: 85vh;
   overflow-y: auto;
+  animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 .modal h2 {
   font-size: 16px;
@@ -1392,15 +1512,38 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1;
+}
+
+.page-content {
+  flex: 1;
+  min-width: 0;
+  animation: pageEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pageEnter {
+  from {
+    opacity: 0.9;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-content {
+    animation: none !important;
+  }
 }
 
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 10, 0.45);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(10, 14, 12, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 45;
+  animation: overlayFadeIn 0.18s ease-out;
 }
 
 .sidebar {

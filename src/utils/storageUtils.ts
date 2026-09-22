@@ -78,6 +78,32 @@ function sanitizeFocusDates(raw: any): Record<string, number> {
   return clean;
 }
 
+function sanitizeDurationTargetMinutes(raw: any): number | null {
+  if (typeof raw === "number" && !isNaN(raw) && raw > 0) {
+    return Math.round(raw);
+  }
+  return null;
+}
+
+function sanitizeDurationCompletedMinutes(raw: any, targetMinutes: number | null): number | null {
+  if (!targetMinutes) return null;
+  if (typeof raw === "number" && !isNaN(raw) && raw >= 0) {
+    return Math.min(targetMinutes, Math.round(raw));
+  }
+  return 0;
+}
+
+function sanitizeDurationCompletedDates(raw: any, targetMinutes: number | null): Record<string, number> {
+  const clean: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return clean;
+  Object.entries(raw).forEach(([date, val]) => {
+    if (isValidDateStr(date) && typeof val === "number" && !isNaN(val) && val >= 0) {
+      clean[date] = targetMinutes ? Math.min(targetMinutes, Math.round(val)) : Math.round(val);
+    }
+  });
+  return clean;
+}
+
 function sanitizeRecurringTasks(raw: unknown): Task[] {
   if (!Array.isArray(raw)) return [];
   const tasks: Task[] = [];
@@ -91,6 +117,9 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
     const dueDate = sanitizeDueDate(item.dueDate);
     const dueTime = sanitizeDueTime(item.dueTime);
     const reminderMinutes = sanitizeReminderMinutes(item.reminderMinutes, dueTime);
+    const durationTargetMinutes = sanitizeDurationTargetMinutes(item.durationTargetMinutes);
+    const durationCompletedDates = sanitizeDurationCompletedDates(item.durationCompletedDates, durationTargetMinutes);
+
     tasks.push({
       id: item.id,
       title: item.title,
@@ -107,7 +136,10 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
       dueTime,
       reminderMinutes,
       focusDate: sanitizeFocusDate(item.focusDate),
-      focusDates: sanitizeFocusDates(item.focusDates)
+      focusDates: sanitizeFocusDates(item.focusDates),
+      durationTargetMinutes,
+      durationCompletedMinutes: durationTargetMinutes ? 0 : null,
+      durationCompletedDates
     });
   }
   return tasks;
@@ -141,6 +173,9 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
       const reminderMinutes = sanitizeReminderMinutes((t as any).reminderMinutes, dueTime);
       const routineId = typeof (t as any).routineId === "string" ? (t as any).routineId : null;
       const routineTaskId = typeof (t as any).routineTaskId === "string" ? (t as any).routineTaskId : null;
+      const durationTargetMinutes = sanitizeDurationTargetMinutes((t as any).durationTargetMinutes);
+      const durationCompletedMinutes = sanitizeDurationCompletedMinutes((t as any).durationCompletedMinutes, durationTargetMinutes);
+
       return {
         id: t.id,
         title: t.title,
@@ -159,7 +194,10 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
         routineId,
         routineTaskId,
         focusDate: sanitizeFocusDate((t as any).focusDate),
-        focusDates: sanitizeFocusDates((t as any).focusDates)
+        focusDates: sanitizeFocusDates((t as any).focusDates),
+        durationTargetMinutes,
+        durationCompletedMinutes,
+        durationCompletedDates: sanitizeDurationCompletedDates((t as any).durationCompletedDates, durationTargetMinutes)
       };
     });
 

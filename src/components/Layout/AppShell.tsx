@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Sidebar from "../Sidebar/Sidebar";
 import Header from "../Header/Header";
+import ActiveFocusBar from "../Focus/ActiveFocusBar";
 import { useSidebar } from "../../hooks/useSidebar";
 
 interface AppShellProps {
@@ -24,9 +25,10 @@ export default function AppShell({ isDark, onToggleTheme }: AppShellProps) {
       <Sidebar mobileOpen={sidebar.open} onCloseMobile={sidebar.close} />
       <div className="main-col">
         <Header isDark={isDark} onToggleTheme={onToggleTheme} onOpenSidebar={sidebar.toggle} />
-        <main className="page-content">
+        <main className="page-content" key={location.pathname}>
           <Outlet />
         </main>
+        <ActiveFocusBar />
       </div>
     </div>
   );

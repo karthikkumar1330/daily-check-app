@@ -1,6 +1,7 @@
 import type { Task } from "../../types";
 import { categoryMeta, prioClass, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay } from "../../utils/scheduleUtils";
+import { calculateDurationPct, formatDuration } from "../../utils/durationUtils";
 import { CheckIcon, FocusIcon } from "../icons";
 
 interface TodayFocusSectionProps {
@@ -69,33 +70,35 @@ export default function TodayFocusSection({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className="btn text-btn focus-edit-btn"
-          onClick={onOpenSelector}
-          aria-label={focusTasks.length > 0 ? "Edit today's focus tasks" : "Choose today's focus tasks"}
-          style={{
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            color: "var(--accent, #10b981)",
-            padding: "4px 8px",
-            minHeight: 36,
-            display: "flex",
-            alignItems: "center",
-            gap: 4
-          }}
-        >
-          <FocusIcon />
-          <span>{focusTasks.length > 0 ? "Edit Focus" : "Choose Focus"}</span>
-        </button>
+        {focusTasks.length > 0 ? (
+          <button
+            type="button"
+            className="btn text-btn focus-edit-btn"
+            onClick={onOpenSelector}
+            aria-label="Edit today's focus tasks"
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              color: "var(--accent, #10b981)",
+              padding: "4px 8px",
+              minHeight: 36,
+              display: "flex",
+              alignItems: "center",
+              gap: 4
+            }}
+          >
+            <FocusIcon />
+            <span>Edit Focus</span>
+          </button>
+        ) : null}
       </div>
 
       {focusTasks.length === 0 ? (
         <div
           className="today-focus-empty"
           style={{
-            padding: "10px 12px",
-            borderRadius: 8,
+            padding: "14px 16px",
+            borderRadius: 10,
             background: "var(--surface-subtle, rgba(0, 0, 0, 0.02))",
             border: "1px dashed var(--border)",
             display: "flex",
@@ -105,23 +108,29 @@ export default function TodayFocusSection({
             flexWrap: "wrap"
           }}
         >
-          <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--ink-muted)" }}>
-            Choose up to 3 tasks that matter most today.
-          </p>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <p style={{ margin: "0 0 2px", fontSize: "0.88rem", fontWeight: 600, color: "var(--ink)" }}>
+              No focus tasks selected
+            </p>
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-muted)" }}>
+              Select up to 3 priority tasks to spotlight today.
+            </p>
+          </div>
           <button
             type="button"
-            className="btn secondary-btn"
+            className="btn btn-primary"
             onClick={onOpenSelector}
             style={{
-              fontSize: "0.8rem",
-              padding: "6px 12px",
-              minHeight: 36,
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              padding: "8px 14px",
+              minHeight: 38,
               display: "flex",
               alignItems: "center",
               gap: 6
             }}
           >
-            <span>🎯 Choose Focus</span>
+            <span>🎯 Choose Focus Tasks</span>
           </button>
         </div>
       ) : (
@@ -150,7 +159,7 @@ export default function TodayFocusSection({
               >
                 <button
                   type="button"
-                  className={"check" + (task.completed ? " checked" : "")}
+                  className={"check" + (task.completed ? " is-checked" : "")}
                   onClick={() => onToggleTask(task.id)}
                   aria-label={
                     task.completed
@@ -159,20 +168,14 @@ export default function TodayFocusSection({
                   }
                   aria-pressed={task.completed}
                   style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    border: task.completed ? "none" : "1.5px solid var(--border)",
-                    background: task.completed ? "var(--accent, #10b981)" : "transparent",
-                    color: "#ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
+                    width: 26,
+                    height: 26,
+                    minWidth: 26,
+                    minHeight: 26,
                     flexShrink: 0
                   }}
                 >
-                  {task.completed ? <CheckIcon /> : null}
+                  <CheckIcon />
                 </button>
 
                 <span
@@ -220,6 +223,22 @@ export default function TodayFocusSection({
                     }}
                   >
                     🕒 {timeFormatted}
+                  </span>
+                ) : null}
+
+                {task.durationTargetMinutes ? (
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color:
+                        (task.durationCompletedMinutes || 0) >= task.durationTargetMinutes
+                          ? "var(--accent, #10b981)"
+                          : "var(--teal, #0d9488)",
+                      flexShrink: 0
+                    }}
+                  >
+                    ⏱ {formatDuration(task.durationCompletedMinutes || 0)} / {formatDuration(task.durationTargetMinutes)} ({calculateDurationPct(task.durationCompletedMinutes || 0, task.durationTargetMinutes)}%)
                   </span>
                 ) : null}
 
