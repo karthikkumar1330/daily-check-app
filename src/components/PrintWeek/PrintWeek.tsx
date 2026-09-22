@@ -59,7 +59,7 @@ export default function PrintWeek({ days, recurringTasks, weekStart }: PrintWeek
           <b>{summary.completed}</b>
         </div>
         <div>
-          Tasks created
+          Scheduled occurrences
           <b>{summary.created}</b>
         </div>
         <div>

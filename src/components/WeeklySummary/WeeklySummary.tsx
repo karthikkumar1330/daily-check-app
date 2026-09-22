@@ -23,7 +23,7 @@ export default function WeeklySummary({ summary, streaks }: WeeklySummaryProps) 
         <div className="summary-grid">
           <SummaryItem label="Average completion" value={summary.avgPct + "%"} />
           <SummaryItem label="Tasks completed" value={String(summary.completed)} />
-          <SummaryItem label="Tasks created" value={String(summary.created)} />
+          <SummaryItem label="Scheduled" value={`${summary.created} occurrences`} />
           <SummaryItem label="Best day" value={summary.bestDay ?? "—"} />
         </div>
       )}

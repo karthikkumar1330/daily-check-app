@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Routine, RoutineTask, RoutinesData, Task } from "../types";
 import { CURRENT_ROUTINES_VERSION } from "../types";
 import { loadRoutines, saveRoutines } from "../utils/routineStorage";
@@ -40,8 +40,13 @@ const RoutinesContext = createContext<RoutinesContextValue | null>(null);
 export function RoutinesProvider({ children }: { children: ReactNode }) {
   const [routinesData, setRoutinesData] = useState<RoutinesData>(() => loadRoutines());
   const { getDay, addTasks } = useTasks();
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     saveRoutines(routinesData);
   }, [routinesData]);
 

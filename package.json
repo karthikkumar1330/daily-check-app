@@ -1,7 +1,7 @@
 {
   "name": "daily-check",
   "private": true,
-  "version": "4.1.0",
+  "version": "13.2.0",
   "type": "module",
   "description": "A clean, minimal daily checklist, todo list, and weekly progress PWA. All data stays on-device in localStorage.",
   "scripts": {

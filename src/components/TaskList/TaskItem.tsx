@@ -230,6 +230,7 @@ export default function TaskItem({
         ) : null}
       </button>
       <div className="task-main">
+        {/* TITLE ROW */}
         <div className="task-title-row">
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
@@ -247,88 +248,95 @@ export default function TaskItem({
               {achievementData.sub ? <span className="pill-sub">{achievementData.sub}</span> : null}
             </span>
           ) : null}
-
-          {/* Focus Badge */}
-          {isFocused ? (
-            <span
-              className="task-focus-badge"
-              title="Today's Focus task"
-              aria-label="Today's Focus task"
-              style={{
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                padding: "2px 6px",
-                borderRadius: 6,
-                background: "var(--accent-soft, rgba(16, 185, 129, 0.15))",
-                color: "var(--accent, #10b981)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3
-              }}
-            >
-              <span>🎯</span>
-              <span>Focus</span>
-            </span>
-          ) : null}
-
-          {/* Time & Due Status Badges */}
-          {timeFormatted ? (
-            task.completed ? (
-              <span className="task-time-badge completed" title={`Due at ${timeFormatted}`}>
-                🕒 {timeFormatted}
-              </span>
-            ) : scheduleStatus === "overdue" ? (
-              <span
-                className="task-time-badge overdue"
-                title={`Overdue · Due at ${timeFormatted}`}
-                aria-label={`Overdue · Due at ${timeFormatted}`}
-              >
-                ⚠️ Overdue · {timeFormatted}
-              </span>
-            ) : scheduleStatus === "due" ? (
-              <span
-                className="task-time-badge due"
-                title={`Due · ${timeFormatted}`}
-                aria-label={`Due at ${timeFormatted}`}
-              >
-                ⏰ Due · {timeFormatted}
-              </span>
-            ) : (
-              <span className="task-time-badge upcoming" title={`Due at ${timeFormatted}`}>
-                🕒 {timeFormatted}
-              </span>
-            )
-          ) : null}
-
-          {/* Reminder Badge */}
-          {task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed ? (
-            <span
-              className="task-reminder-badge"
-              title={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
-              aria-label={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
-            >
-              🔔 {task.reminderMinutes === 0 ? "At due time" : `${task.reminderMinutes} min before`}
-            </span>
-          ) : null}
-
-          {recurrenceLabel ? (
-            <span className="task-recurrence-badge" title={`Repeats: ${recurrenceLabel}`}>
-              🔁 {recurrenceLabel}
-            </span>
-          ) : null}
-          {dateLabel ? <span className="task-date-badge">{dateLabel}</span> : null}
-          {cat.id ? (
-            <span className="task-cat">
-              {cat.emoji} {cat.label}
-            </span>
-          ) : null}
         </div>
+
+        {/* META ROW */}
+        {isFocused || timeFormatted || (task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed) || recurrenceLabel || cat.id || dateLabel ? (
+          <div className="task-meta-row">
+            {/* Focus Badge */}
+            {isFocused ? (
+              <span
+                className="task-focus-badge"
+                title="Today's Focus task"
+                aria-label="Today's Focus task"
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  background: "var(--accent-soft, rgba(16, 185, 129, 0.15))",
+                  color: "var(--accent, #10b981)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3
+                }}
+              >
+                <span>🎯</span>
+                <span>Focus</span>
+              </span>
+            ) : null}
+
+            {/* Time & Due Status Badges */}
+            {timeFormatted ? (
+              task.completed ? (
+                <span className="task-time-badge completed" title={`Due at ${timeFormatted}`}>
+                  🕒 {timeFormatted}
+                </span>
+              ) : scheduleStatus === "overdue" ? (
+                <span
+                  className="task-time-badge overdue"
+                  title={`Overdue · Due at ${timeFormatted}`}
+                  aria-label={`Overdue · Due at ${timeFormatted}`}
+                >
+                  ⚠️ Overdue · {timeFormatted}
+                </span>
+              ) : scheduleStatus === "due" ? (
+                <span
+                  className="task-time-badge due"
+                  title={`Due · ${timeFormatted}`}
+                  aria-label={`Due at ${timeFormatted}`}
+                >
+                  ⏰ Due · {timeFormatted}
+                </span>
+              ) : (
+                <span className="task-time-badge upcoming" title={`Due at ${timeFormatted}`}>
+                  🕒 {timeFormatted}
+                </span>
+              )
+            ) : null}
+
+            {/* Reminder Badge */}
+            {task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed ? (
+              <span
+                className="task-reminder-badge"
+                title={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
+                aria-label={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
+              >
+                🔔 {task.reminderMinutes === 0 ? "At due time" : `${task.reminderMinutes} min before`}
+              </span>
+            ) : null}
+
+            {recurrenceLabel ? (
+              <span className="task-recurrence-badge" title={`Repeats: ${recurrenceLabel}`}>
+                🔄 {recurrenceLabel}
+              </span>
+            ) : null}
+            {cat.id ? (
+              <span className="task-cat">
+                {cat.emoji} {cat.label}
+              </span>
+            ) : null}
+            {dateLabel ? <span className="task-date-badge">{dateLabel}</span> : null}
+          </div>
+        ) : null}
         {task.notes ? <div className="task-notes">{task.notes}</div> : null}
 
         {/* Duration Task Progress & Controls */}
         {task.durationTargetMinutes ? (
           <div className="task-duration-container" style={{ marginTop: 8 }}>
+            {/* PROGRESS ROW */}
             <div
+              className="task-progress-row"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -338,27 +346,15 @@ export default function TaskItem({
                 marginBottom: 4
               }}
             >
-              <button
-                type="button"
-                className="btn text-btn"
-                onClick={() => setDetailsOpen(true)}
+              <span
                 style={{
                   fontWeight: 600,
                   color: "var(--ink)",
-                  padding: 0,
-                  fontSize: "0.82rem",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4
+                  fontSize: "0.82rem"
                 }}
-                title="View duration goal details"
               >
-                <span>
-                  {formatDuration(completedMins)} / {formatDuration(task.durationTargetMinutes)}
-                </span>
-                <span style={{ fontSize: "0.74rem", opacity: 0.75, color: "var(--teal, #0d9488)" }}>📊 Details ›</span>
-              </button>
+                {formatDuration(completedMins)} / {formatDuration(task.durationTargetMinutes)}
+              </span>
               <span
                 style={{
                   fontWeight: 700,
@@ -396,12 +392,13 @@ export default function TaskItem({
               />
             </div>
 
-            {/* Duration Actions */}
+            {/* ACTION ROW */}
             <div
+              className="task-action-row"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 6,
                 marginTop: 8,
                 flexWrap: "wrap"
               }}
@@ -433,7 +430,7 @@ export default function TaskItem({
                       : "1px solid var(--border)",
                     borderRadius: 6,
                     padding: "4px 10px",
-                    minHeight: 32,
+                    minHeight: 30,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 5
@@ -456,7 +453,7 @@ export default function TaskItem({
                   border: "1px solid var(--border)",
                   borderRadius: 6,
                   padding: "4px 10px",
-                  minHeight: 32,
+                  minHeight: 30,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 4
@@ -478,7 +475,7 @@ export default function TaskItem({
                   border: "1px solid rgba(13, 148, 136, 0.2)",
                   borderRadius: 6,
                   padding: "4px 8px",
-                  minHeight: 32,
+                  minHeight: 30,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 4
@@ -494,7 +491,9 @@ export default function TaskItem({
         {/* Quantity Task Progress & Controls */}
         {task.quantityTarget ? (
           <div className="task-quantity-container" style={{ marginTop: 8 }}>
+            {/* PROGRESS ROW */}
             <div
+              className="task-progress-row"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -504,27 +503,15 @@ export default function TaskItem({
                 marginBottom: 4
               }}
             >
-              <button
-                type="button"
-                className="btn text-btn"
-                onClick={() => setQuantityDetailsOpen(true)}
+              <span
                 style={{
                   fontWeight: 600,
                   color: "var(--ink)",
-                  padding: 0,
-                  fontSize: "0.82rem",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4
+                  fontSize: "0.82rem"
                 }}
-                title="View quantity goal details"
               >
-                <span>
-                  {formatQuantity(task.quantityCompleted ?? 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)}
-                </span>
-                <span style={{ fontSize: "0.74rem", opacity: 0.75, color: "var(--teal, #0d9488)" }}>📊 Details ›</span>
-              </button>
+                {formatQuantity(task.quantityCompleted ?? 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)}
+              </span>
 
               <span
                 style={{
@@ -566,8 +553,9 @@ export default function TaskItem({
               />
             </div>
 
-            {/* Quantity Actions */}
+            {/* ACTION ROW */}
             <div
+              className="task-action-row"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -609,7 +597,7 @@ export default function TaskItem({
                     fontSize: "0.76rem",
                     fontWeight: 600,
                     padding: "3px 8px",
-                    minHeight: 28,
+                    minHeight: 30,
                     borderRadius: 6
                   }}
                 >
@@ -629,7 +617,7 @@ export default function TaskItem({
                   border: "1px solid var(--border)",
                   borderRadius: 6,
                   padding: "3px 8px",
-                  minHeight: 28
+                  minHeight: 30
                 }}
                 aria-label={`Log custom quantity for ${task.title}`}
               >
@@ -638,16 +626,17 @@ export default function TaskItem({
 
               <button
                 type="button"
-                className="btn text-btn"
+                className="btn text-btn quantity-details-btn"
                 onClick={() => setQuantityDetailsOpen(true)}
                 style={{
                   fontSize: "0.76rem",
                   fontWeight: 600,
                   color: "var(--teal, #0d9488)",
                   background: "rgba(13, 148, 136, 0.08)",
+                  border: "1px solid rgba(13, 148, 136, 0.2)",
                   borderRadius: 6,
                   padding: "3px 8px",
-                  minHeight: 28
+                  minHeight: 30
                 }}
                 aria-label={`View quantity goal details for ${task.title}`}
               >
@@ -658,33 +647,6 @@ export default function TaskItem({
         ) : null}
       </div>
       <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
-        {onToggleFocus ? (
-          <button
-            type="button"
-            className={"task-focus-toggle-btn" + (isFocused ? " is-focused" : "")}
-            onClick={onToggleFocus}
-            aria-label={isFocused ? `Remove "${task.title}" from today's focus` : `Mark "${task.title}" as today's focus`}
-            aria-pressed={isFocused}
-            title={isFocused ? "Focused task (click to remove)" : "Mark as today's focus"}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: isFocused ? "1px solid var(--accent, #10b981)" : "1px solid var(--border)",
-              background: isFocused ? "var(--accent-soft, rgba(16, 185, 129, 0.1))" : "transparent",
-              color: isFocused ? "var(--accent, #10b981)" : "var(--ink-muted)",
-              fontSize: "0.78rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              minHeight: 36
-            }}
-          >
-            <span aria-hidden="true">{isFocused ? "🎯" : "☆"}</span>
-            <span>{isFocused ? "Focused" : "Focus"}</span>
-          </button>
-        ) : null}
         <button
           className="icon-btn task-more-btn"
           onClick={() => setMenuOpen((v) => !v)}

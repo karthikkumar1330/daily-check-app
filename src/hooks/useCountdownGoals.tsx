@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CountdownGoal, CountdownGoalsData } from "../types";
 import { loadCountdownGoals, saveCountdownGoals } from "../utils/countdownStorage";
 import { isValidGoalDateRange } from "../utils/countdownUtils";
@@ -40,8 +40,13 @@ function validate(input: NewGoalInput): string | null {
 
 export function CountdownGoalsProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<CountdownGoalsData>(() => loadCountdownGoals());
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     saveCountdownGoals(data);
   }, [data]);
 

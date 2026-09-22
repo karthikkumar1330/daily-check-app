@@ -24,12 +24,14 @@ import { isValidTimeString, parseTimeString } from "../utils/scheduleUtils";
  */
 export function useTaskReminders(appData: AppData) {
   useEffect(() => {
-    // Run cleanup on legacy records once when the hook mounts
-    cleanupOldReminderRecords(7);
+    // Run cleanup on legacy records deferred after initial mount
+    const cleanupTimer = setTimeout(() => {
+      cleanupOldReminderRecords(7);
+    }, 3000);
 
     // Only run active checking if notifications are supported, granted, and enabled by user
     if (getNotificationPermission() !== "granted" || !areNotificationsEnabledByUser()) {
-      return;
+      return () => clearTimeout(cleanupTimer);
     }
 
     function checkReminders() {
@@ -78,6 +80,9 @@ export function useTaskReminders(appData: AppData) {
 
     // Single lightweight interval (30 seconds)
     const interval = setInterval(checkReminders, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(cleanupTimer);
+      clearInterval(interval);
+    };
   }, [appData]);
 }

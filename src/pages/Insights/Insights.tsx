@@ -261,17 +261,17 @@ export default function Insights() {
             value={periodMetrics.bestDay ? periodMetrics.bestDay.dayName : null}
             subtext={
               periodMetrics.bestDay
-                ? `${Math.round(periodMetrics.bestDay.pct)}% (${periodMetrics.bestDay.completed}/${periodMetrics.bestDay.total})`
+                ? `${Math.round(periodMetrics.bestDay.pct)}% · ${periodMetrics.bestDay.completed}/${periodMetrics.bestDay.total}`
                 : "No active day"
             }
             icon="🏆"
           />
           <MetricCard
-            label="Lowest Active"
+            label="Lowest Completion"
             value={periodMetrics.lowestActiveDay ? periodMetrics.lowestActiveDay.dayName : null}
             subtext={
               periodMetrics.lowestActiveDay
-                ? `${Math.round(periodMetrics.lowestActiveDay.pct)}% (${periodMetrics.lowestActiveDay.completed}/${periodMetrics.lowestActiveDay.total})`
+                ? `${Math.round(periodMetrics.lowestActiveDay.pct)}% · ${periodMetrics.lowestActiveDay.completed}/${periodMetrics.lowestActiveDay.total}`
                 : "No active day"
             }
             icon="📉"

@@ -1058,6 +1058,20 @@ textarea:focus-visible,
   gap: 7px;
   flex-wrap: wrap;
 }
+.task-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.task-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
 .prio-dot {
   width: 8px;
   height: 8px;
@@ -2465,8 +2479,10 @@ textarea:focus-visible,
 .task-time-badge.overdue {
   background: var(--red-soft);
   color: var(--red);
-  border: 1px solid var(--red);
+  border: 1px solid rgba(211, 69, 76, 0.35);
   font-weight: 600;
+  padding: 1.5px 7px;
+  font-size: 11px;
 }
 .task-time-badge.completed {
   background: var(--surface-2);
@@ -2843,7 +2859,9 @@ textarea:focus-visible,
 .planner-badge.overdue {
   background: var(--red-soft, rgba(239, 68, 68, 0.12));
   color: var(--red, #ef4444);
-  border: 1px solid var(--red, #ef4444);
+  border: 1px solid rgba(211, 69, 76, 0.35);
+  font-weight: 600;
+  padding: 1.5px 7px;
 }
 .planner-badge.focus {
   background: var(--accent-soft, rgba(16, 185, 129, 0.15));
@@ -2860,8 +2878,10 @@ textarea:focus-visible,
   border: 1px solid var(--amber, #f59e0b);
 }
 .planner-badge.prio-high-badge {
-  background: var(--red-soft, rgba(239, 68, 68, 0.12));
+  background: var(--surface-2);
   color: var(--red, #ef4444);
+  border: 1px solid rgba(211, 69, 76, 0.25);
+  font-weight: 600;
 }
 .today-plan-footer {
   margin-top: 4px;
@@ -2951,4 +2971,9 @@ textarea:focus-visible,
   @page {
     margin: 16mm;
   }
+}
+
+.page-loading-skeleton {
+  min-height: 200px;
+  width: 100%;
 }

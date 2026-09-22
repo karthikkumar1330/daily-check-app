@@ -119,18 +119,18 @@ export default function TodayPlanSection({
                   </div>
 
                   <div className="today-plan-badges-row">
-                    {/* Overdue indicator */}
+                    {/* 1. Important status: Overdue */}
                     {isOverdue ? (
                       <span
                         className="planner-badge overdue"
                         title={timeFormatted ? `Overdue · Due at ${timeFormatted}` : "Task is overdue"}
-                        aria-label="Overdue task"
+                        aria-label={timeFormatted ? `Overdue · Due at ${timeFormatted}` : "Task is overdue"}
                       >
-                        ⚠️ Overdue
+                        ⚠️ Overdue{timeFormatted ? ` · ${timeFormatted}` : ""}
                       </span>
                     ) : null}
 
-                    {/* Focus badge */}
+                    {/* 2. Important status: Focus */}
                     {isFocus ? (
                       <span
                         className="planner-badge focus"
@@ -141,32 +141,7 @@ export default function TodayPlanSection({
                       </span>
                     ) : null}
 
-                    {/* Due time badge */}
-                    {timeFormatted && !isOverdue ? (
-                      <span
-                        className={`planner-badge ${scheduleStatus === "due" ? "due" : "time"}`}
-                        title={`Due at ${timeFormatted}`}
-                        aria-label={`Due at ${timeFormatted}`}
-                      >
-                        {scheduleStatus === "due" ? "⏰ Due" : "🕒"} {timeFormatted}
-                      </span>
-                    ) : null}
-
-                    {/* High Priority badge */}
-                    {task.priority === 1 && !isOverdue && !isFocus ? (
-                      <span className="planner-badge prio-high-badge" aria-label="High priority">
-                        High Priority
-                      </span>
-                    ) : null}
-
-                    {/* Category badge */}
-                    {cat.id ? (
-                      <span className="task-cat" aria-label={`Category: ${cat.label}`}>
-                        {cat.emoji} {cat.label}
-                      </span>
-                    ) : null}
-
-                    {/* Duration badge */}
+                    {/* 3. Important status: Target Progress */}
                     {task.durationTargetMinutes ? (
                       <span
                         className="planner-badge"
@@ -186,7 +161,6 @@ export default function TodayPlanSection({
                       </span>
                     ) : null}
 
-                    {/* Quantity badge */}
                     {task.quantityTarget ? (
                       <span
                         className="planner-badge"
@@ -203,6 +177,31 @@ export default function TodayPlanSection({
                         }}
                       >
                         📊 {formatQuantity(task.quantityCompleted || 0, task.quantityUnit)} / {formatQuantity(task.quantityTarget, task.quantityUnit)} ({calculateQuantityPct(task.quantityCompleted || 0, task.quantityTarget)}%)
+                      </span>
+                    ) : null}
+
+                    {/* 4. Time badge (if scheduled and not overdue) */}
+                    {timeFormatted && !isOverdue ? (
+                      <span
+                        className={`planner-badge ${scheduleStatus === "due" ? "due" : "time"}`}
+                        title={`Due at ${timeFormatted}`}
+                        aria-label={`Due at ${timeFormatted}`}
+                      >
+                        {scheduleStatus === "due" ? "⏰ Due · " : "🕒 "}{timeFormatted}
+                      </span>
+                    ) : null}
+
+                    {/* 5. High Priority badge (if high priority and not overdue) */}
+                    {task.priority === 1 && !isOverdue ? (
+                      <span className="planner-badge prio-high-badge" aria-label="High priority">
+                        High Priority
+                      </span>
+                    ) : null}
+
+                    {/* 6. Secondary metadata: Category */}
+                    {cat.id ? (
+                      <span className="task-cat" aria-label={`Category: ${cat.label}`}>
+                        {cat.emoji} {cat.label}
                       </span>
                     ) : null}
                   </div>

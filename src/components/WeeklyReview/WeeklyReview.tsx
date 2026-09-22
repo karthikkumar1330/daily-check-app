@@ -397,7 +397,7 @@ export default function WeeklyReview({
             <div style={{ fontSize: 13, color: "var(--ink)" }}>
               {meaningfulLowestDay ? (
                 <div>
-                  <strong>Lowest active completion:</strong> {meaningfulLowestDay.dayName} with{" "}
+                  <strong>Lowest completion:</strong> {meaningfulLowestDay.dayName} with{" "}
                   {Math.round(meaningfulLowestDay.pct)}% completion ({meaningfulLowestDay.completed}/{meaningfulLowestDay.total} tasks completed).
                 </div>
               ) : metrics.activeDays > 0 ? (
