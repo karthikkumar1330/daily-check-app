@@ -1,8 +1,8 @@
 import type { DayData, Task } from "../types";
-import { addDays, isValidDateStr, parseDateStr, todayStr } from "./dateUtils";
+import { addDays, formatBestDayDate, isValidDateStr, parseDateStr, todayStr } from "./dateUtils";
 import { isTaskScheduledOnDate } from "./recurrenceUtils";
-import { calculateDurationPct } from "./durationUtils";
-import { calculateQuantityPct, getTaskQuantityOnDate } from "./quantityUtils";
+import { calculateDurationPct, formatDuration } from "./durationUtils";
+import { calculateQuantityPct, formatQuantity, getTaskQuantityOnDate } from "./quantityUtils";
 
 export type UniversalTaskType = "checklist" | "duration" | "quantity";
 
@@ -300,20 +300,35 @@ export interface UniversalTaskOverviewStats {
   // Duration specific
   totalDurationMinutes: number;
   avgDailyDurationMinutes: number;
+  avgDailyDurationOnLoggedDays: number;
   // Quantity specific
   totalQuantity: number;
   avgDailyQuantity: number;
+  avgDailyQuantityOnLoggedDays: number;
   quantityUnit: string;
   // Focus specific
   focusDaysCount: number;
+  loggedDaysCount: number;
   // Best day
   bestDay: {
     date: string;
     label: string;
     completed: boolean;
     pct: number;
+    amount?: number;
     amountFormatted?: string;
+    contextText: string;
   } | null;
+  bestDayEmptyLabel: string;
+}
+
+interface DayCandidateRecord {
+  date: string;
+  isScheduled: boolean;
+  completed: boolean;
+  pct: number;
+  durationMins: number;
+  quantity: number;
 }
 
 /**
@@ -335,15 +350,9 @@ export function calculateUniversalOverviewStats(
   let totalCompleted = 0;
   let totalDurationMinutes = 0;
   let totalQuantity = 0;
+  let loggedDaysCount = 0;
 
-  let bestDayCandidate: {
-    date: string;
-    label: string;
-    completed: boolean;
-    pct: number;
-    amount: number;
-    amountFormatted?: string;
-  } | null = null;
+  const candidateDays: DayCandidateRecord[] = [];
 
   let d = scanStart;
   while (d <= untilDate) {
@@ -357,55 +366,27 @@ export function calculateUniversalOverviewStats(
         totalCompleted++;
       }
 
+      const durMins = status.durationCompleted || 0;
+      const qty = status.quantityCompleted || 0;
+
       if (type === "duration") {
-        const mins = status.durationCompleted || 0;
-        totalDurationMinutes += mins;
-        const target = status.durationTarget || 1;
-        const pct = Math.round((mins / target) * 100);
-
-        if (!bestDayCandidate || pct > bestDayCandidate.pct || (pct === bestDayCandidate.pct && mins > bestDayCandidate.amount)) {
-          if (mins > 0) {
-            bestDayCandidate = {
-              date: d,
-              label: d,
-              completed: status.completed,
-              pct,
-              amount: mins,
-              amountFormatted: `${Math.floor(mins / 60)}h ${mins % 60}m`
-            };
-          }
-        }
+        totalDurationMinutes += durMins;
+        if (durMins > 0) loggedDaysCount++;
       } else if (type === "quantity") {
-        const qty = status.quantityCompleted || 0;
         totalQuantity += qty;
-        const target = status.quantityTarget || 1;
-        const pct = Math.round((qty / target) * 100);
-
-        if (!bestDayCandidate || pct > bestDayCandidate.pct || (pct === bestDayCandidate.pct && qty > bestDayCandidate.amount)) {
-          if (qty > 0) {
-            bestDayCandidate = {
-              date: d,
-              label: d,
-              completed: status.completed,
-              pct,
-              amount: qty,
-              amountFormatted: `${qty} ${task.quantityUnit || ""}`.trim()
-            };
-          }
-        }
+        if (qty > 0) loggedDaysCount++;
       } else {
-        // Checklist
-        if (status.completed && (!bestDayCandidate || d > bestDayCandidate.date)) {
-          bestDayCandidate = {
-            date: d,
-            label: d,
-            completed: true,
-            pct: 100,
-            amount: 1,
-            amountFormatted: "Completed ✓"
-          };
-        }
+        if (status.completed) loggedDaysCount++;
       }
+
+      candidateDays.push({
+        date: d,
+        isScheduled: status.isScheduled,
+        completed: status.completed,
+        pct: status.pct,
+        durationMins: durMins,
+        quantity: qty
+      });
     }
 
     d = addDays(d, 1);
@@ -413,10 +394,132 @@ export function calculateUniversalOverviewStats(
 
   // Scheduled count fallback
   const scheduledDivisor = Math.max(1, totalScheduled);
+  const loggedDivisor = Math.max(1, loggedDaysCount);
   const completionRate = totalScheduled > 0 ? Math.round((totalCompleted / totalScheduled) * 100) : 0;
 
   // Focus days count
   const focusDaysCount = task.focusDates ? Object.keys(task.focusDates).length : task.focusDate ? 1 : 0;
+
+  // Deterministic Best Day calculation
+  let bestDay: UniversalTaskOverviewStats["bestDay"] = null;
+  let bestDayEmptyLabel = "No completed day yet";
+
+  if (type === "checklist") {
+    bestDayEmptyLabel = "No completed day yet";
+    const completedDays = candidateDays.filter((c) => c.completed);
+    if (completedDays.length > 0) {
+      // Prefer scheduled completed day, then most recent date
+      completedDays.sort((a, b) => {
+        if (a.isScheduled !== b.isScheduled) {
+          return a.isScheduled ? -1 : 1;
+        }
+        return b.date.localeCompare(a.date);
+      });
+      const top = completedDays[0];
+      const dateFormatted = formatBestDayDate(top.date);
+      bestDay = {
+        date: top.date,
+        label: dateFormatted,
+        completed: true,
+        pct: 100,
+        amount: 1,
+        amountFormatted: "Completed ✓",
+        contextText: `${dateFormatted} · Completed ✓`
+      };
+    }
+  } else if (type === "duration") {
+    bestDayEmptyLabel = "No progress day yet";
+    const target = task.durationTargetMinutes || 0;
+    const progressDays = candidateDays.filter((c) => c.durationMins > 0);
+
+    if (progressDays.length > 0) {
+      const targetReached = progressDays.filter((c) => target > 0 && c.durationMins >= target);
+      let pool: DayCandidateRecord[];
+
+      if (targetReached.length > 0) {
+        // If a target-reaching day exists, it should be preferred
+        pool = targetReached;
+      } else {
+        // If no target has ever been reached, use the highest-progress scheduled day if available, else any progress day
+        const scheduled = progressDays.filter((c) => c.isScheduled);
+        pool = scheduled.length > 0 ? scheduled : progressDays;
+      }
+
+      // Deterministic sort:
+      // 1. pct (descending)
+      // 2. durationMins (descending)
+      // 3. isScheduled (scheduled > non-scheduled)
+      // 4. date descending (most recent date wins)
+      pool.sort((a, b) => {
+        if (b.pct !== a.pct) return b.pct - a.pct;
+        if (b.durationMins !== a.durationMins) return b.durationMins - a.durationMins;
+        if (a.isScheduled !== b.isScheduled) return a.isScheduled ? -1 : 1;
+        return b.date.localeCompare(a.date);
+      });
+
+      const top = pool[0];
+      const dateFormatted = formatBestDayDate(top.date);
+      const formattedLogged = formatDuration(top.durationMins);
+      const formattedTarget = formatDuration(target);
+      const contextText = `${dateFormatted} · ${top.pct}% · ${formattedLogged} / ${formattedTarget}`;
+      bestDay = {
+        date: top.date,
+        label: dateFormatted,
+        completed: top.completed,
+        pct: top.pct,
+        amount: top.durationMins,
+        amountFormatted: `${formattedLogged} / ${formattedTarget}`,
+        contextText
+      };
+    }
+  } else {
+    // Quantity
+    bestDayEmptyLabel = "No logged day yet";
+    const target = task.quantityTarget || 0;
+    const unit = (task.quantityUnit || "").trim();
+    const loggedDays = candidateDays.filter((c) => c.quantity > 0);
+
+    if (loggedDays.length > 0) {
+      const targetReached = loggedDays.filter((c) => target > 0 && c.quantity >= target);
+      let pool: DayCandidateRecord[];
+
+      if (targetReached.length > 0) {
+        // If at least one day reached 100%, prefer the strongest target-reaching day
+        pool = targetReached;
+      } else {
+        // If no day reached 100%, show the highest-progress scheduled day
+        const scheduled = loggedDays.filter((c) => c.isScheduled);
+        pool = scheduled.length > 0 ? scheduled : loggedDays;
+      }
+
+      // Deterministic sort:
+      // 1. pct (descending)
+      // 2. quantity (descending)
+      // 3. isScheduled (scheduled > non-scheduled)
+      // 4. date descending (most recent date wins)
+      pool.sort((a, b) => {
+        if (b.pct !== a.pct) return b.pct - a.pct;
+        if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+        if (a.isScheduled !== b.isScheduled) return a.isScheduled ? -1 : 1;
+        return b.date.localeCompare(a.date);
+      });
+
+      const top = pool[0];
+      const dateFormatted = formatBestDayDate(top.date);
+      const formattedLogged = formatQuantity(top.quantity, unit);
+      const formattedTarget = formatQuantity(target, unit);
+      const contextText = `${dateFormatted} · ${top.pct}% · ${formattedLogged} / ${formattedTarget}`;
+      bestDay = {
+        date: top.date,
+        label: dateFormatted,
+        completed: top.completed,
+        pct: top.pct,
+        amount: top.quantity,
+        amountFormatted: `${formattedLogged} / ${formattedTarget}`,
+        contextText
+      };
+    }
+  }
 
   return {
     taskType: type,
@@ -428,11 +531,15 @@ export function calculateUniversalOverviewStats(
     completionRate,
     totalDurationMinutes,
     avgDailyDurationMinutes: Math.round(totalDurationMinutes / scheduledDivisor),
+    avgDailyDurationOnLoggedDays: Math.round(totalDurationMinutes / loggedDivisor),
     totalQuantity: Math.round(totalQuantity * 10) / 10,
     avgDailyQuantity: Math.round((totalQuantity / scheduledDivisor) * 10) / 10,
+    avgDailyQuantityOnLoggedDays: Math.round((totalQuantity / loggedDivisor) * 10) / 10,
     quantityUnit: task.quantityUnit ?? "",
     focusDaysCount,
-    bestDay: bestDayCandidate
+    loggedDaysCount,
+    bestDay,
+    bestDayEmptyLabel
   };
 }
 
@@ -510,8 +617,11 @@ export interface UniversalPeriodSummary {
   completionRate: number;
   totalDurationMinutes: number;
   avgDurationMinutes: number;
+  loggedDaysCount: number;
+  avgDurationLoggedMinutes: number;
   totalQuantity: number;
   avgQuantity: number;
+  avgQuantityLogged: number;
 }
 
 /**
@@ -526,6 +636,7 @@ export function getUniversalPeriodSummary(
   let completed = 0;
   let totalMinutes = 0;
   let totalQty = 0;
+  let loggedDaysCount = 0;
 
   for (const d of dates) {
     const status = getTaskStatusOnDate(task, d, daysLookup);
@@ -535,11 +646,17 @@ export function getUniversalPeriodSummary(
     if (status.completed) {
       completed++;
     }
-    totalMinutes += status.durationCompleted || 0;
-    totalQty += status.quantityCompleted || 0;
+    const mins = status.durationCompleted || 0;
+    const qty = status.quantityCompleted || 0;
+    totalMinutes += mins;
+    totalQty += qty;
+    if (mins > 0 || qty > 0 || status.completed) {
+      loggedDaysCount++;
+    }
   }
 
-  const divisor = Math.max(1, scheduled);
+  const scheduledDivisor = Math.max(1, scheduled);
+  const loggedDivisor = Math.max(1, loggedDaysCount);
 
   return {
     periodDaysCount: dates.length,
@@ -547,8 +664,11 @@ export function getUniversalPeriodSummary(
     completedDays: completed,
     completionRate: scheduled > 0 ? Math.round((completed / scheduled) * 100) : 0,
     totalDurationMinutes: totalMinutes,
-    avgDurationMinutes: Math.round(totalMinutes / divisor),
+    avgDurationMinutes: Math.round(totalMinutes / scheduledDivisor),
+    loggedDaysCount,
+    avgDurationLoggedMinutes: Math.round(totalMinutes / loggedDivisor),
     totalQuantity: Math.round(totalQty * 10) / 10,
-    avgQuantity: Math.round((totalQty / divisor) * 10) / 10
+    avgQuantity: Math.round((totalQty / scheduledDivisor) * 10) / 10,
+    avgQuantityLogged: Math.round((totalQty / loggedDivisor) * 10) / 10
   };
 }

@@ -48,6 +48,41 @@ interface TaskDetailsModalProps {
   onToast?: (message: string) => void;
 }
 
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 10,
+        marginBottom: 2
+      }}
+    >
+      <span
+        style={{
+          fontSize: "0.72rem",
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: "var(--ink-muted)",
+          whiteSpace: "nowrap"
+        }}
+      >
+        {title}
+      </span>
+      <div
+        style={{
+          flex: 1,
+          height: 1,
+          background: "var(--border)",
+          opacity: 0.6
+        }}
+      />
+    </div>
+  );
+}
+
 export default function TaskDetailsModal({
   task,
   initialDate,
@@ -412,7 +447,8 @@ export default function TaskDetailsModal({
           </div>
         </div>
 
-        {/* 1. TODAY PROMINENT CARD */}
+        {/* 1. TODAY SECTION */}
+        <SectionHeader title="TODAY" />
         <div
           style={{
             border: "1px solid var(--border)",
@@ -454,7 +490,7 @@ export default function TaskDetailsModal({
                   padding: "3px 8px"
                 }}
               >
-                ✓ Completed
+                {taskType === "checklist" ? "✓ Completed" : "🎯 TARGET REACHED"}
               </span>
             ) : (
               <span
@@ -467,7 +503,7 @@ export default function TaskDetailsModal({
                   borderRadius: 6
                 }}
               >
-                In progress
+                {taskType === "checklist" ? "Not completed" : "Target not reached"}
               </span>
             )}
           </div>
@@ -528,11 +564,14 @@ export default function TaskDetailsModal({
                   marginBottom: 6
                 }}
               >
-                <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--ink)" }}>
+                <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--ink)" }}>
+                  {todayStatus.completed ? "TARGET REACHED: " : "LOGGED: "}
                   {formatDuration(todayStatus.durationCompleted || 0)} / {formatDuration(task.durationTargetMinutes || 0)}
                 </div>
-                <div style={{ fontSize: "0.88rem", fontWeight: 600, color: todayStatus.completed ? "var(--accent, #10b981)" : "var(--teal, #0d9488)" }}>
-                  {todayStatus.pct}% {todayStatus.completed ? "• Target reached" : `(${formatDuration(Math.max(0, (task.durationTargetMinutes || 0) - (todayStatus.durationCompleted || 0)))} remaining)`}
+                <div style={{ fontSize: "0.86rem", fontWeight: 600, color: todayStatus.completed ? "var(--accent, #10b981)" : "var(--teal, #0d9488)" }}>
+                  {todayStatus.completed
+                    ? "100% • Target reached"
+                    : `${todayStatus.pct}% • ${formatDuration(Math.max(0, (task.durationTargetMinutes || 0) - (todayStatus.durationCompleted || 0)))} remaining`}
                 </div>
               </div>
 
@@ -614,11 +653,14 @@ export default function TaskDetailsModal({
                   marginBottom: 6
                 }}
               >
-                <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--ink)" }}>
+                <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--ink)" }}>
+                  {todayStatus.completed ? "TARGET REACHED: " : "LOGGED: "}
                   {formatQuantity(todayStatus.quantityCompleted || 0, quantityUnit)} / {formatQuantity(task.quantityTarget || 0, quantityUnit)}
                 </div>
-                <div style={{ fontSize: "0.88rem", fontWeight: 600, color: todayStatus.completed ? "var(--accent, #10b981)" : "var(--teal, #0d9488)" }}>
-                  {todayStatus.pct}% {todayStatus.completed ? "• Target reached" : `(${formatQuantity(Math.max(0, (task.quantityTarget || 0) - (todayStatus.quantityCompleted || 0)), quantityUnit)} remaining)`}
+                <div style={{ fontSize: "0.86rem", fontWeight: 600, color: todayStatus.completed ? "var(--accent, #10b981)" : "var(--teal, #0d9488)" }}>
+                  {todayStatus.completed
+                    ? "100% • Goal completed"
+                    : `${todayStatus.pct}% • ${formatQuantity(Math.max(0, (task.quantityTarget || 0) - (todayStatus.quantityCompleted || 0)), quantityUnit)} remaining`}
                 </div>
               </div>
 
@@ -675,7 +717,8 @@ export default function TaskDetailsModal({
           )}
         </div>
 
-        {/* 2. OVERVIEW STATISTICS CARD */}
+        {/* 2. PERFORMANCE SECTION */}
+        <SectionHeader title="PERFORMANCE" />
         <div
           style={{
             border: "1px solid var(--border)",
@@ -875,7 +918,7 @@ export default function TaskDetailsModal({
           ) : null}
         </div>
 
-        {/* 3. THIS WEEK (Weekly Summary) */}
+        {/* THIS WEEK (Weekly Summary) */}
         <div
           style={{
             border: "1px solid var(--border)",
@@ -933,7 +976,8 @@ export default function TaskDetailsModal({
           </div>
         </div>
 
-        {/* 4. 7-DAY HISTORY BAR / COMPARISON */}
+        {/* 3. HISTORY SECTION */}
+        <SectionHeader title="HISTORY" />
         <div
           style={{
             border: "1px solid var(--border)",
@@ -1090,9 +1134,122 @@ export default function TaskDetailsModal({
               })}
             </div>
           )}
+
+          {/* Scannable 7-Day Breakdown Table */}
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 10,
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4
+            }}
+          >
+            {weekDates.map((dateStr) => {
+              const s = getTaskStatusOnDate(task, dateStr, appData.days);
+              const isSelected = dateStr === selectedDate;
+              const isTodayDate = dateStr === todayStr();
+              const d = parseDateStr(dateStr);
+              const weekdayName = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][(d.getDay() + 6) % 7];
+              const dayNum = d.getDate();
+              const isCompleted = s.completed;
+              const isScheduled = s.isScheduled;
+
+              return (
+                <button
+                  key={`breakdown-${dateStr}`}
+                  type="button"
+                  onClick={() => setSelectedDate(dateStr)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "5px 8px",
+                    borderRadius: 6,
+                    background: isSelected
+                      ? "rgba(13, 148, 136, 0.1)"
+                      : isTodayDate
+                      ? "var(--surface-subtle, rgba(0,0,0,0.03))"
+                      : "transparent",
+                    border: isSelected ? "1px solid var(--teal, #0d9488)" : "1px solid transparent",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                    color: "var(--ink)",
+                    textAlign: "left"
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 70 }}>
+                    <span style={{ fontWeight: 700, color: isTodayDate ? "var(--accent, #10b981)" : "var(--ink)" }}>
+                      {weekdayName.toUpperCase()} {dayNum}
+                    </span>
+                    {isTodayDate ? (
+                      <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--accent, #10b981)" }}>• Today</span>
+                    ) : null}
+                  </span>
+
+                  {taskType === "checklist" ? (
+                    <div>
+                      {!isScheduled ? (
+                        <span style={{ color: "var(--ink-muted)", opacity: 0.6 }}>—</span>
+                      ) : isCompleted ? (
+                        <span style={{ color: "var(--accent, #10b981)", fontWeight: 700 }}>✓ Completed</span>
+                      ) : (
+                        <span style={{ color: "var(--ink-muted)", fontWeight: 600 }}>✕ Incomplete</span>
+                      )}
+                    </div>
+                  ) : taskType === "duration" ? (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      {!isScheduled && (s.durationCompleted || 0) === 0 ? (
+                        <span style={{ color: "var(--ink-muted)", opacity: 0.6 }}>—</span>
+                      ) : (
+                        <>
+                          <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                            {formatDuration(s.durationCompleted || 0)} / {formatDuration(task.durationTargetMinutes || 0)}
+                          </span>
+                          <span
+                            style={{
+                              minWidth: 40,
+                              textAlign: "right",
+                              fontWeight: 700,
+                              color: isCompleted ? "var(--accent, #10b981)" : s.pct > 0 ? "var(--teal, #0d9488)" : "var(--ink-muted)"
+                            }}
+                          >
+                            {s.pct}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      {!isScheduled && (s.quantityCompleted || 0) === 0 ? (
+                        <span style={{ color: "var(--ink-muted)", opacity: 0.6 }}>—</span>
+                      ) : (
+                        <>
+                          <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                            {formatQuantity(s.quantityCompleted || 0, quantityUnit)} / {formatQuantity(task.quantityTarget || 0, quantityUnit)}
+                          </span>
+                          <span
+                            style={{
+                              minWidth: 40,
+                              textAlign: "right",
+                              fontWeight: 700,
+                              color: isCompleted ? "var(--accent, #10b981)" : s.pct > 0 ? "var(--teal, #0d9488)" : "var(--ink-muted)"
+                            }}
+                          >
+                            {s.pct}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 5. 30-DAY ACTIVITY HEATMAP */}
+        {/* 30-DAY ACTIVITY HEATMAP */}
         <div
           style={{
             border: "1px solid var(--border)",
@@ -1191,7 +1348,9 @@ export default function TaskDetailsModal({
           </div>
         </div>
 
-        {/* 6. UNIVERSAL DATE INSPECTION CARD */}
+        {/* 4. DATE SECTION */}
+        <SectionHeader title="DATE" />
+        {/* UNIVERSAL DATE INSPECTION CARD */}
         <div
           style={{
             border: "1px solid var(--teal, #0d9488)",
@@ -1225,7 +1384,7 @@ export default function TaskDetailsModal({
                   className="completion-achievement-pill"
                   style={{ fontSize: "0.76rem", padding: "3px 8px" }}
                 >
-                  ✓ Completed
+                  {taskType === "checklist" ? "✓ Completed" : "🎯 TARGET REACHED"}
                 </span>
               ) : selectedDateStatus.isScheduled ? (
                 <span
@@ -1238,7 +1397,7 @@ export default function TaskDetailsModal({
                     borderRadius: 6
                   }}
                 >
-                  Scheduled • Incomplete
+                  {taskType === "checklist" ? "Scheduled • Incomplete" : "Scheduled • Target not reached"}
                 </span>
               ) : (
                 <span
@@ -1276,7 +1435,9 @@ export default function TaskDetailsModal({
           ) : taskType === "duration" ? (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: "0.88rem" }}>
-                <span style={{ color: "var(--ink-muted)" }}>Completed:</span>
+                <span style={{ color: "var(--ink-muted)" }}>
+                  {selectedDateStatus.completed ? "Target Reached:" : "Logged:"}
+                </span>
                 <span style={{ fontWeight: 700, color: "var(--ink)" }}>
                   {formatDuration(selectedDateStatus.durationCompleted || 0)} / {formatDuration(task.durationTargetMinutes || 0)} ({selectedDateStatus.pct}%)
                 </span>
@@ -1305,7 +1466,9 @@ export default function TaskDetailsModal({
           ) : (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: "0.88rem" }}>
-                <span style={{ color: "var(--ink-muted)" }}>Completed:</span>
+                <span style={{ color: "var(--ink-muted)" }}>
+                  {selectedDateStatus.completed ? "Target Reached:" : "Logged:"}
+                </span>
                 <span style={{ fontWeight: 700, color: "var(--ink)" }}>
                   {formatQuantity(selectedDateStatus.quantityCompleted || 0, quantityUnit)} / {formatQuantity(task.quantityTarget || 0, quantityUnit)} ({selectedDateStatus.pct}%)
                 </span>
@@ -1334,7 +1497,7 @@ export default function TaskDetailsModal({
           )}
         </div>
 
-        {/* 7. MONTHLY CALENDAR VIEW */}
+        {/* MONTHLY CALENDAR VIEW */}
         <div
           style={{
             border: "1px solid var(--border)",
@@ -1416,12 +1579,39 @@ export default function TaskDetailsModal({
               const status = getTaskStatusOnDate(task, cell.date, appData.days);
               const isSelected = cell.date === selectedDate;
               const isTodayDate = cell.date === todayStr();
+              const isCompleted = status.completed;
+              const isPartial = !isCompleted && status.pct > 0;
+              const isScheduled = status.isScheduled;
+
+              let marker = "—";
+              let markerColor = "transparent";
+              if (taskType === "checklist") {
+                if (isCompleted) {
+                  marker = "●";
+                  markerColor = "var(--accent, #10b981)";
+                } else if (isScheduled) {
+                  marker = "○";
+                  markerColor = "var(--ink-muted)";
+                }
+              } else {
+                if (isCompleted) {
+                  marker = "●";
+                  markerColor = "var(--accent, #10b981)";
+                } else if (isPartial) {
+                  marker = "◐";
+                  markerColor = "var(--teal, #0d9488)";
+                } else if (isScheduled) {
+                  marker = "○";
+                  markerColor = "var(--ink-muted)";
+                }
+              }
 
               return (
                 <button
                   key={cell.date}
                   type="button"
                   onClick={() => setSelectedDate(cell.date)}
+                  aria-label={`${formatShort(cell.date)}: ${isCompleted ? "Target reached" : isPartial ? `Partial ${status.pct}%` : isScheduled ? "Scheduled" : "Not scheduled"}`}
                   style={{
                     minHeight: 38,
                     borderRadius: 6,
@@ -1430,8 +1620,10 @@ export default function TaskDetailsModal({
                       : isTodayDate
                       ? "1px solid var(--accent, #10b981)"
                       : "1px solid var(--border, rgba(0,0,0,0.06))",
-                    background: status.completed
+                    background: isCompleted
                       ? "rgba(16, 185, 129, 0.15)"
+                      : isPartial
+                      ? "rgba(13, 148, 136, 0.1)"
                       : cell.inMonth
                       ? "var(--surface)"
                       : "var(--surface-subtle, rgba(0,0,0,0.02))",
@@ -1451,25 +1643,66 @@ export default function TaskDetailsModal({
                     style={{
                       fontSize: "0.68rem",
                       fontWeight: 700,
-                      color: status.completed
-                        ? "var(--accent, #10b981)"
-                        : status.isScheduled
-                        ? "var(--ink-muted)"
-                        : "transparent"
+                      color: markerColor
                     }}
                   >
-                    {status.completed ? "✓" : status.isScheduled ? "○" : "—"}
+                    {marker}
                   </span>
                 </button>
               );
             })}
           </div>
 
+          {/* Calendar Legend */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px 14px",
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: "1px solid var(--border)",
+              fontSize: "0.74rem",
+              color: "var(--ink-muted)"
+            }}
+          >
+            {taskType === "checklist" ? (
+              <>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "var(--accent, #10b981)", fontWeight: 700, fontSize: "0.82rem" }}>●</span> Completed
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "var(--ink-muted)", fontWeight: 700, fontSize: "0.82rem" }}>○</span> Incomplete
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, opacity: 0.6 }}>
+                  <span>—</span> Not scheduled
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "var(--accent, #10b981)", fontWeight: 700, fontSize: "0.82rem" }}>●</span> Target reached
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "var(--teal, #0d9488)", fontWeight: 700, fontSize: "0.82rem" }}>◐</span> Partial
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "var(--ink-muted)", fontWeight: 700, fontSize: "0.82rem" }}>○</span> Not logged
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, opacity: 0.6 }}>
+                  <span>—</span> Not scheduled
+                </span>
+              </>
+            )}
+          </div>
+
           {/* Monthly Summary Footer */}
           <div
             style={{
-              marginTop: 12,
-              paddingTop: 10,
+              marginTop: 10,
+              paddingTop: 8,
               borderTop: "1px solid var(--border)",
               display: "flex",
               justifyContent: "space-between",
@@ -1486,29 +1719,31 @@ export default function TaskDetailsModal({
           </div>
         </div>
 
-        {/* 8. FREQUENCY BY WEEKDAY */}
-        {weekdayFrequency.length > 0 ? (
+        {/* 5. CONSISTENCY SECTION */}
+        <SectionHeader title="CONSISTENCY" />
+        {/* FREQUENCY BY WEEKDAY */}
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+            padding: "16px",
+            background: "var(--surface)"
+          }}
+        >
           <div
             style={{
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              padding: "16px",
-              background: "var(--surface)"
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--ink-muted)",
+              marginBottom: 10
             }}
           >
-            <div
-              style={{
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "var(--ink-muted)",
-                marginBottom: 10
-              }}
-            >
-              FREQUENCY BY WEEKDAY
-            </div>
+            FREQUENCY BY WEEKDAY
+          </div>
 
+          {weekdayFrequency.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {weekdayFrequency.map((w) => (
                 <div key={w.dayNumber} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "0.82rem" }}>
@@ -1539,40 +1774,79 @@ export default function TaskDetailsModal({
                 </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <div style={{ fontSize: "0.82rem", color: "var(--ink-muted)", textAlign: "center", padding: "12px 0" }}>
+              No scheduled weekday history yet
+            </div>
+          )}
+        </div>
 
-        {/* 9. BEST DAY & ACHIEVEMENTS */}
-        {overviewStats.bestDay ? (
-          <div
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              padding: "14px 16px",
-              background: "var(--surface)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between"
-            }}
-          >
+        {/* BEST DAY */}
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+            padding: "14px 16px",
+            background: "var(--surface)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div>
               <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)", letterSpacing: "0.06em" }}>
                 ⭐ BEST DAY
               </div>
-              <div style={{ fontSize: "0.98rem", fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>
-                {formatLong(overviewStats.bestDay.date)}
+              {overviewStats.bestDay ? (
+                <div style={{ fontSize: "0.98rem", fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>
+                  {overviewStats.bestDay.label}
+                </div>
+              ) : (
+                <div style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--ink-muted)", marginTop: 2 }}>
+                  {overviewStats.bestDayEmptyLabel}
+                </div>
+              )}
+            </div>
+            {overviewStats.bestDay ? (
+              <div style={{ textAlign: "right" }}>
+                <span
+                  className={overviewStats.bestDay.completed ? "completion-achievement-pill" : ""}
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    background: overviewStats.bestDay.completed ? undefined : "var(--surface-subtle, rgba(0,0,0,0.05))",
+                    color: overviewStats.bestDay.completed ? undefined : "var(--ink-muted)",
+                    border: overviewStats.bestDay.completed ? undefined : "1px solid var(--border)"
+                  }}
+                >
+                  {overviewStats.bestDay.completed ? "🎯 Target Reached" : `${overviewStats.bestDay.pct}% (Partial)`}
+                </span>
               </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <span
-                className="completion-achievement-pill"
-                style={{ fontSize: "0.82rem", padding: "4px 10px" }}
-              >
-                {overviewStats.bestDay.amountFormatted || `${overviewStats.bestDay.pct}%`}
-              </span>
-            </div>
+            ) : null}
           </div>
-        ) : null}
+
+          {overviewStats.bestDay ? (
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: "1px solid var(--border)",
+                fontSize: "0.82rem",
+                color: overviewStats.bestDay.completed ? "var(--ink)" : "var(--ink-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+              }}
+            >
+              <span>{overviewStats.bestDay.contextText}</span>
+              {!overviewStats.bestDay.completed ? (
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-muted)", fontStyle: "italic" }}>
+                  Target not reached
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Sub-modals for Duration & Quantity */}

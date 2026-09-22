@@ -153,3 +153,11 @@ export function getMonthGrid(dateStr: string): MonthCell[] {
   }
   return cells;
 }
+
+/** Format date as "Tue, 22 Sep" deterministically */
+export function formatBestDayDate(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${weekdays[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+}
