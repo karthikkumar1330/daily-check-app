@@ -24,7 +24,7 @@ export default function TodayFocusSection({
   const completedCount = focusTasks.filter((t) => t.completed).length;
 
   return (
-    <section className="card today-focus-section" aria-labelledby="today-focus-heading" style={{ marginBottom: 16 }}>
+    <section className="card today-focus-section" aria-labelledby="today-focus-heading" style={{ marginBottom: 12 }}>
       <div
         className="today-focus-header"
         style={{

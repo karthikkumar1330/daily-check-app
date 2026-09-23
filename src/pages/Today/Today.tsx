@@ -221,9 +221,16 @@ export default function Today() {
       {/* 7. Today's Checklist */}
       <div className="checklist-section">
         <div className="section-row checklist-header">
-          <h2 className="section-title first" style={{ margin: 0 }}>
-            Today&rsquo;s Checklist
-          </h2>
+          <div className="checklist-title-wrap">
+            <h2 className="section-title checklist-heading">
+              Today&rsquo;s Checklist
+            </h2>
+            {stats.total > 0 ? (
+              <span className="checklist-count-pill" aria-label={`${stats.completed} of ${stats.total} tasks completed`}>
+                {stats.completed}/{stats.total} done
+              </span>
+            ) : null}
+          </div>
           {stats.completed > 0 ? (
             <button className="link-btn clear-completed-btn" onClick={() => setConfirmClear(true)}>
               Clear completed
@@ -282,7 +289,8 @@ export default function Today() {
 
       {confirmDeleteTask ? (
         <ConfirmModal
-          message={`Delete \u201c${confirmDeleteTask.title}\u201d? This can\u2019t be undone.`}
+          title={`Delete \u201c${confirmDeleteTask.title}\u201d?`}
+          message="This can’t be undone."
           confirmLabel="Delete"
           danger
           onConfirm={() => {
@@ -295,7 +303,8 @@ export default function Today() {
 
       {confirmClear ? (
         <ConfirmModal
-          message={"Clear all completed tasks for this day? This can\u2019t be undone."}
+          title="Clear completed tasks?"
+          message="Clear all completed tasks for this day? This can’t be undone."
           confirmLabel="Clear completed"
           danger
           onConfirm={() => {

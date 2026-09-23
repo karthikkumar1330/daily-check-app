@@ -184,7 +184,8 @@ export default function Tasks() {
 
       {confirmDeleteTask ? (
         <ConfirmModal
-          message={`Delete \u201c${confirmDeleteTask.title}\u201d? This can\u2019t be undone.`}
+          title={`Delete \u201c${confirmDeleteTask.title}\u201d?`}
+          message="This can’t be undone."
           confirmLabel="Delete"
           danger
           onConfirm={() => {
@@ -197,7 +198,8 @@ export default function Tasks() {
 
       {confirmClear ? (
         <ConfirmModal
-          message={"Clear all completed tasks for this day? This can\u2019t be undone."}
+          title="Clear completed tasks?"
+          message="Clear all completed tasks for this day? This can’t be undone."
           confirmLabel="Clear completed"
           danger
           onConfirm={() => {

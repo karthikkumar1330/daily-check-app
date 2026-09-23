@@ -21,6 +21,15 @@ export default function ConfirmModal({
   const cancelRef = useRef<HTMLButtonElement>(null);
   useBodyScrollLock(true);
 
+  // If title was not explicitly supplied, extract question as title if message contains '?'
+  let displayTitle = title;
+  let displayMessage = message;
+  if (!displayTitle && message.includes("?")) {
+    const qIndex = message.indexOf("?");
+    displayTitle = message.slice(0, qIndex + 1).trim();
+    displayMessage = message.slice(qIndex + 1).trim();
+  }
+
   useEffect(() => {
     cancelRef.current?.focus();
     function onKey(e: KeyboardEvent) {
@@ -33,31 +42,41 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="overlay"
+      className="overlay confirm-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
       <div
-        className="modal"
+        className="modal confirm-modal"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby={title ? "confirm-modal-title" : undefined}
-        aria-describedby="confirm-modal-message"
+        aria-labelledby={displayTitle ? "confirm-modal-title" : undefined}
+        aria-describedby={displayMessage ? "confirm-modal-message" : undefined}
       >
-        {title ? (
-          <h2 id="confirm-modal-title" style={{ marginBottom: 8 }}>
-            {title}
+        {displayTitle ? (
+          <h2 id="confirm-modal-title" className="confirm-modal-title">
+            {displayTitle}
           </h2>
         ) : null}
-        <p id="confirm-modal-message">{message}</p>
-        <div className="row">
-          <button ref={cancelRef} className="btn-ghost" onClick={onCancel}>
+        {displayMessage ? (
+          <p id="confirm-modal-message" className="confirm-modal-message">
+            {displayMessage}
+          </p>
+        ) : null}
+        <div className="confirm-modal-actions row">
+          <button
+            ref={cancelRef}
+            type="button"
+            className="btn-ghost confirm-cancel-btn"
+            onClick={onCancel}
+          >
             Cancel
           </button>
           <button
-            className="btn-primary"
-            style={danger ? { background: "var(--red)" } : undefined}
+            type="button"
+            className={`btn-primary confirm-action-btn ${danger ? "danger" : ""}`}
+            style={danger ? { background: "var(--red)", borderColor: "var(--red)", color: "#ffffff" } : undefined}
             onClick={onConfirm}
           >
             {confirmLabel}

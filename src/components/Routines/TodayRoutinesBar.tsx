@@ -82,7 +82,7 @@ export default function TodayRoutinesBar({ viewDate, onToast }: TodayRoutinesBar
     <div
       className="routines-bar-wrapper"
       style={{
-        margin: "12px 0 18px",
+        margin: "0 0 12px",
         padding: "10px 12px",
         background: "var(--surface)",
         border: "1px solid var(--border)",

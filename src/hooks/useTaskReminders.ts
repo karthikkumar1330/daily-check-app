@@ -58,13 +58,16 @@ export function useTaskReminders(appData: AppData) {
         );
         const dueMs = dueDateTime.getTime();
 
-        // 1. Scheduled reminder window check
+        const GRACE_TRANSITION_MS = 5 * 60 * 1000; // 5 minute transition window between Due and Overdue
+        const MAX_OVERDUE_WINDOW_MS = 120 * 60 * 1000; // Tasks up to 2 hours overdue
+
+        // 1. Scheduled / Due reminder window check
         if (task.reminderMinutes !== null && task.reminderMinutes !== undefined) {
           const triggerTimeMs = dueMs - task.reminderMinutes * 60 * 1000;
-          // Acceptable delivery window: from trigger time up to 15m after trigger, or 5m after due time
-          const maxWindowMs = Math.max(triggerTimeMs + 15 * 60 * 1000, dueMs + 5 * 60 * 1000);
+          const dueWindowEndMs = dueMs + GRACE_TRANSITION_MS;
 
-          if (currentMs >= triggerTimeMs && currentMs <= maxWindowMs) {
+          // Only fire Task Due reminder during the scheduled-to-grace window (before overdue transition)
+          if (currentMs >= triggerTimeMs && currentMs < dueWindowEndMs) {
             const key = createReminderKey(task.id, today, task.dueTime, task.reminderMinutes);
             if (!hasReminderBeenDelivered(key)) {
               void showTaskReminderNotification(task, today);
@@ -72,8 +75,21 @@ export function useTaskReminders(appData: AppData) {
           }
         }
 
-        // 2. Overdue notification check (if task passed due time by 1 to 60 minutes)
-        if (currentMs > dueMs && currentMs <= dueMs + 60 * 60 * 1000) {
+        // 2. Overdue transition check
+        // An incomplete task only transitions to "overdue" AFTER the grace transition window has elapsed past dueMs!
+        const overdueStartMs = dueMs + GRACE_TRANSITION_MS;
+        const overdueEndMs = dueMs + MAX_OVERDUE_WINDOW_MS;
+
+        if (currentMs >= overdueStartMs && currentMs <= overdueEndMs) {
+          // If the task transitioned into overdue, ensure any un-fired due reminder is consumed
+          // so it cannot fire alongside or after overdue.
+          if (task.reminderMinutes !== null && task.reminderMinutes !== undefined) {
+            const dueKey = createReminderKey(task.id, today, task.dueTime, task.reminderMinutes);
+            if (!hasReminderBeenDelivered(dueKey)) {
+              markReminderDelivered(dueKey);
+            }
+          }
+
           const overdueKey = `overdue_${task.id}_${today}_${task.dueTime}`;
           if (!hasReminderBeenDelivered(overdueKey)) {
             markReminderDelivered(overdueKey);

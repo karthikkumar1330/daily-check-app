@@ -42,7 +42,7 @@ export default function TodayPlanSection({
     <section
       className={`card today-plan-section ${highlightActive ? "plan-highlight-active" : ""}`}
       aria-labelledby="today-plan-heading"
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: 12 }}
     >
       <div className="today-plan-header">
         <div className="today-plan-title-block">

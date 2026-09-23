@@ -76,7 +76,8 @@ export default function Important() {
 
       {confirmDeleteTask ? (
         <ConfirmModal
-          message={`Delete \u201c${confirmDeleteTask.title}\u201d? This can\u2019t be undone.`}
+          title={`Delete \u201c${confirmDeleteTask.title}\u201d?`}
+          message="This can’t be undone."
           confirmLabel="Delete"
           danger
           onConfirm={() => {

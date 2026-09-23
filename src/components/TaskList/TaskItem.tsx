@@ -4,7 +4,7 @@ import { addDays, formatShort, getWeekStart, parseDateStr, todayStr, weekdayFull
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
-import { CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
+import { BarChartIcon, CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
 import RescheduleModal from "../Modals/RescheduleModal";
 import LogTimeModal from "../Modals/LogTimeModal";
 import EditQuantityModal from "../Modals/EditQuantityModal";
@@ -60,6 +60,8 @@ export default function TaskItem({
   const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openAbove, setOpenAbove] = useState(false);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
   const [editQuantityOpen, setEditQuantityOpen] = useState(false);
@@ -213,6 +215,7 @@ export default function TaskItem({
         (isChecked ? " completed" : "") +
         (isCompleting ? " task-completing task-completing-highlight" : "")
       }
+      style={menuOpen ? { zIndex: 60, position: "relative" } : undefined}
     >
       <button
         className={"check" + (isChecked ? " is-checked" : "") + (isCompleting ? " check-pop" : "")}
@@ -649,18 +652,30 @@ export default function TaskItem({
       </div>
       <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
         <button
+          ref={moreBtnRef}
+          type="button"
           className="icon-btn task-more-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Task actions"
+          onClick={() => {
+            if (!menuOpen && moreBtnRef.current) {
+              const rect = moreBtnRef.current.getBoundingClientRect();
+              const spaceBelow = window.innerHeight - rect.bottom;
+              const estimatedMenuHeight = 320;
+              // Open above if space below is insufficient and there is more space above
+              setOpenAbove(spaceBelow < estimatedMenuHeight && rect.top > spaceBelow);
+            }
+            setMenuOpen((v) => !v);
+          }}
+          aria-label={`Task actions for ${task.title}`}
           aria-haspopup="true"
           aria-expanded={menuOpen}
         >
           <MoreIcon />
         </button>
         {menuOpen ? (
-          <div className="task-menu" role="menu">
+          <div className={`task-menu ${openAbove ? "open-above" : "open-below"}`} role="menu" aria-label="Task options">
             {onToggleFocus ? (
               <button
+                type="button"
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
@@ -671,16 +686,18 @@ export default function TaskItem({
               </button>
             ) : null}
             <button
+              type="button"
               role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 setDetailsOpen(true);
               }}
             >
-              📊 Details
+              <BarChartIcon /> Details
             </button>
             {task.durationTargetMinutes ? (
               <button
+                type="button"
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
@@ -692,6 +709,7 @@ export default function TaskItem({
             ) : null}
             {task.quantityTarget ? (
               <button
+                type="button"
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
@@ -702,6 +720,7 @@ export default function TaskItem({
               </button>
             ) : null}
             <button
+              type="button"
               role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
@@ -711,6 +730,7 @@ export default function TaskItem({
               <RescheduleIcon /> Reschedule
             </button>
             <button
+              type="button"
               role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
@@ -721,6 +741,7 @@ export default function TaskItem({
             </button>
             {!hideReorder && onMoveUp ? (
               <button
+                type="button"
                 role="menuitem"
                 disabled={isFirst}
                 onClick={() => {
@@ -733,6 +754,7 @@ export default function TaskItem({
             ) : null}
             {!hideReorder && onMoveDown ? (
               <button
+                type="button"
                 role="menuitem"
                 disabled={isLast}
                 onClick={() => {
@@ -744,6 +766,7 @@ export default function TaskItem({
               </button>
             ) : null}
             <button
+              type="button"
               role="menuitem"
               className="danger"
               onClick={() => {
