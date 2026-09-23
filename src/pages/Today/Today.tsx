@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
-import { addDays, formatDayMonth, todayStr, weekdayFull } from "../../utils/dateUtils";
+import type { Task } from "../../types";
+import { addDays, formatDayMonth, isValidDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
+import { consumePendingDeepLink } from "../../utils/notificationStorage";
 import { dayStats } from "../../utils/progressUtils";
 import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
@@ -14,6 +17,7 @@ import TaskList from "../../components/TaskList/TaskList";
 import EmptyState from "../../components/EmptyState/EmptyState";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
+import TaskDetailsModal from "../../components/TaskDetails/TaskDetailsModal";
 
 export default function Today() {
   const {
@@ -28,6 +32,7 @@ export default function Today() {
     clearCompleted
   } = useTasks();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [viewDate, setViewDate] = useState(todayStr());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
@@ -35,6 +40,100 @@ export default function Today() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [focusSelectorOpen, setFocusSelectorOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [deepLinkModalTask, setDeepLinkModalTask] = useState<Task | null>(null);
+
+  // Consume deep links from URL query parameters or pending service-worker click storage
+  useEffect(() => {
+    const paramDate = searchParams.get("date");
+    const paramTaskId = searchParams.get("taskId");
+    const paramAction = searchParams.get("action");
+
+    const pending = consumePendingDeepLink();
+
+    const targetDate = paramDate || pending?.dateStr;
+    const targetTaskId = paramTaskId || pending?.taskId;
+    const targetAction = paramAction || pending?.action?.type || "open_task";
+
+    if (!targetTaskId && !targetDate) return;
+
+    const resolvedDate = targetDate && isValidDateStr(targetDate) ? targetDate : viewDate;
+    if (resolvedDate !== viewDate) {
+      setViewDate(resolvedDate);
+    }
+
+    if (targetTaskId) {
+      const dayData = getDay(resolvedDate);
+      const foundTask = dayData.tasks.find((t) => t.id === targetTaskId);
+
+      if (foundTask) {
+        if (targetAction === "open_task_details") {
+          setDeepLinkModalTask(foundTask);
+        } else if (targetAction === "open_focus") {
+          const focusSec = document.getElementById("today-focus-section");
+          if (focusSec) {
+            focusSec.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        } else {
+          // "open_task" -> scroll into view and pulse highlight
+          setTimeout(() => {
+            const el = document.getElementById(`task-${foundTask.id}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              el.classList.add("task-deep-link-highlight");
+              setTimeout(() => el.classList.remove("task-deep-link-highlight"), 2500);
+            }
+          }, 200);
+        }
+      } else {
+        showToast("Task not found for this date.");
+      }
+    }
+
+    // Clean up query parameters so back/refresh doesn't re-trigger
+    if (paramDate || paramTaskId || paramAction) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
+
+  // Listen for real-time notification click messages from active Service Worker
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+
+    function handleSwMessage(event: MessageEvent) {
+      if (event.data && event.data.type === "DAILY_CHECK_NOTIFICATION_CLICK") {
+        const notifData = event.data.data;
+        if (notifData) {
+          const tDate = notifData.dateStr;
+          const tId = notifData.taskId;
+          const tAction = notifData.action?.type || "open_task";
+          const resDate = tDate && isValidDateStr(tDate) ? tDate : viewDate;
+          if (resDate !== viewDate) setViewDate(resDate);
+
+          if (tId) {
+            const dayData = getDay(resDate);
+            const found = dayData.tasks.find((t: Task) => t.id === tId);
+            if (found) {
+              if (tAction === "open_task_details") {
+                setDeepLinkModalTask(found);
+              } else {
+                setTimeout(() => {
+                  const el = document.getElementById(`task-${found.id}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add("task-deep-link-highlight");
+                    setTimeout(() => el.classList.remove("task-deep-link-highlight"), 2500);
+                  }
+                }, 200);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+  }, [viewDate, getDay]);
 
   const isToday = viewDate === todayStr();
   const day = getDay(viewDate);
@@ -245,6 +344,15 @@ export default function Today() {
         />
       ) : null}
 
+      {deepLinkModalTask ? (
+        <TaskDetailsModal
+          task={deepLinkModalTask}
+          initialDate={viewDate}
+          onClose={() => setDeepLinkModalTask(null)}
+          onToast={showToast}
+        />
+      ) : null}
+
       {toast ? (
         <div className="toast" role="status" aria-live="polite">
           {toast}
@@ -253,3 +361,4 @@ export default function Today() {
     </div>
   );
 }
+

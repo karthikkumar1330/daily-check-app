@@ -4,6 +4,7 @@ import { TasksProvider, useTasks } from "./hooks/useTasks";
 import { FocusTimerProvider } from "./hooks/useFocusTimer";
 import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
 import { RoutinesProvider } from "./hooks/useRoutines";
+import { NotificationCenterProvider } from "./hooks/useNotificationCenter";
 import { useTheme } from "./hooks/useTheme";
 import { useTaskReminders } from "./hooks/useTaskReminders";
 import AppShell from "./components/Layout/AppShell";
@@ -20,6 +21,7 @@ const Insights = lazy(() => import("./pages/Insights/Insights"));
 const Important = lazy(() => import("./pages/Important/Important"));
 const HighPriority = lazy(() => import("./pages/HighPriority/HighPriority"));
 const Categories = lazy(() => import("./pages/Categories/Categories"));
+const NotificationCenter = lazy(() => import("./pages/Notifications/NotificationCenter"));
 const Settings = lazy(() => import("./pages/Settings/Settings"));
 
 function Shell() {
@@ -42,6 +44,7 @@ function Shell() {
         <Route path="important" element={<Suspense fallback={fallback}><Important /></Suspense>} />
         <Route path="high-priority" element={<Suspense fallback={fallback}><HighPriority /></Suspense>} />
         <Route path="categories" element={<Suspense fallback={fallback}><Categories /></Suspense>} />
+        <Route path="notifications" element={<Suspense fallback={fallback}><NotificationCenter /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={fallback}><Settings /></Suspense>} />
         <Route path="*" element={<Navigate to="/today" replace />} />
       </Route>
@@ -56,7 +59,9 @@ export default function App() {
         <FocusTimerProvider>
           <CountdownGoalsProvider>
             <RoutinesProvider>
-              <Shell />
+              <NotificationCenterProvider>
+                <Shell />
+              </NotificationCenterProvider>
             </RoutinesProvider>
           </CountdownGoalsProvider>
         </FocusTimerProvider>
@@ -64,4 +69,5 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
 

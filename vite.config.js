@@ -47,7 +47,8 @@ export default defineConfig({
                 // Precache the app shell so the whole app works offline after first load.
                 globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
                 navigateFallback: "/index.html",
-                cleanupOutdatedCaches: true
+                cleanupOutdatedCaches: true,
+                importScripts: ["/sw-notifications.js"]
             },
             devOptions: {
                 enabled: false

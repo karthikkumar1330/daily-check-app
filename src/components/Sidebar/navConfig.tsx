@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import {
   BarChartIcon,
+  BellIcon,
   CalendarIcon,
   FolderIcon,
   HomeIcon,
@@ -45,7 +46,11 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     heading: "OTHER",
-    items: [{ to: "/settings", label: "Settings", icon: SettingsIcon }]
+    items: [
+      { to: "/notifications", label: "Notifications", icon: BellIcon },
+      { to: "/settings", label: "Settings", icon: SettingsIcon }
+    ]
   }
 ];
+
 

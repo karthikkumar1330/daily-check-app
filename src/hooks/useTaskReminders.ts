@@ -8,6 +8,8 @@ import {
   createReminderKey,
   getNotificationPermission,
   hasReminderBeenDelivered,
+  markReminderDelivered,
+  showOverdueNotification,
   showTaskReminderNotification
 } from "../utils/notificationUtils";
 import { isValidTimeString, parseTimeString } from "../utils/scheduleUtils";
@@ -29,11 +31,7 @@ export function useTaskReminders(appData: AppData) {
       cleanupOldReminderRecords(7);
     }, 3000);
 
-    // Only run active checking if notifications are supported, granted, and enabled by user
-    if (getNotificationPermission() !== "granted" || !areNotificationsEnabledByUser()) {
-      return () => clearTimeout(cleanupTimer);
-    }
-
+    // Check reminders regardless of browser permission so in-app Notification Center records are created
     function checkReminders() {
       const today = todayStr();
       const dayData = resolveDayData(today, appData.days[today], appData.recurringTasks ?? []);
@@ -43,9 +41,7 @@ export function useTaskReminders(appData: AppData) {
       for (const task of dayData.tasks) {
         // Suppress reminders if task is already completed (including recurring completions for today)
         if (task.completed) continue;
-
         if (!task.dueTime || !isValidTimeString(task.dueTime)) continue;
-        if (task.reminderMinutes === null || task.reminderMinutes === undefined) continue;
 
         const parsedTime = parseTimeString(task.dueTime);
         if (!parsedTime) continue;
@@ -60,16 +56,28 @@ export function useTaskReminders(appData: AppData) {
           0,
           0
         );
+        const dueMs = dueDateTime.getTime();
 
-        const triggerTimeMs = dueDateTime.getTime() - task.reminderMinutes * 60 * 1000;
-        // Acceptable late delivery window: from trigger time up to 15 minutes after trigger time,
-        // or up to 5 minutes after due time (whichever is greater), but not indefinitely.
-        const maxWindowMs = Math.max(triggerTimeMs + 15 * 60 * 1000, dueDateTime.getTime() + 5 * 60 * 1000);
+        // 1. Scheduled reminder window check
+        if (task.reminderMinutes !== null && task.reminderMinutes !== undefined) {
+          const triggerTimeMs = dueMs - task.reminderMinutes * 60 * 1000;
+          // Acceptable delivery window: from trigger time up to 15m after trigger, or 5m after due time
+          const maxWindowMs = Math.max(triggerTimeMs + 15 * 60 * 1000, dueMs + 5 * 60 * 1000);
 
-        if (currentMs >= triggerTimeMs && currentMs <= maxWindowMs) {
-          const key = createReminderKey(task.id, today, task.dueTime, task.reminderMinutes);
-          if (!hasReminderBeenDelivered(key)) {
-            void showTaskReminderNotification(task, today);
+          if (currentMs >= triggerTimeMs && currentMs <= maxWindowMs) {
+            const key = createReminderKey(task.id, today, task.dueTime, task.reminderMinutes);
+            if (!hasReminderBeenDelivered(key)) {
+              void showTaskReminderNotification(task, today);
+            }
+          }
+        }
+
+        // 2. Overdue notification check (if task passed due time by 1 to 60 minutes)
+        if (currentMs > dueMs && currentMs <= dueMs + 60 * 60 * 1000) {
+          const overdueKey = `overdue_${task.id}_${today}_${task.dueTime}`;
+          if (!hasReminderBeenDelivered(overdueKey)) {
+            markReminderDelivered(overdueKey);
+            void showOverdueNotification(task, today);
           }
         }
       }

@@ -345,6 +345,27 @@ export function RescheduleIcon() {
   );
 }
 
+export function BellIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <path
+        d="M10 2a4 4 0 0 0-4 4v3.2c0 .8-.3 1.6-.9 2.2L4.2 12.3A1 1 0 0 0 5 14h10a1 1 0 0 0 .8-1.7l-.9-.9c-.6-.6-.9-1.4-.9-2.2V6a4 4 0 0 0-4-4Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 16.5a1.8 1.8 0 0 0 3 0"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+
 
 
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
 import { useRoutines } from "../../hooks/useRoutines";
+import { useNotificationCenter } from "../../hooks/useNotificationCenter";
 import type { AppData, CountdownGoalsData, RoutinesData, ThemePreference } from "../../types";
 import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION, CURRENT_ROUTINES_VERSION } from "../../types";
 import { APP_VERSION } from "../../version";
@@ -38,6 +39,7 @@ export default function Settings() {
   const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
   const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
+  const { preferences: notifPrefs, updatePreferences: updateNotifPrefs } = useNotificationCenter();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
@@ -156,72 +158,171 @@ export default function Settings() {
       {/* Reminders & Notifications */}
       <div className="card settings-card">
         <div className="settings-heading">Reminders &amp; Notifications</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div className="about-details" style={{ margin: 0 }}>
-            <div className="about-row">
-              <span className="about-label">Notification support:</span>
-              <span className="about-val" style={{ fontWeight: 600 }}>
-                {isSupported ? "Supported" : "Unsupported"}
-              </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* OS/Browser Permission Sub-section */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>
+              Browser Notifications (System)
             </div>
-            <div className="about-row">
-              <span className="about-label">Permission:</span>
-              <span className="about-val" style={{ fontWeight: 600 }}>
-                {notifPermission === "granted"
-                  ? "Granted"
-                  : notifPermission === "denied"
-                  ? "Denied"
-                  : notifPermission === "unsupported"
-                  ? "Unsupported"
-                  : "Not granted"}
-              </span>
-            </div>
-          </div>
-
-          {/* Status Message / Actions */}
-          {notifPermission === "unsupported" ? (
-            <div className="settings-subtext" style={{ padding: "0 2px", fontSize: 13, color: "var(--ink-muted)" }}>
-              Notifications are not supported by this browser.
-            </div>
-          ) : notifPermission === "denied" ? (
-            <div className="settings-subtext" style={{ padding: "0 2px", fontSize: 13, color: "var(--danger, #ef4444)" }}>
-              Notifications are blocked. Enable them in your browser/device settings.
-            </div>
-          ) : notifPermission === "granted" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", padding: "0 2px" }}>
-                ✓ Reminders enabled
+            <div className="about-details" style={{ margin: 0 }}>
+              <div className="about-row">
+                <span className="about-label">System support:</span>
+                <span className="about-val" style={{ fontWeight: 600 }}>
+                  {isSupported ? "Supported" : "Unsupported"}
+                </span>
               </div>
-              <div>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ minHeight: 44, padding: "0 16px" }}
-                  onClick={async () => {
-                    const sent = await sendTestNotification();
-                    if (sent) {
-                      showToast("Test notification sent.");
-                    } else {
-                      showToast("Could not send test notification.");
-                    }
+              <div className="about-row">
+                <span className="about-label">Browser permission:</span>
+                <span
+                  className="about-val"
+                  style={{
+                    fontWeight: 600,
+                    color:
+                      notifPermission === "granted"
+                        ? "var(--accent)"
+                        : notifPermission === "denied"
+                        ? "var(--danger, #ef4444)"
+                        : "inherit"
                   }}
                 >
-                  🔔 Send test notification
-                </button>
+                  {notifPermission === "granted"
+                    ? "✓ Allowed"
+                    : notifPermission === "denied"
+                    ? "⚠ Blocked in browser"
+                    : notifPermission === "unsupported"
+                    ? "Unsupported"
+                    : "Not granted"}
+                </span>
               </div>
             </div>
-          ) : (
-            <div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ minHeight: 44, padding: "0 18px", width: "100%", justifyContent: "center" }}
-                onClick={handleEnableReminders}
-              >
-                Enable Reminders
-              </button>
+
+            {/* Status Message / Actions */}
+            {notifPermission === "unsupported" ? (
+              <div className="settings-subtext" style={{ padding: "6px 2px 0", fontSize: 13, color: "var(--ink-muted)" }}>
+                Notifications are not supported by this browser.
+              </div>
+            ) : notifPermission === "denied" ? (
+              <div className="settings-subtext" style={{ padding: "6px 2px 0", fontSize: 13, color: "var(--danger, #ef4444)" }}>
+                Browser notifications are blocked. Enable them in your browser/device site settings.
+              </div>
+            ) : notifPermission === "granted" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ minHeight: 40, padding: "0 14px", fontSize: 13 }}
+                    onClick={async () => {
+                      const sent = await sendTestNotification();
+                      if (sent) {
+                        showToast("Test notification sent.");
+                      } else {
+                        showToast("Could not send test notification.");
+                      }
+                    }}
+                  >
+                    🔔 Send test notification
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ minHeight: 42, padding: "0 16px", width: "100%", justifyContent: "center" }}
+                  onClick={handleEnableReminders}
+                >
+                  Enable Browser Reminders
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* In-App Notification Center Sub-section */}
+          <div style={{ paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>In-App Notification Center</div>
+                <div style={{ fontSize: 12, color: "var(--ink-muted)" }}>
+                  History, unread alerts, and deep links inside Daily Check
+                </div>
+              </div>
+              <label className="toggle-switch" style={{ position: "relative", display: "inline-block", width: 44, height: 24 }}>
+                <input
+                  type="checkbox"
+                  checked={notifPrefs.centerEnabled}
+                  onChange={(e) => updateNotifPrefs({ centerEnabled: e.target.checked })}
+                  aria-label="Toggle Notification Center"
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    cursor: "pointer",
+                    inset: 0,
+                    backgroundColor: notifPrefs.centerEnabled ? "var(--accent, #10b981)" : "var(--border, #ccc)",
+                    borderRadius: 24,
+                    transition: "0.2s"
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      height: 18,
+                      width: 18,
+                      left: notifPrefs.centerEnabled ? 22 : 3,
+                      bottom: 3,
+                      backgroundColor: "white",
+                      borderRadius: "50%",
+                      transition: "0.2s"
+                    }}
+                  />
+                </span>
+              </label>
             </div>
-          )}
+
+            {/* Category Preferences */}
+            {notifPrefs.centerEnabled ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, paddingLeft: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Notification Categories
+                </div>
+
+                {[
+                  { key: "taskDue", label: "⏰ Task Due Reminders", sub: "Scheduled reminder alerts" },
+                  { key: "taskOverdue", label: "⚠️ Overdue Tasks", sub: "Alert when scheduled time passes" },
+                  { key: "recurringTask", label: "🔁 Recurring Tasks", sub: "Daily & routine occurrences" },
+                  { key: "durationReminder", label: "⏱️ Duration Reminders", sub: "Timed task milestones" },
+                  { key: "quantityReminder", label: "💧 Quantity Reminders", sub: "Target check-ins" },
+                  { key: "focusReminder", label: "🎯 Focus Reminders", sub: "Top priority task cues" }
+                ].map((cat) => (
+                  <label
+                    key={cat.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "6px 0",
+                      cursor: "pointer",
+                      fontSize: 13
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500, color: "var(--ink)" }}>{cat.label}</div>
+                      <div style={{ fontSize: 11, color: "var(--ink-muted)" }}>{cat.sub}</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={Boolean((notifPrefs as any)[cat.key])}
+                      onChange={(e) => updateNotifPrefs({ [cat.key]: e.target.checked })}
+                      style={{ accentColor: "var(--accent, #10b981)", width: 18, height: 18, cursor: "pointer" }}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <div
             className="settings-subtext"
@@ -233,7 +334,7 @@ export default function Settings() {
               lineHeight: 1.45
             }}
           >
-            Reminders work while Daily Check is running. Browser or operating-system restrictions may delay notifications when the app is suspended or completely closed.
+            Reminders work while Daily Check is active. Browser or operating-system restrictions may delay notifications when the app is suspended or completely closed.
           </div>
         </div>
       </div>

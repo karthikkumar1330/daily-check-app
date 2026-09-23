@@ -2977,3 +2977,238 @@ textarea:focus-visible,
   min-height: 200px;
   width: 100%;
 }
+
+/* ==========================================================================
+   V14 — Notification Center & Deep-Link Navigation Styles
+   ========================================================================== */
+
+.notif-bell-btn {
+  position: relative;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent, #10b981);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface-1, #ffffff);
+}
+
+.notif-badge-header {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft, rgba(16, 185, 129, 0.15));
+  color: var(--accent, #10b981);
+}
+
+.notif-center-header {
+  margin-bottom: 20px;
+}
+
+.notif-center-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.notif-center-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notif-action-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent, #10b981);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.notif-action-btn:hover {
+  text-decoration: underline;
+}
+
+.notif-clear-btn {
+  color: var(--ink-muted);
+}
+
+.notif-clear-btn:hover {
+  color: var(--danger, #ef4444);
+}
+
+.notif-section-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.notif-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+  position: relative;
+}
+
+.notif-card.actionable {
+  cursor: pointer;
+}
+
+.notif-card.actionable:hover {
+  border-color: var(--accent, #10b981);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.notif-card.unread {
+  background: var(--surface-1);
+  border-left: 3.5px solid var(--accent, #10b981);
+}
+
+.notif-card.read {
+  opacity: 0.85;
+}
+
+.notif-card.read:hover {
+  opacity: 1;
+}
+
+.notif-card-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.notif-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.notif-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.notif-card.read .notif-card-title {
+  font-weight: 500;
+}
+
+.notif-card-time {
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.notif-card-body {
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.notif-card.unread .notif-card-body {
+  color: var(--ink);
+}
+
+.notif-card-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notif-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #10b981);
+  display: inline-block;
+}
+
+.notif-delete-btn {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: var(--ink-muted);
+  opacity: 0.6;
+  border-radius: 6px;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notif-delete-btn:hover {
+  opacity: 1;
+  color: var(--danger, #ef4444);
+  background: var(--surface-2);
+}
+
+.task-deep-link-highlight {
+  animation: taskPulseHighlight 2.5s ease-out;
+  box-shadow: 0 0 0 2px var(--accent, #10b981), 0 4px 14px rgba(16, 185, 129, 0.25) !important;
+}
+
+@keyframes taskPulseHighlight {
+  0% {
+    background-color: var(--accent-soft, rgba(16, 185, 129, 0.2));
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: var(--accent-soft, rgba(16, 185, 129, 0.1));
+    transform: scale(1);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+

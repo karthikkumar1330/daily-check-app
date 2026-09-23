@@ -207,6 +207,7 @@ export default function TaskItem({
 
   return (
     <div
+      id={`task-${task.id}`}
       className={
         "task" +
         (isChecked ? " completed" : "") +
