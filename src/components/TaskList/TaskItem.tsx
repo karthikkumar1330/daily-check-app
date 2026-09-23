@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CategoryId, Priority, RecurrenceType, ReminderMinutes, Task, TaskRecurrence } from "../../types";
 import { addDays, formatShort, getWeekStart, parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
@@ -60,8 +61,9 @@ export default function TaskItem({
   const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [openAbove, setOpenAbove] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
   const [editQuantityOpen, setEditQuantityOpen] = useState(false);
@@ -73,7 +75,6 @@ export default function TaskItem({
     sub?: string;
     isDayComplete?: boolean;
   } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -182,16 +183,30 @@ export default function TaskItem({
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      const targetNode = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(targetNode)) ||
+        (moreBtnRef.current && moreBtnRef.current.contains(targetNode))
+      ) {
+        return;
+      }
+      setMenuOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setMenuOpen(false);
     }
+    function onScrollOrResize() {
+      setMenuOpen(false);
+    }
     document.addEventListener("mousedown", onDocClick);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
     };
   }, [menuOpen]);
 
@@ -650,7 +665,7 @@ export default function TaskItem({
           </div>
         ) : null}
       </div>
-      <div className="task-actions" ref={menuRef} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="task-actions" style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
         <button
           ref={moreBtnRef}
           type="button"
@@ -658,12 +673,29 @@ export default function TaskItem({
           onClick={() => {
             if (!menuOpen && moreBtnRef.current) {
               const rect = moreBtnRef.current.getBoundingClientRect();
+              const menuWidth = Math.min(250, window.innerWidth - 24);
+              const estimatedMenuHeight = 340;
+
+              // Calculate top
               const spaceBelow = window.innerHeight - rect.bottom;
-              const estimatedMenuHeight = 320;
-              // Open above if space below is insufficient and there is more space above
-              setOpenAbove(spaceBelow < estimatedMenuHeight && rect.top > spaceBelow);
+              let top = rect.bottom + 4;
+              if (spaceBelow < estimatedMenuHeight && rect.top > spaceBelow) {
+                // Place above
+                top = Math.max(8, rect.top - estimatedMenuHeight - 4);
+              }
+
+              // Calculate left
+              let left = rect.right - menuWidth;
+              if (left < 12) left = 12;
+              if (left + menuWidth > window.innerWidth - 12) {
+                left = window.innerWidth - 12 - menuWidth;
+              }
+
+              setMenuPosition({ top, left });
+              setMenuOpen(true);
+            } else {
+              setMenuOpen(false);
             }
-            setMenuOpen((v) => !v);
           }}
           aria-label={`Task actions for ${task.title}`}
           aria-haspopup="true"
@@ -671,113 +703,129 @@ export default function TaskItem({
         >
           <MoreIcon />
         </button>
-        {menuOpen ? (
-          <div className={`task-menu ${openAbove ? "open-above" : "open-below"}`} role="menu" aria-label="Task options">
-            {onToggleFocus ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onToggleFocus();
+        {menuOpen && menuPosition
+          ? createPortal(
+              <div
+                ref={menuRef}
+                className="task-menu task-menu-portal"
+                role="menu"
+                aria-label="Task options"
+                style={{
+                  position: "fixed",
+                  top: menuPosition.top,
+                  left: menuPosition.left,
+                  width: Math.min(250, window.innerWidth - 24),
+                  maxHeight: Math.min(360, window.innerHeight - 32),
+                  zIndex: 9999
                 }}
               >
-                <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                setDetailsOpen(true);
-              }}
-            >
-              <BarChartIcon /> Details
-            </button>
-            {task.durationTargetMinutes ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setLogTimeOpen(true);
-                }}
-              >
-                ⏱ Log Time
-              </button>
-            ) : null}
-            {task.quantityTarget ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setEditQuantityOpen(true);
-                }}
-              >
-                + Log / Set
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                setRescheduleOpen(true);
-              }}
-            >
-              <RescheduleIcon /> Reschedule
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                onStartEdit();
-              }}
-            >
-              <EditIcon /> Edit
-            </button>
-            {!hideReorder && onMoveUp ? (
-              <button
-                type="button"
-                role="menuitem"
-                disabled={isFirst}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onMoveUp();
-                }}
-              >
-                <UpIcon /> Move up
-              </button>
-            ) : null}
-            {!hideReorder && onMoveDown ? (
-              <button
-                type="button"
-                role="menuitem"
-                disabled={isLast}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onMoveDown();
-                }}
-              >
-                <DownIcon /> Move down
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              className="danger"
-              onClick={() => {
-                setMenuOpen(false);
-                onDelete();
-              }}
-            >
-              <TrashIcon /> Delete
-            </button>
-          </div>
-        ) : null}
+                {onToggleFocus ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onToggleFocus();
+                    }}
+                  >
+                    <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDetailsOpen(true);
+                  }}
+                >
+                  <BarChartIcon /> Details
+                </button>
+                {task.durationTargetMinutes ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setLogTimeOpen(true);
+                    }}
+                  >
+                    ⏱ Log Time
+                  </button>
+                ) : null}
+                {task.quantityTarget ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setEditQuantityOpen(true);
+                    }}
+                  >
+                    + Log / Set
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setRescheduleOpen(true);
+                  }}
+                >
+                  <RescheduleIcon /> Reschedule
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onStartEdit();
+                  }}
+                >
+                  <EditIcon /> Edit
+                </button>
+                {!hideReorder && onMoveUp ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={isFirst}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onMoveUp();
+                    }}
+                  >
+                    <UpIcon /> Move up
+                  </button>
+                ) : null}
+                {!hideReorder && onMoveDown ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={isLast}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onMoveDown();
+                    }}
+                  >
+                    <DownIcon /> Move down
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="danger"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete();
+                  }}
+                >
+                  <TrashIcon /> Delete
+                </button>
+              </div>,
+              document.body
+            )
+          : null}
       </div>
 
       {rescheduleOpen ? (

@@ -183,27 +183,7 @@ export default function Today() {
       {/* 3. Today's Progress */}
       <ProgressCard stats={stats} isToday={isToday} />
 
-      {/* 4 & 5. Primary Countdown Goal + Secondary Countdown Goals */}
-      <CountdownCard />
-
-      {/* V11 Smart Today Planner */}
-      <TodayPlanSection
-        dateStr={viewDate}
-        tasks={day.tasks}
-        onToggleTask={(id) => toggleTask(viewDate, id)}
-        onToast={showToast}
-      />
-
-      {/* Today's Focus Section */}
-      <TodayFocusSection
-        dateStr={viewDate}
-        tasks={day.tasks}
-        onToggleTask={(id) => toggleTask(viewDate, id)}
-        onToggleFocus={handleToggleFocus}
-        onOpenSelector={() => setFocusSelectorOpen(true)}
-      />
-
-      {/* 6. Quick Add */}
+      {/* 4. Quick Add & Today's Checklist (Primary Workspace) */}
       <div className="quick-add-section">
         <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
         <button
@@ -215,10 +195,6 @@ export default function Today() {
         </button>
       </div>
 
-      {/* Routines Quick Bar */}
-      <TodayRoutinesBar viewDate={viewDate} onToast={showToast} />
-
-      {/* 7. Today's Checklist */}
       <div className="checklist-section">
         <div className="section-row checklist-header">
           <div className="checklist-title-wrap">
@@ -265,6 +241,28 @@ export default function Today() {
           </>
         )}
       </div>
+
+      {/* 5. Today's Plan & Focus Information */}
+      <TodayPlanSection
+        dateStr={viewDate}
+        tasks={day.tasks}
+        onToggleTask={(id) => toggleTask(viewDate, id)}
+        onToast={showToast}
+      />
+
+      <TodayFocusSection
+        dateStr={viewDate}
+        tasks={day.tasks}
+        onToggleTask={(id) => toggleTask(viewDate, id)}
+        onToggleFocus={handleToggleFocus}
+        onOpenSelector={() => setFocusSelectorOpen(true)}
+      />
+
+      {/* 6. Routines Quick Bar */}
+      <TodayRoutinesBar viewDate={viewDate} onToast={showToast} />
+
+      {/* 7. Secondary Utilities: Primary & Secondary Countdown Goals */}
+      <CountdownCard />
 
       {focusSelectorOpen ? (
         <FocusSelectorModal
