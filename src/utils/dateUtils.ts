@@ -91,11 +91,11 @@ export function daysBetweenCalendar(aDateStr: string, bDateStr: string): number 
   return Math.round((b - a) / msPerDay);
 }
 
-/** Monday-start week containing the given date. */
-export function getWeekStart(dateStr: string): string {
+/** Week start date containing the given date (weekStartsOn: 1 = Monday, 0 = Sunday). */
+export function getWeekStart(dateStr: string, weekStartsOn: 0 | 1 = 1): string {
   const d = parseDateStr(dateStr);
-  const day = d.getDay(); // 0 = Sunday
-  const diff = day === 0 ? -6 : 1 - day;
+  const day = d.getDay(); // 0 = Sunday, 1 = Mon ...
+  const diff = weekStartsOn === 0 ? -day : day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   return toDateStr(d);
 }
@@ -140,11 +140,11 @@ export interface MonthCell {
   inMonth: boolean;
 }
 
-/** Monday-start 6-week grid (42 cells) covering the month containing dateStr. */
-export function getMonthGrid(dateStr: string): MonthCell[] {
+/** 6-week grid (42 cells) covering the month containing dateStr. */
+export function getMonthGrid(dateStr: string, weekStartsOn: 0 | 1 = 1): MonthCell[] {
   const anchor = monthAnchor(dateStr);
   const month = parseDateStr(anchor).getMonth();
-  const gridStart = getWeekStart(anchor);
+  const gridStart = getWeekStart(anchor, weekStartsOn);
   const cells: MonthCell[] = [];
   let cursor = gridStart;
   for (let i = 0; i < 42; i++) {

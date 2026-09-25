@@ -18,7 +18,7 @@ export default function ProgressCard({ stats, isToday }: ProgressCardProps) {
       </div>
       {noTasks ? (
         <div className="progress-empty-wrap">
-          <div className="progress-empty-msg">No tasks planned today</div>
+          <div className="progress-empty-msg">No tasks yet</div>
         </div>
       ) : (
         <>
@@ -42,11 +42,11 @@ export default function ProgressCard({ stats, isToday }: ProgressCardProps) {
             />
           </div>
           <div className="progress-foot">
+            <span className="foot-pct">
+              <b>{formatPct(stats.pct)}</b>
+            </span>
             <span className="foot-remaining">
               <b>{stats.remaining}</b> remaining
-            </span>
-            <span className="foot-pct">
-              <b>{formatPct(stats.pct)}</b> complete
             </span>
           </div>
         </>
@@ -54,4 +54,3 @@ export default function ProgressCard({ stats, isToday }: ProgressCardProps) {
     </div>
   );
 }
-

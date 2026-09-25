@@ -9,13 +9,15 @@ interface CalendarProps {
   days: Record<string, DayData>;
   recurringTasks?: Task[];
   goals?: CountdownGoal[];
+  weekStartsOn?: 0 | 1;
   onSelectDate: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onToday: () => void;
 }
 
-const WEEKDAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MON_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const SUN_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function Calendar({
   monthAnchor,
@@ -23,12 +25,14 @@ export default function Calendar({
   days,
   recurringTasks,
   goals = [],
+  weekStartsOn = 1,
   onSelectDate,
   onPrevMonth,
   onNextMonth,
   onToday
 }: CalendarProps) {
-  const cells = getMonthGrid(monthAnchor);
+  const cells = getMonthGrid(monthAnchor, weekStartsOn);
+  const weekdayHeaders = weekStartsOn === 0 ? SUN_HEADERS : MON_HEADERS;
   const today = todayStr();
 
   return (
@@ -52,7 +56,7 @@ export default function Calendar({
       </div>
 
       <div className="calendar-grid calendar-headers">
-        {WEEKDAY_HEADERS.map((w) => (
+        {weekdayHeaders.map((w) => (
           <div key={w} className="calendar-header-cell">
             {w}
           </div>

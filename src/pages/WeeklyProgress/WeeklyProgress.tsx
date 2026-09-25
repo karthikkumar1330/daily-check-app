@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
@@ -21,10 +21,16 @@ export default function WeeklyProgress() {
   const navigate = useNavigate();
   const { appData } = useTasks();
   const { goals } = useCountdownGoals();
+  const weekStartsOn = appData.weekStartsOn ?? 1;
   const [activeTab, setActiveTab] = useState<WeeklyTab>("overview");
-  const [weekStart, setWeekStart] = useState(getWeekStart(todayStr()));
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(todayStr(), weekStartsOn));
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [trendPreset, setTrendPreset] = useState<TrendPreset>("last_30_days");
+
+  // Keep weekStart in sync if weekStartsOn setting changes
+  useEffect(() => {
+    setWeekStart(getWeekStart(selectedDate, weekStartsOn));
+  }, [weekStartsOn]);
 
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const summary = useMemo(

@@ -365,6 +365,36 @@ export function BellIcon() {
   );
 }
 
+export function BackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <path
+        d="M12.5 15l-5-5 5-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function ShareIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <path
+        d="M7.5 11.5l5 3M12.5 5.5l-5 3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="14.5" cy="4.5" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="5.5" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="14.5" cy="15.5" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 
 
 

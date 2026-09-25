@@ -16,7 +16,7 @@ import {
 } from "../../utils/notificationUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
-import { DownloadIcon, InstallIcon, PrintIcon, UploadIcon } from "../../components/icons";
+import { DownloadIcon, InstallIcon, PrintIcon, TrashIcon, UploadIcon } from "../../components/icons";
 import { usePwaInstall } from "../../hooks/usePwaInstall";
 import GoalsManagerModal from "../../components/CountdownGoal/GoalsManagerModal";
 
@@ -35,7 +35,7 @@ interface PendingImportState {
 }
 
 export default function Settings() {
-  const { appData, setTheme, replaceAllData } = useTasks();
+  const { appData, setTheme, setWeekStartsOn, setHapticsEnabled, replaceAllData, resetAllData } = useTasks();
   const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
   const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
@@ -43,6 +43,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [, setNotifStateVersion] = useState(0);
@@ -119,10 +120,13 @@ export default function Settings() {
         <h1 className="page-title">Settings</h1>
       </div>
 
-      {/* Appearance */}
+      {/* Appearance & Preferences */}
       <div className="card settings-card">
-        <div className="settings-heading">Appearance</div>
-        <div className="seg" style={{ width: "100%" }} role="radiogroup" aria-label="Theme">
+        <div className="settings-heading">Appearance &amp; Preferences</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
+          Theme
+        </div>
+        <div className="seg" style={{ width: "100%", marginBottom: 16 }} role="radiogroup" aria-label="Theme">
           {THEME_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -136,6 +140,61 @@ export default function Settings() {
               {opt.label}
             </button>
           ))}
+        </div>
+
+        <div style={{ paddingTop: 14, borderTop: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
+            First Day of the Week
+          </div>
+          <div className="seg" style={{ width: "100%" }} role="radiogroup" aria-label="First day of the week">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={(appData.weekStartsOn ?? 1) === 1}
+              className={(appData.weekStartsOn ?? 1) === 1 ? "active" : ""}
+              style={{ flex: 1, justifyContent: "center" }}
+              onClick={() => {
+                setWeekStartsOn(1);
+                showToast("Week starts on Monday.");
+              }}
+            >
+              Monday
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={(appData.weekStartsOn ?? 1) === 0}
+              className={(appData.weekStartsOn ?? 1) === 0 ? "active" : ""}
+              style={{ flex: 1, justifyContent: "center" }}
+              onClick={() => {
+                setWeekStartsOn(0);
+                showToast("Week starts on Sunday.");
+              }}
+            >
+              Sunday
+            </button>
+          </div>
+        </div>
+
+        <div style={{ paddingTop: 14, marginTop: 14, borderTop: "1px solid var(--border)" }}>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Haptic Feedback</div>
+              <div style={{ fontSize: 12, color: "var(--ink-muted)" }}>
+                Vibration cues on task completion and targets
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={appData.hapticsEnabled !== false}
+              onChange={(e) => {
+                setHapticsEnabled(e.target.checked);
+                showToast(e.target.checked ? "Haptic feedback enabled." : "Haptic feedback disabled.");
+              }}
+              style={{ accentColor: "var(--accent)", width: 18, height: 18, cursor: "pointer" }}
+              aria-label="Toggle haptic feedback"
+            />
+          </label>
         </div>
       </div>
 
@@ -378,6 +437,13 @@ export default function Settings() {
           actionLabel="Open"
           onAction={() => navigate("/weekly")}
         />
+        <ActionRow
+          icon={<TrashIcon />}
+          title="Reset All Tasks &amp; History"
+          description="Erase all checklists, days, and recurring tasks to start fresh."
+          actionLabel="Reset"
+          onAction={() => setConfirmResetOpen(true)}
+        />
 
         <input
           ref={fileRef}
@@ -450,6 +516,21 @@ export default function Settings() {
           danger
           onConfirm={confirmImport}
           onCancel={() => setPendingImport(null)}
+        />
+      ) : null}
+
+      {confirmResetOpen ? (
+        <ConfirmModal
+          title="Reset All Tasks & History?"
+          message="This will erase all daily checklists and task records on this device. This cannot be undone."
+          confirmLabel="Reset Everything"
+          danger
+          onConfirm={() => {
+            resetAllData();
+            setConfirmResetOpen(false);
+            showToast("All tasks and history have been cleared.");
+          }}
+          onCancel={() => setConfirmResetOpen(false)}
         />
       ) : null}
 

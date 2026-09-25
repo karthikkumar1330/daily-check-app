@@ -17,13 +17,13 @@ export default function WeeklySummary({ summary, streaks }: WeeklySummaryProps) 
 
       {noActivity ? (
         <p className="settings-note" style={{ margin: 0 }}>
-          No activity yet.
+          No activity this week yet.
         </p>
       ) : (
         <div className="summary-grid">
-          <SummaryItem label="Average completion" value={summary.avgPct + "%"} />
+          <SummaryItem label="Average completion" value={summary.avgPct !== null ? summary.avgPct + "%" : "—"} />
           <SummaryItem label="Tasks completed" value={String(summary.completed)} />
-          <SummaryItem label="Scheduled" value={`${summary.created} occurrences`} />
+          <SummaryItem label="Tasks created" value={String(summary.created)} />
           <SummaryItem label="Best day" value={summary.bestDay ?? "—"} />
         </div>
       )}

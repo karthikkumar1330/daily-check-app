@@ -31,7 +31,7 @@ export default function QuickAddTask({ onAdd }: QuickAddTaskProps) {
       <input
         ref={inputRef}
         type="text"
-        placeholder="What needs to be done?"
+        placeholder="What needs to be done today?"
         autoComplete="off"
         maxLength={140}
         value={value}
@@ -43,7 +43,9 @@ export default function QuickAddTask({ onAdd }: QuickAddTaskProps) {
           }
         }}
       />
-      <button onClick={submit}>+ Add Task</button>
+      <button type="button" onClick={submit}>
+        + Add Task
+      </button>
     </div>
   );
 }

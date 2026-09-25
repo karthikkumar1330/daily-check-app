@@ -58,7 +58,7 @@ export default function TaskItem({
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
-  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay } = useTasks();
+  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay, appData } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -95,7 +95,7 @@ export default function TaskItem({
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    if (appData.hapticsEnabled !== false && typeof navigator !== "undefined" && "vibrate" in navigator) {
       try {
         navigator.vibrate(isDayComplete ? [25, 35, 25] : 20);
       } catch {}

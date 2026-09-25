@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
+import { useTodayDate } from "../../hooks/useTodayDate";
 import type { Task } from "../../types";
-import { addDays, formatDayMonth, isValidDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
+import { addDays, formatDayMonth, isValidDateStr, weekdayFull } from "../../utils/dateUtils";
 import { consumePendingDeepLink } from "../../utils/notificationStorage";
 import { dayStats } from "../../utils/progressUtils";
 import DateNavigator from "../../components/DateNavigator/DateNavigator";
@@ -33,7 +34,20 @@ export default function Today() {
   } = useTasks();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [viewDate, setViewDate] = useState(todayStr());
+  const currentToday = useTodayDate();
+  const [viewDate, setViewDate] = useState(currentToday);
+  const prevTodayRef = useRef(currentToday);
+
+  // Midnight rollover handling: if user was looking at "today", transition automatically to new today!
+  useEffect(() => {
+    if (prevTodayRef.current !== currentToday) {
+      if (viewDate === prevTodayRef.current) {
+        setViewDate(currentToday);
+      }
+      prevTodayRef.current = currentToday;
+    }
+  }, [currentToday, viewDate]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -135,7 +149,13 @@ export default function Today() {
     return () => navigator.serviceWorker.removeEventListener("message", handleSwMessage);
   }, [viewDate, getDay]);
 
-  const isToday = viewDate === todayStr();
+  const isToday = viewDate === currentToday;
+  const isFuture = viewDate > currentToday;
+  const greeting = isToday
+    ? "Let’s make today count 💪"
+    : isFuture
+    ? "Planning ahead for this day"
+    : "Looking back at this day";
   const day = getDay(viewDate);
   const stats = dayStats(day);
 
@@ -156,9 +176,7 @@ export default function Today() {
       <div className="today-header-block">
         <div className="today-weekday-label">{weekdayFull(viewDate)}</div>
         <h1 className="today-date-heading">{formatDayMonth(viewDate)}</h1>
-        <p className="page-greeting">
-          {isToday ? "Let’s make today count 💪" : "Looking back at this day"}
-        </p>
+        <p className="page-greeting">{greeting}</p>
       </div>
 
 
@@ -175,7 +193,7 @@ export default function Today() {
           setEditingId(null);
         }}
         onToday={() => {
-          setViewDate(todayStr());
+          setViewDate(currentToday);
           setEditingId(null);
         }}
       />

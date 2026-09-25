@@ -71,7 +71,10 @@ interface TasksContextValue {
   moveTask: (date: string, id: string, direction: "up" | "down") => void;
   clearCompleted: (date: string) => void;
   setTheme: (t: ThemePreference) => void;
+  setWeekStartsOn: (val: 0 | 1) => void;
+  setHapticsEnabled: (val: boolean) => void;
   replaceAllData: (data: AppData) => void;
+  resetAllData: () => void;
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -964,8 +967,27 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setAppData((prev) => ({ ...prev, theme: t }));
   }
 
+  function setWeekStartsOn(val: 0 | 1) {
+    setAppData((prev) => ({ ...prev, weekStartsOn: val }));
+  }
+
+  function setHapticsEnabled(val: boolean) {
+    setAppData((prev) => ({ ...prev, hapticsEnabled: val }));
+  }
+
   function replaceAllData(data: AppData) {
     setAppData(data);
+  }
+
+  function resetAllData() {
+    setAppData((prev) => ({
+      version: prev.version,
+      days: {},
+      theme: prev.theme,
+      weekStartsOn: prev.weekStartsOn,
+      hapticsEnabled: prev.hapticsEnabled,
+      recurringTasks: []
+    }));
   }
 
   const value: TasksContextValue = {
@@ -986,7 +1008,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     moveTask,
     clearCompleted,
     setTheme,
-    replaceAllData
+    setWeekStartsOn,
+    setHapticsEnabled,
+    replaceAllData,
+    resetAllData
   };
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

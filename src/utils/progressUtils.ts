@@ -20,13 +20,14 @@ export function formatPct(pct: number | null): string {
 }
 
 export function motivationalMsg(stats: DayStats): string {
-  if (stats.total === 0) return "Nothing planned yet.";
+  if (stats.total === 0) return "No tasks yet";
   const pct = stats.pct as number;
   if (pct >= 100) return "Perfect day! \uD83C\uDF89";
   if (pct >= 80) return "Excellent work! \uD83D\uDCAA";
   if (pct >= 60) return "Good progress. Keep going.";
   if (pct >= 40) return "Keep moving forward.";
-  return "Every completed task counts.";
+  if (stats.completed > 0) return "Good start! Keep it up.";
+  return "Ready when you are.";
 }
 
 export interface WeekSummary {

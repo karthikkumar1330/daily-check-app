@@ -20,6 +20,7 @@ export default function ConfirmModal({
   onCancel
 }: ConfirmModalProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   useBodyScrollLock(true);
 
   // If title was not explicitly supplied, extract question as title if message contains '?'
@@ -33,9 +34,29 @@ export default function ConfirmModal({
 
   useEffect(() => {
     cancelRef.current?.focus();
+
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (e.shiftKey) {
+          if (document.activeElement === cancelRef.current) {
+            e.preventDefault();
+            confirmRef.current?.focus();
+          }
+        } else {
+          if (document.activeElement === confirmRef.current) {
+            e.preventDefault();
+            cancelRef.current?.focus();
+          }
+        }
+      }
     }
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,6 +65,7 @@ export default function ConfirmModal({
   return createPortal(
     <div
       className="overlay confirm-overlay"
+      role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -75,6 +97,7 @@ export default function ConfirmModal({
             Cancel
           </button>
           <button
+            ref={confirmRef}
             type="button"
             className={`btn-primary confirm-action-btn ${danger ? "danger" : ""}`}
             style={danger ? { background: "var(--red)", borderColor: "var(--red)", color: "#ffffff" } : undefined}
@@ -88,4 +111,3 @@ export default function ConfirmModal({
     document.body
   );
 }
-

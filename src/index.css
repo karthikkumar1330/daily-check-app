@@ -20,6 +20,17 @@
   --amber-soft: #fcf1de;
   --green: #258555;
   --green-soft: #e4f5ec;
+  --surface-1: #ffffff;
+  --primary: #246a56;
+  --primary-hover: #1e5948;
+  --primary-ink: #ffffff;
+  --primary-soft: #e8f3ee;
+  --success: #258555;
+  --success-soft: #e4f5ec;
+  --warning: #b97d19;
+  --warning-soft: #fcf1de;
+  --danger: #d3454c;
+  --danger-soft: #fae9e9;
   --shadow: 0 1px 3px rgba(15, 23, 18, 0.04), 0 1px 2px rgba(15, 23, 18, 0.02);
   --shadow-md: 0 4px 16px -2px rgba(15, 23, 18, 0.06), 0 2px 6px -1px rgba(15, 23, 18, 0.03);
   --radius: 16px;
@@ -32,6 +43,7 @@
   :root:not([data-theme="light"]) {
     --bg: #141615;
     --surface: #1c1f1d;
+    --surface-1: #1c1f1d;
     --surface-2: #242825;
     --surface-subtle: rgba(255, 255, 255, 0.035);
     --surface-hover: rgba(255, 255, 255, 0.06);
@@ -43,14 +55,24 @@
     --accent-ink: #0d1411;
     --accent-soft: #172b23;
     --accent-border: #244639;
+    --primary: #4eb696;
+    --primary-hover: #62c4a6;
+    --primary-ink: #0d1411;
+    --primary-soft: #172b23;
     --teal: #2dd4bf;
     --teal-soft: #132d29;
     --red: #e67579;
     --red-soft: #2e1a1c;
+    --danger: #e67579;
+    --danger-soft: #2e1a1c;
     --amber: #dcab50;
     --amber-soft: #2e2615;
+    --warning: #dcab50;
+    --warning-soft: #2e2615;
     --green: #5ec48f;
     --green-soft: #142a1e;
+    --success: #5ec48f;
+    --success-soft: #142a1e;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
   }
@@ -58,6 +80,7 @@
 :root[data-theme="dark"] {
   --bg: #141615;
   --surface: #1c1f1d;
+  --surface-1: #1c1f1d;
   --surface-2: #242825;
   --surface-subtle: rgba(255, 255, 255, 0.035);
   --surface-hover: rgba(255, 255, 255, 0.06);
@@ -69,14 +92,24 @@
   --accent-ink: #0d1411;
   --accent-soft: #172b23;
   --accent-border: #244639;
+  --primary: #4eb696;
+  --primary-hover: #62c4a6;
+  --primary-ink: #0d1411;
+  --primary-soft: #172b23;
   --teal: #2dd4bf;
   --teal-soft: #132d29;
   --red: #e67579;
   --red-soft: #2e1a1c;
+  --danger: #e67579;
+  --danger-soft: #2e1a1c;
   --amber: #dcab50;
   --amber-soft: #2e2615;
+  --warning: #dcab50;
+  --warning-soft: #2e2615;
   --green: #5ec48f;
   --green-soft: #142a1e;
+  --success: #5ec48f;
+  --success-soft: #142a1e;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
 }
@@ -99,12 +132,18 @@ body {
   min-height: 100vh;
   /* Prevent horizontal page overflowing */
   overflow-x: hidden;
-  /* Respect the phone's status bar / home-indicator area when installed standalone. */
-  padding-top: env(safe-area-inset-top);
+  -webkit-tap-highlight-color: transparent;
+  /* Respect the phone's bottom home-indicator in standalone PWA mode. */
   padding-bottom: env(safe-area-inset-bottom);
 }
-button {
+button,
+a,
+input,
+select,
+textarea {
   font-family: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -1346,8 +1385,19 @@ textarea:focus-visible,
 .chart-bar.has-data {
   background: var(--accent);
 }
+.chart-bar.complete {
+  background: var(--green);
+}
 .chart-bar.selected {
   background: var(--ink);
+}
+.chart-no-data-mark {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.55;
+  user-select: none;
+  margin-bottom: 2px;
 }
 .chart-day {
   margin-top: 8px;
@@ -1982,30 +2032,101 @@ textarea:focus-visible,
   position: sticky;
   top: 0;
   z-index: 20;
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 10px 16px;
+  min-height: 56px;
+  padding: 8px 16px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-top: calc(8px + env(safe-area-inset-top));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 64px;
+}
 .topbar-title {
+  flex: 1;
   text-align: center;
   font-weight: 700;
   font-size: 16px;
   letter-spacing: -0.01em;
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
 }
-.hamburger {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 64px;
 }
+
+@media (max-width: 380px) {
+  .topbar {
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    gap: 6px;
+  }
+  .topbar-left {
+    min-width: auto;
+    gap: 4px;
+  }
+  .topbar-actions {
+    min-width: auto;
+    gap: 4px;
+  }
+  .topbar-back-btn,
+  .topbar-share-btn,
+  .hamburger,
+  .notif-bell-btn,
+  .topbar-theme-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+  .topbar-title {
+    font-size: 14.5px;
+    padding: 0 2px;
+  }
+  .day-nav,
+  .week-nav {
+    gap: 4px;
+  }
+  .day-nav button,
+  .week-nav button {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+  }
+  .day-nav .today-btn {
+    padding: 0 8px;
+    min-width: 48px;
+    font-size: 12px;
+    height: 38px;
+  }
+  .seg button {
+    padding: 7px 4px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+}
+.topbar-back-btn,
+.topbar-share-btn,
+.hamburger,
+.notif-bell-btn,
 .topbar-theme-btn {
   width: 44px;
   height: 44px;
@@ -2021,10 +2142,21 @@ textarea:focus-visible,
   box-shadow: var(--shadow);
   color: var(--ink);
   font-size: 16px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
+.topbar-back-btn:hover,
+.topbar-share-btn:hover,
+.hamburger:hover,
+.notif-bell-btn:hover,
 .topbar-theme-btn:hover {
   background: var(--surface-2);
+}
+.topbar-back-btn:active,
+.topbar-share-btn:active,
+.hamburger:active,
+.notif-bell-btn:active,
+.topbar-theme-btn:active {
+  transform: scale(0.96);
 }
 
 .page {
@@ -2978,7 +3110,7 @@ textarea:focus-visible,
 .plan-check-btn svg {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--border-strong, #888);
+  border: 2px solid var(--ink-faint);
   border-radius: 6px;
   color: transparent;
   transition: all 0.15s ease;

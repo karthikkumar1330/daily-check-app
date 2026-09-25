@@ -95,6 +95,10 @@ export interface AppData {
   days: Record<string, DayData>;
   theme: ThemePreference;
   recurringTasks?: Task[];
+  /** 0 = Sunday, 1 = Monday (default 1) */
+  weekStartsOn?: 0 | 1;
+  /** Whether vibration/haptic feedback on task completion is active (default true) */
+  hapticsEnabled?: boolean;
 }
 
 export const CURRENT_DATA_VERSION = 1;

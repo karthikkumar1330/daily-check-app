@@ -16,7 +16,8 @@ export default function Categories() {
     const param = searchParams.get("date");
     return param && isValidDateStr(param) ? param : todayStr();
   });
-  const [selected, setSelected] = useState<CategoryId | null>(null);
+  const selectedParam = searchParams.get("cat") as CategoryId | null;
+  const selected = selectedParam || null;
   const [editing, setEditing] = useState<{ date: string; id: string } | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ date: string; taskId: string; title: string } | null>(
     null
@@ -31,9 +32,15 @@ export default function Categories() {
   function handleDateChange(nextDate: string) {
     setViewDate(nextDate);
     setEditing(null);
-    if (searchParams.has("date")) {
-      setSearchParams({ date: nextDate }, { replace: true });
-    }
+    const nextParams: Record<string, string> = { date: nextDate };
+    if (selected) nextParams.cat = selected;
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function handleSelectCategory(catId: CategoryId | null) {
+    const nextParams: Record<string, string> = { date: viewDate };
+    if (catId) nextParams.cat = catId;
+    setSearchParams(nextParams);
   }
 
   const isToday = viewDate === todayStr();
@@ -49,7 +56,7 @@ export default function Categories() {
   if (selected && selectedMeta) {
     return (
       <div className="page">
-        <button className="link-btn" onClick={() => setSelected(null)} style={{ marginBottom: 12 }}>
+        <button className="link-btn" onClick={() => handleSelectCategory(null)} style={{ marginBottom: 12 }}>
           {"\u2039"} All categories
         </button>
         <div className="page-title">
@@ -94,7 +101,8 @@ export default function Categories() {
 
         {confirmDeleteTask ? (
           <ConfirmModal
-            message={`Delete \u201c${confirmDeleteTask.title}\u201d? This can\u2019t be undone.`}
+            title={`Delete \u201c${confirmDeleteTask.title}\u201d?`}
+            message="This can’t be undone."
             confirmLabel="Delete"
             danger
             onConfirm={() => {
@@ -130,7 +138,7 @@ export default function Categories() {
 
       <div className="category-grid">
         {stats.map((c) => (
-          <button key={c.id} className="category-card" onClick={() => setSelected(c.id)}>
+          <button key={c.id} className="category-card" onClick={() => handleSelectCategory(c.id)}>
             <div className="category-emoji">{c.emoji}</div>
             <div className="category-label">{c.label}</div>
             <div className="category-counts">

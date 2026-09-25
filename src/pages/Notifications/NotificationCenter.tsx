@@ -193,7 +193,8 @@ export default function NotificationCenter() {
 
       {confirmClearOpen ? (
         <ConfirmModal
-          message="Clear all notifications? This cannot be undone."
+          title="Clear all notifications?"
+          message="This will remove all notifications from your history. This cannot be undone."
           confirmLabel="Clear all"
           danger
           onConfirm={() => {

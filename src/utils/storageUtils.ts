@@ -7,7 +7,14 @@ import { loadRoutines, sanitizeRoutines, saveRoutines } from "./routineStorage";
 const STORAGE_KEY = "dailyCheck.data";
 
 function emptyAppData(): AppData {
-  return { version: CURRENT_DATA_VERSION, days: {}, theme: "auto", recurringTasks: [] };
+  return {
+    version: CURRENT_DATA_VERSION,
+    days: {},
+    theme: "auto",
+    weekStartsOn: 1,
+    hapticsEnabled: true,
+    recurringTasks: []
+  };
 }
 
 function sanitizeDueDate(raw: any): string | null {
@@ -304,6 +311,8 @@ export function loadData(): AppData {
       version: typeof parsed.version === "number" ? parsed.version : 1,
       days: sanitizeDays(parsed.days),
       theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference,
+      weekStartsOn: parsed.weekStartsOn === 0 ? 0 : 1,
+      hapticsEnabled: parsed.hapticsEnabled !== false,
       recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
 
@@ -406,6 +415,8 @@ export function parseImportFile(text: string): ImportResult {
       version: typeof parsed.version === "number" ? parsed.version : CURRENT_DATA_VERSION,
       days,
       theme: (["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : "auto") as ThemePreference,
+      weekStartsOn: parsed.weekStartsOn === 0 ? 0 : 1,
+      hapticsEnabled: parsed.hapticsEnabled !== false,
       recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
 

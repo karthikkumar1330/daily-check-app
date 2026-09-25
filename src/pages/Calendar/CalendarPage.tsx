@@ -37,6 +37,7 @@ export default function CalendarPage() {
         days={appData.days}
         recurringTasks={appData.recurringTasks}
         goals={goals}
+        weekStartsOn={appData.weekStartsOn ?? 1}
         onSelectDate={(d) => {
           setSelectedDate(d);
           setEditingId(null);
@@ -80,7 +81,8 @@ export default function CalendarPage() {
 
       {confirmDeleteTask ? (
         <ConfirmModal
-          message={`Delete \u201c${confirmDeleteTask.title}\u201d? This can\u2019t be undone.`}
+          title={`Delete \u201c${confirmDeleteTask.title}\u201d?`}
+          message="This can’t be undone."
           confirmLabel="Delete"
           danger
           onConfirm={() => {
