@@ -109,15 +109,17 @@ export default function Header({ isDark, onToggleTheme, onOpenSidebar }: HeaderP
       <div className="topbar-title">{pageTitle}</div>
 
       <div className="topbar-actions">
-        <button
-          type="button"
-          className="icon-btn topbar-share-btn"
-          onClick={handleShare}
-          aria-label="Share today's progress"
-          title="Share progress"
-        >
-          <ShareIcon />
-        </button>
+        {!isHome ? (
+          <button
+            type="button"
+            className="icon-btn topbar-share-btn"
+            onClick={handleShare}
+            aria-label="Share today's progress"
+            title="Share progress"
+          >
+            <ShareIcon />
+          </button>
+        ) : null}
 
         <NavLink
           to="/notifications"

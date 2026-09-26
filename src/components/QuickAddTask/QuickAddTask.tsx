@@ -43,8 +43,8 @@ export default function QuickAddTask({ onAdd }: QuickAddTaskProps) {
           }
         }}
       />
-      <button type="button" onClick={submit}>
-        + Add Task
+      <button type="button" onClick={submit} aria-label="Add task">
+        + Add
       </button>
     </div>
   );

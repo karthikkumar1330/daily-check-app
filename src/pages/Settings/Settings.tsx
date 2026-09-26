@@ -14,9 +14,11 @@ import {
   requestNotificationPermission,
   sendTestNotification
 } from "../../utils/notificationUtils";
+import { formatDayMonth, todayStr } from "../../utils/dateUtils";
+import { dayStats, formatPct } from "../../utils/progressUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
-import { DownloadIcon, InstallIcon, PrintIcon, TrashIcon, UploadIcon } from "../../components/icons";
+import { DownloadIcon, InstallIcon, PrintIcon, ShareIcon, TrashIcon, UploadIcon } from "../../components/icons";
 import { usePwaInstall } from "../../hooks/usePwaInstall";
 import GoalsManagerModal from "../../components/CountdownGoal/GoalsManagerModal";
 
@@ -28,21 +30,18 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a valid Daily Check backup.";
 
-import type { NotificationPreferences } from "../../types/notification";
-
 interface PendingImportState {
   data: AppData;
   countdownGoals?: CountdownGoalsData;
   routines?: RoutinesData;
-  notificationPreferences?: NotificationPreferences;
 }
 
 export default function Settings() {
-  const { appData, setTheme, setWeekStartsOn, setHapticsEnabled, replaceAllData, resetAllData } = useTasks();
+  const { appData, setTheme, setWeekStartsOn, setHapticsEnabled, replaceAllData, resetAllData, getDay } = useTasks();
   const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
   const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
-  const { preferences: notifPrefs, updatePreferences: updateNotifPrefs, clearAll: clearAllNotifications } = useNotificationCenter();
+  const { preferences: notifPrefs, updatePreferences: updateNotifPrefs } = useNotificationCenter();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
@@ -80,6 +79,47 @@ export default function Settings() {
     showToast("Backup downloaded.");
   }
 
+  async function handleShare() {
+    const today = todayStr();
+    const day = getDay(today);
+    const stats = dayStats(day);
+
+    let text = `Daily Check — ${formatDayMonth(today)}: `;
+    if (stats.total === 0) {
+      text += "Ready to make progress today!";
+    } else {
+      text += `${stats.completed}/${stats.total} completed (${formatPct(stats.pct)}) · ${stats.remaining} remaining`;
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Daily Check",
+          text
+        });
+      } catch (err: unknown) {
+        if ((err as Error)?.name !== "AbortError") {
+          await copyToClipboard(text);
+        }
+      }
+    } else {
+      await copyToClipboard(text);
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        showToast("Daily summary copied to clipboard!");
+      } else {
+        showToast(text);
+      }
+    } catch {
+      showToast("Could not copy summary");
+    }
+  }
+
   function handleImportFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -92,8 +132,7 @@ export default function Settings() {
       setPendingImport({
         data: result.data,
         countdownGoals: result.countdownGoals,
-        routines: result.routines,
-        notificationPreferences: result.notificationPreferences
+        routines: result.routines
       });
     };
     reader.onerror = () => showToast(IMPORT_ERROR);
@@ -108,9 +147,6 @@ export default function Settings() {
     }
     if (pendingImport.routines) {
       replaceAllRoutines(pendingImport.routines);
-    }
-    if (pendingImport.notificationPreferences) {
-      updateNotifPrefs(pendingImport.notificationPreferences);
     }
     setPendingImport(null);
     showToast("Data imported successfully.");
@@ -424,6 +460,13 @@ export default function Settings() {
         <div className="settings-heading">Data &amp; Backups</div>
 
         <ActionRow
+          icon={<ShareIcon />}
+          title="Share Daily Summary"
+          description="Copy or share today's task completion progress summary to your clipboard or apps."
+          actionLabel="Share"
+          onAction={handleShare}
+        />
+        <ActionRow
           icon={<DownloadIcon />}
           title="Export Backup"
           description="Download a complete JSON backup of your tasks and checklist history."
@@ -534,9 +577,6 @@ export default function Settings() {
           danger
           onConfirm={() => {
             resetAllData();
-            replaceAllGoals({ version: 1, goals: {}, primaryGoalId: null });
-            replaceAllRoutines({ version: 1, routines: {} });
-            clearAllNotifications();
             setConfirmResetOpen(false);
             showToast("All tasks and history have been cleared.");
           }}

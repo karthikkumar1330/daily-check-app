@@ -23,6 +23,10 @@ export default function TodayFocusSection({
   const focusTasks = tasks.filter((t) => t.focusDate === dateStr);
   const completedCount = focusTasks.filter((t) => t.completed).length;
 
+  if (focusTasks.length === 0) {
+    return null;
+  }
+
   return (
     <section className="card today-focus-section" aria-labelledby="today-focus-heading" style={{ marginBottom: 12 }}>
       <div
@@ -32,7 +36,7 @@ export default function TodayFocusSection({
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          marginBottom: focusTasks.length > 0 ? 12 : 6
+          marginBottom: 12
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -53,89 +57,44 @@ export default function TodayFocusSection({
             <span aria-hidden="true">🎯</span>
             <span>Today&apos;s Focus</span>
           </h2>
-          {focusTasks.length > 0 ? (
-            <span
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                padding: "2px 8px",
-                borderRadius: 12,
-                background: completedCount === focusTasks.length
-                  ? "var(--accent-soft, rgba(16, 185, 129, 0.15))"
-                  : "var(--surface-hover, rgba(0,0,0,0.05))",
-                color: completedCount === focusTasks.length ? "var(--accent, #10b981)" : "var(--ink-muted)"
-              }}
-            >
-              {completedCount}/{focusTasks.length} done
-            </span>
-          ) : null}
-        </div>
-
-        {focusTasks.length > 0 ? (
-          <button
-            type="button"
-            className="btn text-btn focus-edit-btn"
-            onClick={onOpenSelector}
-            aria-label="Edit today's focus tasks"
+          <span
             style={{
-              fontSize: "0.85rem",
+              fontSize: "0.75rem",
               fontWeight: 600,
-              color: "var(--accent, #10b981)",
-              padding: "4px 8px",
-              minHeight: 36,
-              display: "flex",
-              alignItems: "center",
-              gap: 4
+              padding: "2px 8px",
+              borderRadius: 12,
+              background: completedCount === focusTasks.length
+                ? "var(--accent-soft, rgba(16, 185, 129, 0.15))"
+                : "var(--surface-hover, rgba(0,0,0,0.05))",
+              color: completedCount === focusTasks.length ? "var(--accent, #10b981)" : "var(--ink-muted)"
             }}
           >
-            <FocusIcon />
-            <span>Edit Focus</span>
-          </button>
-        ) : null}
-      </div>
+            {completedCount}/{focusTasks.length} done
+          </span>
+        </div>
 
-      {focusTasks.length === 0 ? (
-        <div
-          className="today-focus-empty"
+        <button
+          type="button"
+          className="btn text-btn focus-edit-btn"
+          onClick={onOpenSelector}
+          aria-label="Edit today's focus tasks"
           style={{
-            padding: "14px 16px",
-            borderRadius: 10,
-            background: "var(--surface-subtle, rgba(0, 0, 0, 0.02))",
-            border: "1px dashed var(--border)",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            color: "var(--accent, #10b981)",
+            padding: "4px 8px",
+            minHeight: 36,
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap"
+            gap: 4
           }}
         >
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <p style={{ margin: "0 0 2px", fontSize: "0.88rem", fontWeight: 600, color: "var(--ink)" }}>
-              No focus tasks selected
-            </p>
-            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-muted)" }}>
-              Select up to 3 priority tasks to spotlight today.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onOpenSelector}
-            style={{
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              padding: "8px 14px",
-              minHeight: 38,
-              display: "flex",
-              alignItems: "center",
-              gap: 6
-            }}
-          >
-            <span>🎯 Choose Focus Tasks</span>
-          </button>
-        </div>
-      ) : (
-        <div className="today-focus-list" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <FocusIcon />
+          <span>Edit Focus</span>
+        </button>
+      </div>
+
+      <div className="today-focus-list" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {focusTasks.map((task) => {
             const cat = categoryMeta(task.category);
             const timeFormatted = formatTimeDisplay(task.dueTime);
@@ -283,7 +242,6 @@ export default function TodayFocusSection({
             );
           })}
         </div>
-      )}
     </section>
   );
 }

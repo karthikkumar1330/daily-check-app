@@ -15,35 +15,9 @@ export default function CountdownCard() {
   const [managerOpen, setManagerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // If no goals at all, render an inviting clean card
+  // If no goals at all, do not display on Home screen
   if (goals.length === 0) {
-    return (
-      <div className="countdown-section">
-        <div className="card countdown-empty-card">
-          <div className="countdown-empty-icon" aria-hidden="true">
-            🎯
-          </div>
-          <div className="countdown-empty-title">Countdown Goals</div>
-          <div className="countdown-empty-desc">
-            Track 100-day challenges, fitness milestones, or exam deadlines day by day.
-          </div>
-          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-            + Add Countdown Goal
-          </button>
-        </div>
-
-        {createOpen ? (
-          <GoalFormModal
-            onSubmit={(input) => {
-              const res = createGoal(input);
-              if (res.ok) setCreateOpen(false);
-              return res;
-            }}
-            onCancel={() => setCreateOpen(false)}
-          />
-        ) : null}
-      </div>
-    );
+    return null;
   }
 
   // Fallback: if primaryGoalId was unset or invalid, default to the first goal

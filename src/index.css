@@ -752,12 +752,12 @@ textarea:focus-visible,
 
 /* Quick add */
 .quick-add-section {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .quick-add {
   display: flex;
   gap: 8px;
-  margin-bottom: 6px;
+  align-items: stretch;
 }
 .add-advanced-link {
   font-size: 13px;
@@ -773,7 +773,7 @@ textarea:focus-visible,
   background: var(--surface);
   color: var(--ink);
   border-radius: 12px;
-  padding: 13px 14px;
+  padding: 12px 14px;
   font-size: 15px;
   font-family: inherit;
   min-height: 44px;
@@ -793,6 +793,7 @@ textarea:focus-visible,
   white-space: nowrap;
   min-height: 44px;
   min-width: 44px;
+  flex: none;
 }
 .quick-add button:active {
   transform: scale(0.98);
@@ -802,15 +803,16 @@ textarea:focus-visible,
   cursor: not-allowed;
 }
 @media (max-width: 380px) {
-  /* Stacked fallback for narrow screens and larger text sizes */
   .quick-add {
-    flex-wrap: wrap;
+    gap: 6px;
   }
   .quick-add input[type="text"] {
-    flex-basis: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
   }
   .quick-add button {
-    flex: 1;
+    padding: 0 13px;
+    font-size: 13.5px;
   }
 }
 

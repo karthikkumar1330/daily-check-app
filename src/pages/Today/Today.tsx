@@ -10,7 +10,6 @@ import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
 import CountdownCard from "../../components/CountdownGoal/CountdownCard";
 import TodayRoutinesBar from "../../components/Routines/TodayRoutinesBar";
-import TodayPlanSection from "../../components/Planner/TodayPlanSection";
 import TodayFocusSection from "../../components/Focus/TodayFocusSection";
 import FocusSelectorModal from "../../components/Focus/FocusSelectorModal";
 import QuickAddTask from "../../components/QuickAddTask/QuickAddTask";
@@ -217,16 +216,9 @@ export default function Today() {
       {/* 3. Today's Progress */}
       <ProgressCard stats={stats} isToday={isToday} />
 
-      {/* 4. Quick Add & Today's Checklist (Primary Workspace) */}
+      {/* 4. Quick Add */}
       <div className="quick-add-section">
         <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
-        <button
-          className="link-btn add-advanced-link"
-          onClick={() => setAdvancedOpen(true)}
-          aria-label="Add task with priority, category and notes"
-        >
-          + Add with priority, category &amp; notes
-        </button>
       </div>
 
       <div className="checklist-section">
@@ -274,10 +266,6 @@ export default function Today() {
               />
             ) : null}
 
-            {stats.remaining === 0 && stats.total > 0 ? (
-              <EmptyState variant="all-done" />
-            ) : null}
-
             {/* Visually quieter Completed Section */}
             {completedTasks.length > 0 ? (
               <div className="completed-group-section" style={{ marginTop: activeTasks.length > 0 ? 18 : 6 }}>
@@ -321,18 +309,15 @@ export default function Today() {
                 ) : null}
               </div>
             ) : null}
+
+            {stats.remaining === 0 && stats.total > 0 ? (
+              <EmptyState variant="all-done" />
+            ) : null}
           </>
         )}
       </div>
 
-      {/* 5. Today's Plan & Focus Information */}
-      <TodayPlanSection
-        dateStr={viewDate}
-        tasks={day.tasks}
-        onToggleTask={(id) => toggleTask(viewDate, id)}
-        onToast={showToast}
-      />
-
+      {/* Contextual Sections (Render only when real user data exists) */}
       <TodayFocusSection
         dateStr={viewDate}
         tasks={day.tasks}
@@ -341,10 +326,8 @@ export default function Today() {
         onOpenSelector={() => setFocusSelectorOpen(true)}
       />
 
-      {/* 6. Routines Quick Bar */}
       <TodayRoutinesBar viewDate={viewDate} onToast={showToast} />
 
-      {/* 7. Secondary Utilities: Primary & Secondary Countdown Goals */}
       <CountdownCard />
 
       {focusSelectorOpen ? (

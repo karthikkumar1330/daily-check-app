@@ -4,7 +4,6 @@ import { useRoutines } from "../../hooks/useRoutines";
 import { useTasks } from "../../hooks/useTasks";
 import type { Routine } from "../../types";
 import ConfirmModal from "../Modals/ConfirmModal";
-import RoutineEditorModal from "./RoutineEditorModal";
 
 interface TodayRoutinesBarProps {
   viewDate: string;
@@ -12,46 +11,16 @@ interface TodayRoutinesBarProps {
 }
 
 export default function TodayRoutinesBar({ viewDate, onToast }: TodayRoutinesBarProps) {
-  const { routines, applyRoutineToDate, isRoutineAppliedOnDate, createRoutine } = useRoutines();
+  const { routines, applyRoutineToDate, isRoutineAppliedOnDate } = useRoutines();
   const { getDay } = useTasks();
   const navigate = useNavigate();
 
   const [confirmDuplicateRoutine, setConfirmDuplicateRoutine] = useState<Routine | null>(null);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const day = getDay(viewDate);
 
   if (routines.length === 0) {
-    return (
-      <div className="routines-bar-wrapper" style={{ margin: "12px 0 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--ink-muted)", textTransform: "uppercase" }}>
-            Daily Routines
-          </span>
-          <button
-            type="button"
-            className="link-btn"
-            onClick={() => setCreateModalOpen(true)}
-            style={{ fontSize: 12, fontWeight: 600 }}
-          >
-            + Create Routine
-          </button>
-        </div>
-        {createModalOpen ? (
-          <RoutineEditorModal
-            onSave={(data) => {
-              const res = createRoutine(data);
-              if (res.ok) {
-                setCreateModalOpen(false);
-                if (onToast) onToast(`Created routine "${data.name}".`);
-              }
-              return res;
-            }}
-            onCancel={() => setCreateModalOpen(false)}
-          />
-        ) : null}
-      </div>
-    );
+    return null;
   }
 
   function handleRoutineClick(routine: Routine) {
@@ -165,29 +134,6 @@ export default function TodayRoutinesBar({ viewDate, onToast }: TodayRoutinesBar
             </button>
           );
         })}
-
-        <button
-          type="button"
-          className="chip"
-          onClick={() => setCreateModalOpen(true)}
-          style={{
-            minHeight: 44,
-            padding: "0 12px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            border: "1px dashed var(--border)",
-            background: "transparent",
-            color: "var(--ink-muted)",
-            cursor: "pointer",
-            borderRadius: 20
-          }}
-          aria-label="Create new routine template"
-        >
-          <span>+ New</span>
-        </button>
       </div>
 
       {confirmDuplicateRoutine ? (
@@ -197,20 +143,6 @@ export default function TodayRoutinesBar({ viewDate, onToast }: TodayRoutinesBar
           confirmLabel="Add Again"
           onConfirm={handleForceApply}
           onCancel={() => setConfirmDuplicateRoutine(null)}
-        />
-      ) : null}
-
-      {createModalOpen ? (
-        <RoutineEditorModal
-          onSave={(data) => {
-            const res = createRoutine(data);
-            if (res.ok) {
-              setCreateModalOpen(false);
-              if (onToast) onToast(`Created routine "${data.name}".`);
-            }
-            return res;
-          }}
-          onCancel={() => setCreateModalOpen(false)}
         />
       ) : null}
     </div>
