@@ -28,6 +28,8 @@ export interface Task {
   title: string;
   completed: boolean;
   priority: Priority;
+  /** Explicit important flag, independent of priority */
+  important?: boolean;
   category: CategoryId;
   notes: string;
   createdAt: number;
@@ -109,6 +111,7 @@ export interface RoutineTask {
   id: string;
   title: string;
   priority: Priority;
+  important?: boolean;
   category: CategoryId;
   notes: string;
   dueTime?: string | null;

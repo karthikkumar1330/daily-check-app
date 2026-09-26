@@ -3,6 +3,8 @@ import { CURRENT_DATA_VERSION } from "../types";
 import { isValidDateStr } from "./dateUtils";
 import { loadCountdownGoals, saveCountdownGoals } from "./countdownStorage";
 import { loadRoutines, sanitizeRoutines, saveRoutines } from "./routineStorage";
+import type { NotificationPreferences } from "../types/notification";
+import { loadNotificationPreferences } from "./notificationStorage";
 
 const STORAGE_KEY = "dailyCheck.data";
 
@@ -173,6 +175,7 @@ function sanitizeRecurringTasks(raw: unknown): Task[] {
       title: item.title,
       completed: false,
       priority: [1, 2, 3].includes(item.priority) ? item.priority : 2,
+      important: Boolean(item.important),
       category: (typeof item.category === "string" ? item.category : "") as CategoryId,
       notes: typeof item.notes === "string" ? item.notes : "",
       createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
@@ -239,6 +242,7 @@ function sanitizeDays(raw: unknown): Record<string, DayData> {
         title: t.title,
         completed: !!t.completed,
         priority: [1, 2, 3].includes((t as any).priority) ? (t as any).priority : 2,
+        important: Boolean((t as any).important),
         category: typeof (t as any).category === "string" ? (t as any).category : "",
         notes: typeof (t as any).notes === "string" ? (t as any).notes : "",
         createdAt: typeof (t as any).createdAt === "number" ? (t as any).createdAt : Date.now(),
@@ -364,11 +368,13 @@ export function saveData(data: AppData): boolean {
 export function exportBackup(data: AppData, goalsData?: CountdownGoalsData, routinesData?: RoutinesData): void {
   const currentGoals = goalsData ?? loadCountdownGoals();
   const currentRoutines = routinesData ?? loadRoutines();
+  const currentNotifPrefs = loadNotificationPreferences();
 
   const payload = {
     ...data,
     countdownGoals: currentGoals,
     routines: currentRoutines,
+    notificationPreferences: currentNotifPrefs,
     exportedAt: new Date().toISOString(),
     app: "daily-check"
   };
@@ -388,6 +394,7 @@ export interface ImportResult {
   data?: AppData;
   countdownGoals?: CountdownGoalsData;
   routines?: RoutinesData;
+  notificationPreferences?: NotificationPreferences;
   error?: string;
 }
 
@@ -437,7 +444,20 @@ export function parseImportFile(text: string): ImportResult {
       };
     }
 
-    return { ok: true, data: migrate(data), countdownGoals, routines };
+    let notificationPreferences: NotificationPreferences | undefined;
+    if (parsed.notificationPreferences && typeof parsed.notificationPreferences === "object") {
+      notificationPreferences = {
+        centerEnabled: parsed.notificationPreferences.centerEnabled !== false,
+        taskDue: parsed.notificationPreferences.taskDue !== false,
+        taskOverdue: parsed.notificationPreferences.taskOverdue !== false,
+        recurringTask: parsed.notificationPreferences.recurringTask !== false,
+        durationReminder: parsed.notificationPreferences.durationReminder !== false,
+        quantityReminder: parsed.notificationPreferences.quantityReminder !== false,
+        focusReminder: parsed.notificationPreferences.focusReminder !== false
+      };
+    }
+
+    return { ok: true, data: migrate(data), countdownGoals, routines, notificationPreferences };
   } catch {
     return { ok: false, error: genericError };
   }

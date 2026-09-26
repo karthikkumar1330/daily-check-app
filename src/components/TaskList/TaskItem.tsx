@@ -5,7 +5,7 @@ import { addDays, formatShort, getWeekStart, parseDateStr, todayStr, weekdayFull
 import { DAYS_OF_WEEK_OPTIONS, formatRecurrenceLabel, validateRecurrence } from "../../utils/recurrenceUtils";
 import { CATEGORIES, categoryMeta, prioClass, prioEmoji, prioLabel } from "../../utils/taskUtils";
 import { formatTimeDisplay, getReminderLabel, getTaskScheduleStatus, REMINDER_OPTIONS } from "../../utils/scheduleUtils";
-import { BarChartIcon, CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, TrashIcon, UpIcon } from "../icons";
+import { BarChartIcon, CheckIcon, DownIcon, EditIcon, FocusIcon, MoreIcon, RescheduleIcon, StarIcon, TrashIcon, UpIcon } from "../icons";
 import RescheduleModal from "../Modals/RescheduleModal";
 import LogTimeModal from "../Modals/LogTimeModal";
 import EditQuantityModal from "../Modals/EditQuantityModal";
@@ -58,7 +58,7 @@ export default function TaskItem({
   onMoveUp,
   onMoveDown
 }: TaskItemProps) {
-  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay, appData } = useTasks();
+  const { rescheduleTask, logTaskDuration, setTaskDurationCompleted, logTaskQuantity, setTaskQuantityCompleted, getDay, appData, toggleImportant } = useTasks();
   const { startFocus, session, isRunning } = useFocusTimer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -270,8 +270,31 @@ export default function TaskItem({
         </div>
 
         {/* META ROW */}
-        {isFocused || timeFormatted || (task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed) || recurrenceLabel || cat.id || dateLabel ? (
+        {isFocused || task.important || timeFormatted || (task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed) || recurrenceLabel || cat.id || dateLabel ? (
           <div className="task-meta-row">
+            {/* Important Badge */}
+            {task.important ? (
+              <span
+                className="task-important-badge"
+                title="Marked Important"
+                aria-label="Marked Important"
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  background: "rgba(245, 158, 11, 0.15)",
+                  color: "#b45309",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3
+                }}
+              >
+                <span>⭐</span>
+                <span>Important</span>
+              </span>
+            ) : null}
+
             {/* Focus Badge */}
             {isFocused ? (
               <span
@@ -665,7 +688,34 @@ export default function TaskItem({
           </div>
         ) : null}
       </div>
-      <div className="task-actions" style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="task-actions" style={{ position: "relative", display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          type="button"
+          className={`icon-btn task-star-btn ${task.important ? "is-important" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleImportant(effectiveDate, task.id);
+            if (onToast) {
+              onToast(task.important ? "Removed from Important" : "Marked as Important ⭐");
+            }
+          }}
+          aria-label={task.important ? `Remove importance from ${task.title}` : `Mark ${task.title} as important`}
+          title={task.important ? "Important (click to remove)" : "Mark as important"}
+          style={{
+            color: task.important ? "#f59e0b" : "var(--ink-muted)",
+            opacity: task.important ? 1 : 0.45,
+            transition: "all 0.15s ease",
+            padding: 4,
+            minWidth: 32,
+            minHeight: 32,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <StarIcon filled={Boolean(task.important)} />
+        </button>
+
         <button
           ref={moreBtnRef}
           type="button"
@@ -731,6 +781,19 @@ export default function TaskItem({
                     <FocusIcon /> {isFocused ? "Remove Focus" : "Mark Focus"}
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    toggleImportant(effectiveDate, task.id);
+                    if (onToast) {
+                      onToast(task.important ? "Removed from Important" : "Marked as Important ⭐");
+                    }
+                  }}
+                >
+                  <StarIcon filled={Boolean(task.important)} /> {task.important ? "Remove Important" : "Mark Important"}
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -960,6 +1023,7 @@ const REPEAT_OPTIONS: { value: RepeatOption; label: string }[] = [
 function EditForm({ task, onCancel, onSave }: EditFormProps) {
   const [title, setTitle] = useState(task.title);
   const [priority, setPriority] = useState<Priority>(task.priority);
+  const [important, setImportant] = useState<boolean>(Boolean(task.important));
   const [category, setCategory] = useState<CategoryId>(task.category);
   const [notes, setNotes] = useState(task.notes);
 
@@ -1070,6 +1134,7 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
     onSave({
       title: trimmed || task.title,
       priority,
+      important,
       category,
       notes: notes.trim(),
       recurrence: rec,
@@ -1118,6 +1183,28 @@ function EditForm({ task, onCancel, onSave }: EditFormProps) {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className={"chip-btn" + (important ? " active" : "")}
+            onClick={() => setImportant((v) => !v)}
+            aria-pressed={important}
+            title={important ? "Important (click to remove)" : "Mark as important"}
+            style={{
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              padding: "6px 10px",
+              minHeight: 36,
+              color: important ? "#b45309" : "var(--ink-muted)",
+              background: important ? "rgba(245, 158, 11, 0.15)" : "var(--surface)",
+              border: important ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--border)",
+              borderRadius: "9px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4
+            }}
+          >
+            <span>{important ? "⭐ Important" : "☆ Important"}</span>
+          </button>
           <select value={category} onChange={(e) => setCategory(e.target.value as CategoryId)} aria-label="Category">
             {CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>

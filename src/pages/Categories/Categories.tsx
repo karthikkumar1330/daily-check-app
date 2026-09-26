@@ -80,7 +80,7 @@ export default function Categories() {
           <div className="task-list">
             {tasksForSelected.map(({ task, date }) => (
               <TaskItem
-                key={task.id}
+                key={`${task.id}_${date}`}
                 task={task}
                 dateStr={date}
                 hideReorder

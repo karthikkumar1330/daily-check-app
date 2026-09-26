@@ -73,11 +73,15 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
         id: t.id && t.id.trim() ? t.id.trim() : generateUid("rt"),
         title: t.title.trim(),
         priority: t.priority ?? 2,
+        important: Boolean(t.important),
         category: t.category ?? "",
         notes: t.notes ? t.notes.trim() : "",
         dueTime: t.dueTime ?? null,
         reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null,
-        durationTargetMinutes: t.durationTargetMinutes ?? null
+        durationTargetMinutes: t.durationTargetMinutes ?? null,
+        quantityTarget: t.quantityTarget ?? null,
+        quantityUnit: t.quantityUnit ?? "",
+        quantityStep: t.quantityStep ?? 1
       }))
       .filter((t) => t.title.length > 0);
 
@@ -125,11 +129,15 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
         id: t.id && t.id.trim() ? t.id.trim() : generateUid("rt"),
         title: t.title.trim(),
         priority: t.priority ?? 2,
+        important: Boolean(t.important),
         category: t.category ?? "",
         notes: t.notes ? t.notes.trim() : "",
         dueTime: t.dueTime ?? null,
         reminderMinutes: t.dueTime ? (t.reminderMinutes ?? null) : null,
-        durationTargetMinutes: t.durationTargetMinutes ?? null
+        durationTargetMinutes: t.durationTargetMinutes ?? null,
+        quantityTarget: t.quantityTarget ?? null,
+        quantityUnit: t.quantityUnit ?? "",
+        quantityStep: t.quantityStep ?? 1
       }))
       .filter((t) => t.title.length > 0);
 
@@ -220,11 +228,15 @@ export function RoutinesProvider({ children }: { children: ReactNode }) {
     const tasksToAdd = routine.tasks.map((rt) => ({
       title: rt.title,
       priority: rt.priority,
+      important: Boolean(rt.important),
       category: rt.category,
       notes: rt.notes,
       dueTime: rt.dueTime,
       reminderMinutes: rt.reminderMinutes,
       durationTargetMinutes: rt.durationTargetMinutes ?? null,
+      quantityTarget: rt.quantityTarget ?? null,
+      quantityUnit: rt.quantityUnit ?? "",
+      quantityStep: rt.quantityStep ?? 1,
       routineId: routine.id,
       routineTaskId: rt.id
     }));

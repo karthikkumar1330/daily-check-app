@@ -1,5 +1,5 @@
 import type { CategoryId, DayData, Task } from "../types";
-import { todayStr } from "./dateUtils";
+import { addDays, todayStr } from "./dateUtils";
 import { isTaskScheduledOnDate } from "./recurrenceUtils";
 import { CATEGORIES } from "./taskUtils";
 
@@ -45,6 +45,27 @@ export function allTasksWithDates(days: Record<string, DayData>, recurringTasks:
       }
     }
 
+    // Add upcoming occurrences for the next 14 days
+    for (let offset = 1; offset <= 14; offset++) {
+      const futureDate = addDays(today, offset);
+      if (rt.recurrence?.endDate && futureDate > rt.recurrence.endDate) break;
+      if (isTaskScheduledOnDate(rt.recurrence, futureDate)) {
+        const key = `${rt.id}_${futureDate}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const isCompleted = Boolean(rt.completedDates?.[futureDate]);
+          out.push({
+            task: {
+              ...rt,
+              completed: isCompleted,
+              completedAt: isCompleted ? (rt.completedDates?.[futureDate] ?? null) : null
+            },
+            date: futureDate
+          });
+        }
+      }
+    }
+
     // Add historical completed occurrences
     if (rt.completedDates) {
       Object.entries(rt.completedDates).forEach(([cDate, completedAt]) => {
@@ -77,7 +98,7 @@ export interface HighPriorityView {
   completed: DatedTask[];
 }
 
-/** High-priority (🔴) tasks, sorted by day then creation time. */
+/** High-priority (🔴) tasks, sorted by day then creation time. Filtered strictly by priority === 1. */
 export function highPriorityTasks(days: Record<string, DayData>, recurringTasks: Task[] = []): HighPriorityView {
   const all = allTasksWithDates(days, recurringTasks)
     .filter((dt) => dt.task.priority === 1)
@@ -95,15 +116,15 @@ export interface ImportantGroups {
 }
 
 /**
- * "Important" reuses the High Priority flag but organizes it by time instead
- * of a flat list: what's due today, what's coming up, and what's done.
+ * "Important" filters strictly tasks where task.important === true,
+ * completely independent of priority level.
  */
 export function importantGroups(days: Record<string, DayData>, recurringTasks: Task[] = []): ImportantGroups {
   const today = todayStr();
-  const all = allTasksWithDates(days, recurringTasks).filter((dt) => dt.task.priority === 1);
+  const all = allTasksWithDates(days, recurringTasks).filter((dt) => Boolean(dt.task.important));
 
   return {
-    today: all.filter((dt) => dt.date === today && !dt.task.completed).sort(sortByDateThenCreated),
+    today: all.filter((dt) => dt.date <= today && !dt.task.completed).sort(sortByDateThenCreated),
     upcoming: all
       .filter((dt) => dt.date > today && !dt.task.completed)
       .sort(sortByDateThenCreated),

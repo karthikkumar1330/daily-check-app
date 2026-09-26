@@ -11,8 +11,12 @@ export function todayStr(): string {
 }
 
 export function parseDateStr(s: string): Date {
+  if (!s || typeof s !== "string") return new Date();
   const parts = s.split("-").map(Number);
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+    return new Date();
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
 }
 
 export function addDays(dateStr: string, n: number): string {

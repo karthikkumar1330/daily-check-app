@@ -128,6 +128,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
         id: t.id,
         title: t.title.trim(),
         priority: t.priority,
+        important: Boolean(t.important),
         category: t.category,
         notes: t.notes.trim(),
         dueTime: t.dueTime || null,
@@ -341,6 +342,29 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                           </button>
                         ))}
                       </div>
+
+                      {/* Important toggle */}
+                      <button
+                        type="button"
+                        className={"chip-btn" + (task.important ? " active" : "")}
+                        onClick={() => handleUpdateTask(task.id, { important: !task.important })}
+                        aria-label={task.important ? "Remove Important" : "Mark Important"}
+                        title={task.important ? "Important (click to remove)" : "Mark Important"}
+                        style={{
+                          height: 32,
+                          fontSize: 12,
+                          padding: "0 8px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          color: task.important ? "#b45309" : "var(--ink-muted)",
+                          background: task.important ? "rgba(245, 158, 11, 0.15)" : "transparent",
+                          border: task.important ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--border)",
+                          borderRadius: 6
+                        }}
+                      >
+                        <span>{task.important ? "⭐ Important" : "☆ Important"}</span>
+                      </button>
 
                       {/* Category select */}
                       <select

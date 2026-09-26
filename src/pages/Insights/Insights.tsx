@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import MetricCard from "../../components/Insights/MetricCard";
 import BreakdownBar from "../../components/Insights/BreakdownBar";
 import TrendChart from "../../components/Insights/TrendChart";
@@ -163,6 +164,46 @@ export default function Insights() {
           Showing {currentRange.label} ({currentRange.startDate} to {currentRange.endDate})
         </div>
       </section>
+
+      {periodMetrics.totalTasks === 0 ? (
+        <div
+          className="card"
+          style={{
+            padding: "20px 18px",
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            gap: 8
+          }}
+        >
+          <div style={{ fontSize: "2rem" }} aria-hidden="true">📊</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
+            No task activity in this time window
+          </div>
+          <div style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: 380, lineHeight: 1.45 }}>
+            Complete daily checklists or schedule recurring tasks to view completion trends, streak history, and category analytics here.
+          </div>
+          <Link
+            to="/today"
+            className="btn btn-primary"
+            style={{
+              marginTop: 6,
+              minHeight: 38,
+              padding: "0 16px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 600
+            }}
+          >
+            Go to Today
+          </Link>
+        </div>
+      ) : null}
 
       {/* Key Metrics Grid */}
       <section aria-label="Key Productivity Metrics" style={{ marginBottom: 20 }}>

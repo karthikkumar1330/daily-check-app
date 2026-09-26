@@ -44,7 +44,7 @@ export default function HighPriority() {
             <div className="task-list">
               {view.incomplete.map(({ task, date }) => (
                 <TaskItem
-                  key={task.id}
+                  key={`${task.id}_${date}`}
                   task={task}
                   dateStr={date}
                   dateLabel={formatShort(date)}
@@ -73,7 +73,7 @@ export default function HighPriority() {
                 <div className="task-list" style={{ marginTop: 10 }}>
                   {view.completed.map(({ task, date }) => (
                     <TaskItem
-                      key={task.id}
+                      key={`${task.id}_${date}`}
                       task={task}
                       dateStr={date}
                       dateLabel={formatShort(date)}

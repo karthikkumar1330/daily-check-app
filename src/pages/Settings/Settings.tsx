@@ -28,10 +28,13 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a valid Daily Check backup.";
 
+import type { NotificationPreferences } from "../../types/notification";
+
 interface PendingImportState {
   data: AppData;
   countdownGoals?: CountdownGoalsData;
   routines?: RoutinesData;
+  notificationPreferences?: NotificationPreferences;
 }
 
 export default function Settings() {
@@ -39,7 +42,7 @@ export default function Settings() {
   const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
   const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
-  const { preferences: notifPrefs, updatePreferences: updateNotifPrefs } = useNotificationCenter();
+  const { preferences: notifPrefs, updatePreferences: updateNotifPrefs, clearAll: clearAllNotifications } = useNotificationCenter();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
@@ -89,7 +92,8 @@ export default function Settings() {
       setPendingImport({
         data: result.data,
         countdownGoals: result.countdownGoals,
-        routines: result.routines
+        routines: result.routines,
+        notificationPreferences: result.notificationPreferences
       });
     };
     reader.onerror = () => showToast(IMPORT_ERROR);
@@ -104,6 +108,9 @@ export default function Settings() {
     }
     if (pendingImport.routines) {
       replaceAllRoutines(pendingImport.routines);
+    }
+    if (pendingImport.notificationPreferences) {
+      updateNotifPrefs(pendingImport.notificationPreferences);
     }
     setPendingImport(null);
     showToast("Data imported successfully.");
@@ -527,6 +534,9 @@ export default function Settings() {
           danger
           onConfirm={() => {
             resetAllData();
+            replaceAllGoals({ version: 1, goals: {}, primaryGoalId: null });
+            replaceAllRoutines({ version: 1, routines: {} });
+            clearAllNotifications();
             setConfirmResetOpen(false);
             showToast("All tasks and history have been cleared.");
           }}

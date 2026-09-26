@@ -1,5 +1,5 @@
 import type { CountdownGoal, DayData, Task } from "../types";
-import { daysBetweenCalendar, isValidDateStr } from "./dateUtils";
+import { addDays, daysBetweenCalendar, isValidDateStr } from "./dateUtils";
 import { dayStats } from "./progressUtils";
 import { resolveDayData } from "./recurrenceUtils";
 
@@ -124,13 +124,7 @@ export function computeGoalExecutionStats(
     }
 
     // Increment cursor by 1 calendar day
-    const [y, m, d] = cursor.split("-").map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    dateObj.setDate(dateObj.getDate() + 1);
-    const ny = dateObj.getFullYear();
-    const nm = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const nd = String(dateObj.getDate()).padStart(2, "0");
-    cursor = `${ny}-${nm}-${nd}`;
+    cursor = addDays(cursor, 1);
     guard++;
   }
 

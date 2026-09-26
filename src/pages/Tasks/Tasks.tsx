@@ -12,7 +12,7 @@ import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
 import { SearchIcon } from "../../components/icons";
 
-type StatusFilter = "all" | "active" | "completed" | "high";
+type StatusFilter = "all" | "active" | "completed" | "high" | "important";
 
 export default function Tasks() {
   const { getDay, addTask, toggleTask, saveEdit, deleteTask, moveTask, clearCompleted } = useTasks();
@@ -42,6 +42,7 @@ export default function Tasks() {
       if (status === "active" && t.completed) return false;
       if (status === "completed" && !t.completed) return false;
       if (status === "high" && t.priority !== 1) return false;
+      if (status === "important" && !t.important) return false;
       if (category !== "all" && t.category !== category) return false;
       if (q) {
         const catLabel = categoryMeta(t.category).label.toLowerCase();
@@ -109,7 +110,8 @@ export default function Tasks() {
             ["all", "All"],
             ["active", "Active"],
             ["completed", "Completed"],
-            ["high", "High Priority"]
+            ["high", "High Priority"],
+            ["important", "⭐ Important"]
           ] as [StatusFilter, string][]
         ).map(([val, label]) => (
           <button
@@ -225,7 +227,8 @@ export default function Tasks() {
             durationTargetMinutes,
             quantityTarget,
             quantityUnit,
-            quantityStep
+            quantityStep,
+            important
           ) => {
             addTask(
               viewDate,
@@ -240,7 +243,8 @@ export default function Tasks() {
               durationTargetMinutes,
               quantityTarget,
               quantityUnit,
-              quantityStep
+              quantityStep,
+              important
             );
             setAdvancedOpen(false);
           }}

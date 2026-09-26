@@ -30,7 +30,7 @@ export default function Important() {
         <div className="task-list">
           {items.map(({ task, date }) => (
             <TaskItem
-              key={task.id}
+              key={`${task.id}_${date}`}
               task={task}
               dateStr={date}
               dateLabel={formatShort(date)}
@@ -57,14 +57,14 @@ export default function Important() {
       <div className="section-row" style={{ margin: "0 0 16px" }}>
         <div className="page-title">Important</div>
       </div>
-      <p className="page-subtitle">High-priority tasks, organized by when they're due.</p>
+      <p className="page-subtitle">Tasks explicitly marked Important, organized by when they&rsquo;re due.</p>
 
       {isEmpty ? (
         <EmptyState
           variant="custom"
           icon={"\u2B50"}
-          title="Nothing important right now."
-          subtitle="Mark a task High priority to see it here."
+          title="Nothing marked important right now."
+          subtitle="Click the star on any task to mark it important."
         />
       ) : (
         <>

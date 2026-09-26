@@ -20,7 +20,8 @@ export function newTask(
   durationTargetMinutes: number | null = null,
   quantityTarget: number | null = null,
   quantityUnit: string = "",
-  quantityStep: number = 1
+  quantityStep: number = 1,
+  important: boolean = false
 ): Task {
   const now = Date.now();
   const cleanTarget =
@@ -43,6 +44,7 @@ export function newTask(
     title,
     completed: false,
     priority,
+    important: Boolean(important),
     category,
     notes: "",
     createdAt: now,

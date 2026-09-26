@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { useTodayDate } from "../../hooks/useTodayDate";
@@ -19,6 +19,7 @@ import EmptyState from "../../components/EmptyState/EmptyState";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import AddTaskModal from "../../components/Modals/AddTaskModal";
 import TaskDetailsModal from "../../components/TaskDetails/TaskDetailsModal";
+import { DownIcon, UpIcon } from "../../components/icons";
 
 export default function Today() {
   const {
@@ -51,6 +52,7 @@ export default function Today() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<{ taskId: string; title: string } | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [focusSelectorOpen, setFocusSelectorOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -159,6 +161,20 @@ export default function Today() {
   const day = getDay(viewDate);
   const stats = dayStats(day);
 
+  // Partition tasks into active and completed for faster visual scanning
+  const { activeTasks, completedTasks } = useMemo(() => {
+    const active: Task[] = [];
+    const completed: Task[] = [];
+    for (const t of day.tasks) {
+      if (t.completed) {
+        completed.push(t);
+      } else {
+        active.push(t);
+      }
+    }
+    return { activeTasks: active, completedTasks: completed };
+  }, [day.tasks]);
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3200);
@@ -236,26 +252,75 @@ export default function Today() {
           <EmptyState variant="no-tasks" />
         ) : (
           <>
-            <TaskList
-              tasks={day.tasks}
-              editingId={editingId}
-              dateStr={viewDate}
-              onToggle={(id) => toggleTask(viewDate, id)}
-              onToggleFocus={handleToggleFocus}
-              onStartEdit={(id) => setEditingId(id)}
-              onCancelEdit={() => setEditingId(null)}
-              onSave={(id, updates) => {
-                saveEdit(viewDate, id, updates);
-                setEditingId(null);
-              }}
-              onDelete={(id) => {
-                const t = day.tasks.find((x) => x.id === id);
-                if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
-              }}
-              onMove={(id, dir) => moveTask(viewDate, id, dir)}
-              onToast={showToast}
-            />
-            {stats.remaining === 0 && stats.total > 0 ? <EmptyState variant="all-done" /> : null}
+            {activeTasks.length > 0 ? (
+              <TaskList
+                tasks={activeTasks}
+                editingId={editingId}
+                dateStr={viewDate}
+                onToggle={(id) => toggleTask(viewDate, id)}
+                onToggleFocus={handleToggleFocus}
+                onStartEdit={(id) => setEditingId(id)}
+                onCancelEdit={() => setEditingId(null)}
+                onSave={(id, updates) => {
+                  saveEdit(viewDate, id, updates);
+                  setEditingId(null);
+                }}
+                onDelete={(id) => {
+                  const t = day.tasks.find((x) => x.id === id);
+                  if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
+                }}
+                onMove={(id, dir) => moveTask(viewDate, id, dir)}
+                onToast={showToast}
+              />
+            ) : null}
+
+            {stats.remaining === 0 && stats.total > 0 ? (
+              <EmptyState variant="all-done" />
+            ) : null}
+
+            {/* Visually quieter Completed Section */}
+            {completedTasks.length > 0 ? (
+              <div className="completed-group-section" style={{ marginTop: activeTasks.length > 0 ? 18 : 6 }}>
+                <button
+                  type="button"
+                  className="completed-group-toggle"
+                  onClick={() => setShowCompleted((v) => !v)}
+                  aria-expanded={showCompleted}
+                  aria-label={`${showCompleted ? "Collapse" : "Expand"} completed tasks (${completedTasks.length})`}
+                >
+                  <span className="completed-group-heading">
+                    Completed · {completedTasks.length}
+                  </span>
+                  <span className="completed-group-arrow" aria-hidden="true">
+                    {showCompleted ? <UpIcon /> : <DownIcon />}
+                  </span>
+                </button>
+
+                {showCompleted ? (
+                  <div className="completed-task-list-wrapper">
+                    <TaskList
+                      tasks={completedTasks}
+                      editingId={editingId}
+                      dateStr={viewDate}
+                      onToggle={(id) => toggleTask(viewDate, id)}
+                      onToggleFocus={handleToggleFocus}
+                      onStartEdit={(id) => setEditingId(id)}
+                      onCancelEdit={() => setEditingId(null)}
+                      onSave={(id, updates) => {
+                        saveEdit(viewDate, id, updates);
+                        setEditingId(null);
+                      }}
+                      onDelete={(id) => {
+                        const t = day.tasks.find((x) => x.id === id);
+                        if (t) setConfirmDeleteTask({ taskId: id, title: t.title });
+                      }}
+                      onMove={(id, dir) => moveTask(viewDate, id, dir)}
+                      onToast={showToast}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </div>

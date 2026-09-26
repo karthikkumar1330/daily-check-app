@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNotificationCenter } from "../../hooks/useNotificationCenter";
 import type { NotificationRecord, NotificationType } from "../../types/notification";
-import { formatDayMonth, todayStr } from "../../utils/dateUtils";
+import { formatDayMonth, toDateStr, todayStr } from "../../utils/dateUtils";
 import { CloseIcon } from "../../components/icons";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 
@@ -17,7 +17,7 @@ function formatNotificationTime(isoStr: string): string {
     const timeStr = `${displayHours}:${minutes} ${ampm}`;
 
     const today = todayStr();
-    const itemDateStr = d.toISOString().slice(0, 10);
+    const itemDateStr = toDateStr(d);
 
     if (itemDateStr === today) {
       return timeStr;
@@ -68,7 +68,8 @@ export default function NotificationCenter() {
 
   for (const n of notifications) {
     try {
-      const datePart = n.createdAt ? n.createdAt.slice(0, 10) : "";
+      const d = new Date(n.createdAt);
+      const datePart = !isNaN(d.getTime()) ? toDateStr(d) : "";
       if (datePart && datePart === todayStr()) {
         todayNotifications.push(n);
       } else {

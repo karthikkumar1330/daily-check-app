@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { AppData } from "../types";
-import { parseDateStr, todayStr } from "../utils/dateUtils";
+import { addDays, parseDateStr, todayStr } from "../utils/dateUtils";
 import { resolveDayData } from "../utils/recurrenceUtils";
 import {
   cleanupOldReminderRecords,
@@ -115,6 +115,38 @@ export function useTaskReminders(appData: AppData) {
             // Future overdue transition: record earliest upcoming overdue time
             if (nextEarliestTriggerMs === null || overdueStartMs < nextEarliestTriggerMs) {
               nextEarliestTriggerMs = overdueStartMs;
+            }
+          }
+        }
+      }
+
+      // Also check yesterday's tasks for overdue if within MAX_OVERDUE_WINDOW_MS (e.g. after midnight)
+      const yesterday = addDays(today, -1);
+      if (appData.days[yesterday] || (appData.recurringTasks && appData.recurringTasks.length > 0)) {
+        const yesterdayDayData = resolveDayData(yesterday, appData.days[yesterday], appData.recurringTasks ?? []);
+        for (const task of yesterdayDayData.tasks) {
+          if (task.completed || !task.dueTime || !isValidTimeString(task.dueTime)) continue;
+          const parsedTime = parseTimeString(task.dueTime);
+          if (!parsedTime) continue;
+          const dateObj = parseDateStr(yesterday);
+          const dueDateTime = new Date(
+            dateObj.getFullYear(),
+            dateObj.getMonth(),
+            dateObj.getDate(),
+            parsedTime.hours,
+            parsedTime.minutes,
+            0,
+            0
+          );
+          const dueMs = dueDateTime.getTime();
+          const overdueStartMs = dueMs + GRACE_TRANSITION_MS;
+          const overdueEndMs = dueMs + MAX_OVERDUE_WINDOW_MS;
+          const overdueKey = `overdue_${task.id}_${yesterday}_${task.dueTime}`;
+
+          if (!hasReminderBeenDelivered(overdueKey)) {
+            if (currentMs >= overdueStartMs && currentMs <= overdueEndMs) {
+              markReminderDelivered(overdueKey);
+              void showOverdueNotification(task, yesterday);
             }
           }
         }

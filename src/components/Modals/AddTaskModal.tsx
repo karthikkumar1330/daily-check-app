@@ -21,7 +21,8 @@ interface AddTaskModalProps {
     durationTargetMinutes?: number | null,
     quantityTarget?: number | null,
     quantityUnit?: string,
-    quantityStep?: number
+    quantityStep?: number,
+    important?: boolean
   ) => void;
   onCancel: () => void;
 }
@@ -47,6 +48,7 @@ const COMMON_UNITS = ["glasses", "cups", "L", "ml", "pages", "steps", "reps", "k
 export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskModalProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>(2);
+  const [important, setImportant] = useState(false);
   const [category, setCategory] = useState<CategoryId>("");
   const [notes, setNotes] = useState("");
 
@@ -140,7 +142,8 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
         cleanDuration,
         cleanQtyTarget,
         cleanQtyUnit,
-        cleanQtyStep
+        cleanQtyStep,
+        important
       );
       return;
     }
@@ -175,7 +178,8 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
       cleanDuration,
       cleanQtyTarget,
       cleanQtyUnit,
-      cleanQtyStep
+      cleanQtyStep,
+      important
     );
   }
 
@@ -212,7 +216,29 @@ export default function AddTaskModal({ initialDate, onAdd, onCancel }: AddTaskMo
           }}
         />
 
-        <div className="field-label">Priority</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 0 6px" }}>
+          <div className="field-label" style={{ margin: 0 }}>Priority</div>
+          <button
+            type="button"
+            className={"chip-btn" + (important ? " active" : "")}
+            onClick={() => setImportant((v) => !v)}
+            aria-pressed={important}
+            style={{
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              padding: "4px 10px",
+              color: important ? "var(--ink)" : "var(--ink-muted)",
+              background: important ? "rgba(234, 179, 8, 0.2)" : "transparent",
+              border: important ? "1px solid rgba(234, 179, 8, 0.6)" : "1px solid var(--border)",
+              borderRadius: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4
+            }}
+          >
+            <span>{important ? "⭐ Important" : "☆ Mark Important"}</span>
+          </button>
+        </div>
         <div className="radio-row" role="radiogroup" aria-label="Priority">
           {PRIORITY_ORDER.map((p) => (
             <label key={p.value} className="radio-pill">

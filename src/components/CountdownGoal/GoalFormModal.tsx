@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CountdownGoal } from "../../types";
 import type { NewGoalInput } from "../../hooks/useCountdownGoals";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
-import { todayStr } from "../../utils/dateUtils";
+import { addDays, todayStr } from "../../utils/dateUtils";
 
 const ICON_CHOICES = ["\uD83C\uDFAF", "\uD83D\uDCDA", "\uD83D\uDCAA", "\uD83C\uDF93", "\uD83D\uDCCC", "\u2728"];
 
@@ -16,7 +16,7 @@ export default function GoalFormModal({ goal, onSubmit, onCancel }: GoalFormModa
   const isEdit = !!goal;
   const [title, setTitle] = useState(goal?.title ?? "");
   const [startDate, setStartDate] = useState(goal?.startDate ?? todayStr());
-  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? todayStr());
+  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? addDays(todayStr(), 30));
   const [icon, setIcon] = useState(goal?.icon ?? ICON_CHOICES[0]);
   const [description, setDescription] = useState(goal?.description ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +112,29 @@ export default function GoalFormModal({ goal, onSubmit, onCancel }: GoalFormModa
               onChange={(e) => setTargetDate(e.target.value)}
             />
           </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, margin: "6px 0 12px", flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: "0.74rem", color: "var(--ink-muted)", fontWeight: 600 }}>Quick span:</span>
+          {[7, 14, 30, 60, 100].map((days) => (
+            <button
+              key={days}
+              type="button"
+              className="chip-btn"
+              onClick={() => setTargetDate(addDays(startDate || todayStr(), days))}
+              style={{
+                fontSize: "0.74rem",
+                padding: "2px 8px",
+                borderRadius: 4,
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--ink-muted)",
+                cursor: "pointer"
+              }}
+            >
+              +{days}d
+            </button>
+          ))}
         </div>
 
         <label className="field-label" htmlFor="goal-description">

@@ -22,13 +22,15 @@ interface TasksContextValue {
     durationTargetMinutes?: number | null,
     quantityTarget?: number | null,
     quantityUnit?: string,
-    quantityStep?: number
+    quantityStep?: number,
+    important?: boolean
   ) => void;
   addTasks: (
     date: string,
     tasksToAdd: Array<{
       title: string;
       priority?: Priority;
+      important?: boolean;
       category?: CategoryId;
       notes?: string;
       dueTime?: string | null;
@@ -43,6 +45,7 @@ interface TasksContextValue {
     }>
   ) => void;
   toggleTask: (date: string, id: string) => void;
+  toggleImportant: (date: string, id: string) => void;
   logTaskDuration: (
     date: string,
     id: string,
@@ -124,7 +127,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     durationTargetMinutes: number | null = null,
     quantityTarget: number | null = null,
     quantityUnit: string = "",
-    quantityStep: number = 1
+    quantityStep: number = 1,
+    important: boolean = false
   ) {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -147,7 +151,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         durationTargetMinutes,
         quantityTarget,
         quantityUnit,
-        quantityStep
+        quantityStep,
+        important
       );
       if (notes.trim()) task.notes = notes.trim();
 
@@ -173,7 +178,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         durationTargetMinutes,
         quantityTarget,
         quantityUnit,
-        quantityStep
+        quantityStep,
+        important
       );
       if (notes.trim()) task.notes = notes.trim();
       return { ...day, tasks: [...day.tasks, task], updatedAt: Date.now() };
@@ -185,6 +191,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     tasksToAdd: Array<{
       title: string;
       priority?: Priority;
+      important?: boolean;
       category?: CategoryId;
       notes?: string;
       dueTime?: string | null;
@@ -216,7 +223,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           item.durationTargetMinutes ?? null,
           item.quantityTarget ?? null,
           item.quantityUnit ?? "",
-          item.quantityStep ?? 1
+          item.quantityStep ?? 1,
+          Boolean(item.important)
         );
         if (item.notes && item.notes.trim()) task.notes = item.notes.trim();
         task.order = baseOrder + idx * 10;
@@ -671,6 +679,25 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   }
 
+  function toggleImportant(date: string, id: string) {
+    const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
+    if (isRecurring) {
+      setAppData((prev) => ({
+        ...prev,
+        recurringTasks: (prev.recurringTasks ?? []).map((t) =>
+          t.id === id ? { ...t, important: !t.important } : t
+        )
+      }));
+      return;
+    }
+
+    updateDay(date, (day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => (t.id === id ? { ...t, important: !t.important } : t)),
+      updatedAt: Date.now()
+    }));
+  }
+
   function saveEdit(date: string, id: string, updates: Partial<Task>) {
     const isRecurring = (appData.recurringTasks ?? []).some((t) => t.id === id);
 
@@ -980,14 +1007,22 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }
 
   function resetAllData() {
-    setAppData((prev) => ({
-      version: prev.version,
+    const clean: AppData = {
+      version: appData.version,
       days: {},
-      theme: prev.theme,
-      weekStartsOn: prev.weekStartsOn,
-      hapticsEnabled: prev.hapticsEnabled,
+      theme: appData.theme,
+      weekStartsOn: appData.weekStartsOn,
+      hapticsEnabled: appData.hapticsEnabled,
       recurringTasks: []
-    }));
+    };
+    saveData(clean);
+    try {
+      localStorage.removeItem("dailyCheck.activeFocusTimer");
+      localStorage.removeItem("dailyCheck.notifiedReminders.v1");
+    } catch {
+      // Ignore
+    }
+    setAppData(clean);
   }
 
   const value: TasksContextValue = {
@@ -996,6 +1031,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     addTask,
     addTasks,
     toggleTask,
+    toggleImportant,
     logTaskDuration,
     setTaskDurationCompleted,
     logTaskQuantity,

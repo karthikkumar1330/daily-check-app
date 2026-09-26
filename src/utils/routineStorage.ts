@@ -73,19 +73,34 @@ export function sanitizeRoutineTasks(raw: unknown): RoutineTask[] {
 
     const id = typeof item.id === "string" && item.id.trim() ? item.id.trim() : taskUid();
     const priority: Priority = [1, 2, 3].includes(item.priority) ? item.priority : 2;
+    const important = Boolean(item.important);
     const category: CategoryId = typeof item.category === "string" ? (item.category as CategoryId) : "";
     const notes = typeof item.notes === "string" ? item.notes.trim() : "";
     const dueTime = sanitizeDueTime(item.dueTime);
     const reminderMinutes = sanitizeReminderMinutes(item.reminderMinutes, dueTime);
+    const durationTargetMinutes =
+      typeof item.durationTargetMinutes === "number" && item.durationTargetMinutes > 0
+        ? Math.round(item.durationTargetMinutes)
+        : null;
+    const quantityTarget =
+      typeof item.quantityTarget === "number" && item.quantityTarget > 0 ? item.quantityTarget : null;
+    const quantityUnit = typeof item.quantityUnit === "string" ? item.quantityUnit.trim() : "";
+    const quantityStep =
+      typeof item.quantityStep === "number" && item.quantityStep > 0 ? item.quantityStep : 1;
 
     tasks.push({
       id,
       title,
       priority,
+      important,
       category,
       notes,
       dueTime,
-      reminderMinutes
+      reminderMinutes,
+      durationTargetMinutes,
+      quantityTarget,
+      quantityUnit,
+      quantityStep
     });
   }
 

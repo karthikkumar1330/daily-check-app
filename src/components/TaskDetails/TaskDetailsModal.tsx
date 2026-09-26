@@ -92,6 +92,7 @@ export default function TaskDetailsModal({
   const {
     appData,
     toggleTask,
+    toggleImportant,
     logTaskDuration,
     setTaskDurationCompleted,
     logTaskQuantity,
@@ -387,6 +388,31 @@ export default function TaskDetailsModal({
                     {prioEmoji(task.priority)} {prioLabel(task.priority)}
                   </span>
                 ) : null}
+                <button
+                  type="button"
+                  className={"chip-btn" + (task.important ? " active" : "")}
+                  onClick={() => {
+                    toggleImportant(selectedDate, task.id);
+                    if (onToast) onToast(task.important ? "Removed from Important" : "Marked as Important ⭐");
+                  }}
+                  aria-label={task.important ? "Remove from Important" : "Mark as Important"}
+                  title={task.important ? "Important (click to remove)" : "Mark as Important"}
+                  style={{
+                    fontSize: "0.76rem",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    color: task.important ? "#b45309" : "var(--ink-muted)",
+                    background: task.important ? "rgba(245, 158, 11, 0.15)" : "transparent",
+                    border: task.important ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--border)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3
+                  }}
+                >
+                  <span>{task.important ? "⭐ Important" : "☆ Mark Important"}</span>
+                </button>
               </div>
               <h1
                 style={{
