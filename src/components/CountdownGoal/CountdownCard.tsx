@@ -1,177 +1,101 @@
 import { useState } from "react";
 import { useCountdownGoals } from "../../hooks/useCountdownGoals";
-import { useTasks } from "../../hooks/useTasks";
 import { useTodayDate } from "../../hooks/useTodayDate";
-import { computeCountdownStatus, computeGoalExecutionStats } from "../../utils/countdownUtils";
-import { formatDateMedium } from "../../utils/dateUtils";
+import { computeCountdownStatus } from "../../utils/countdownUtils";
 import GoalsManagerModal from "./GoalsManagerModal";
-import GoalFormModal from "./GoalFormModal";
-import SecondaryGoalsRail from "./SecondaryGoalsRail";
 
 export default function CountdownCard() {
-  const { primaryGoal, goals, setPrimaryGoal, createGoal } = useCountdownGoals();
-  const { appData } = useTasks();
+  const { primaryGoal, goals } = useCountdownGoals();
   const today = useTodayDate();
   const [managerOpen, setManagerOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
 
-  // If no goals at all, do not display on Home screen
-  if (goals.length === 0) {
+  // Filter for active (non-completed) goals
+  const activeGoals = goals.filter((g) => computeCountdownStatus(g, today).phase !== "complete");
+
+  // If there are zero active goals, render nothing on Home
+  if (activeGoals.length === 0) {
     return null;
   }
 
-  // Fallback: if primaryGoalId was unset or invalid, default to the first goal
-  const activeGoal = primaryGoal || goals[0];
+  // Use primaryGoal if active, otherwise default to first active goal
+  const activeGoal =
+    primaryGoal && computeCountdownStatus(primaryGoal, today).phase !== "complete"
+      ? primaryGoal
+      : activeGoals[0];
+
   const status = computeCountdownStatus(activeGoal, today);
-  const execStats = computeGoalExecutionStats(activeGoal, appData.days, appData.recurringTasks, today);
-  const dateRange = `${formatDateMedium(activeGoal.startDate)} \u2192 ${formatDateMedium(activeGoal.targetDate)}`;
-
-  let bigNumber: string;
-  let bigLabel: string;
-  let metaInfo: string;
-  let srLabel: string;
-
-  if (status.phase === "upcoming") {
-    bigNumber = String(status.daysUntilStart);
-    bigLabel = status.daysUntilStart === 1 ? "STARTS IN 1 DAY" : "DAYS UNTIL START";
-    metaInfo = `Starts on ${formatDateMedium(activeGoal.startDate)}`;
-    srLabel = `${activeGoal.title} starts in ${status.daysUntilStart} day${status.daysUntilStart === 1 ? "" : "s"}.`;
-  } else if (status.phase === "complete") {
-    bigNumber = "Completed";
-    bigLabel = "COMPLETED";
-    metaInfo = `All ${status.totalDays} days finished`;
-    srLabel = `${activeGoal.title} is completed.`;
-  } else {
-    bigNumber = String(status.daysLeft);
-    bigLabel = status.daysLeft === 1 ? "DAY LEFT" : "DAYS LEFT";
-    metaInfo = `Day ${status.dayNumber} of ${status.totalDays} \u00B7 ${status.progressPct}% complete`;
-    srLabel = `${status.daysLeft} day${status.daysLeft === 1 ? "" : "s"} remaining in ${activeGoal.title}.`;
-  }
+  const remainingText =
+    status.phase === "upcoming"
+      ? status.daysUntilStart === 1
+        ? "Starts in 1 day"
+        : `Starts in ${status.daysUntilStart} days`
+      : status.daysLeft === 1
+      ? "1 day remaining"
+      : `${status.daysLeft} days remaining`;
 
   return (
-    <div className="countdown-section">
-      <div className="card countdown-card">
-        <div className="countdown-head">
-          <div className="countdown-primary-tag">
-            <span className="primary-tag-icon" aria-hidden="true">
-              🎯
-            </span>
-            <span>PRIMARY GOAL</span>
-          </div>
-          <button
-            className="link-btn countdown-manage-btn"
-            onClick={() => setManagerOpen(true)}
-            aria-label="Manage countdown goals"
-          >
-            Manage
-          </button>
-        </div>
-
-        <div className="countdown-title">
-          {activeGoal.icon ? (
-            <span className="countdown-icon" aria-hidden="true">
-              {activeGoal.icon}
-            </span>
-          ) : null}
-          <span>{activeGoal.title}</span>
-        </div>
-
-        <div className="countdown-figure" aria-label={srLabel}>
-          <div
-            className={
-              "countdown-number" +
-              (status.phase === "complete" ? " countdown-number-complete" : "")
-            }
-          >
-            {bigNumber}
-          </div>
-          {bigLabel ? <div className="countdown-label">{bigLabel}</div> : null}
-        </div>
-
-        <div className="countdown-range">{dateRange}</div>
-
-        {status.phase !== "upcoming" ? (
-          <div className="bar-track countdown-bar-track" aria-hidden="true">
-            <div className="bar-fill" style={{ width: `${status.progressPct}%` }} />
-          </div>
-        ) : null}
-
-        <div className="countdown-meta">{metaInfo}</div>
-
-        {/* Goal ↔ Daily Execution Connection */}
-        <div
-          className="countdown-execution"
-          style={{
-            marginTop: 12,
-            paddingTop: 10,
-            borderTop: "1px solid var(--border)"
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: 12,
-              marginBottom: 4
-            }}
-          >
-            <span
+    <div className="countdown-section" style={{ marginBottom: 12 }}>
+      <div
+        className="card countdown-widget-card"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "12px 14px",
+          borderRadius: 12
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }} aria-hidden="true">
+            {activeGoal.icon || "🎯"}
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
               style={{
+                fontSize: 14,
                 fontWeight: 600,
-                color: "var(--ink-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em"
+                color: "var(--ink)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Execution
-            </span>
-            <span style={{ fontWeight: 600, color: "var(--ink)" }}>
-              {execStats.activeDays > 0
-                ? `${execStats.successfulDays} / ${execStats.activeDays} successful days (${execStats.successfulPct}%)`
-                : "No active days"}
-            </span>
-          </div>
-          {execStats.activeDays > 0 ? (
-            <div
-              className="bar-track"
-              style={{ height: 5, background: "var(--surface-2)" }}
-              aria-hidden="true"
-            >
-              <div
-                className="bar-fill"
-                style={{
-                  width: `${execStats.successfulPct ?? 0}%`,
-                  background: "var(--accent, #0d9488)"
-                }}
-              />
+              {activeGoal.title}
             </div>
-          ) : null}
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--ink-muted)",
+                fontWeight: 500,
+                marginTop: 1
+              }}
+            >
+              {remainingText}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Secondary Goals Rail when other goals exist or affordance to add */}
-      <SecondaryGoalsRail
-        goals={goals}
-        primaryGoalId={activeGoal.id}
-        onSetPrimary={(id) => setPrimaryGoal(id)}
-        onOpenManage={() => setManagerOpen(true)}
-        onOpenCreate={() => setCreateOpen(true)}
-      />
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => setManagerOpen(true)}
+          aria-label={`Manage countdown goals, currently viewing ${activeGoal.title}`}
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "var(--accent, #10b981)",
+            padding: "4px 8px",
+            minHeight: 36,
+            flexShrink: 0
+          }}
+        >
+          Manage
+        </button>
+      </div>
 
       {managerOpen ? (
         <GoalsManagerModal onClose={() => setManagerOpen(false)} />
-      ) : null}
-
-      {createOpen ? (
-        <GoalFormModal
-          onSubmit={(input) => {
-            const res = createGoal(input);
-            if (res.ok) setCreateOpen(false);
-            return res;
-          }}
-          onCancel={() => setCreateOpen(false)}
-        />
       ) : null}
     </div>
   );

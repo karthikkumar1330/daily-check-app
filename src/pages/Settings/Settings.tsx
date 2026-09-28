@@ -15,6 +15,7 @@ import {
   sendTestNotification
 } from "../../utils/notificationUtils";
 import { formatDayMonth, todayStr } from "../../utils/dateUtils";
+import { computeCountdownStatus } from "../../utils/countdownUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
@@ -51,6 +52,22 @@ export default function Settings() {
   const [, setNotifStateVersion] = useState(0);
 
   const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals, routines]);
+
+  const today = todayStr();
+  const activeGoals = useMemo(() => {
+    return goals.filter((g) => computeCountdownStatus(g, today).phase !== "complete");
+  }, [goals, today]);
+
+  const goalsDescription = useMemo(() => {
+    if (activeGoals.length === 0) {
+      return "0 active goals";
+    }
+    if (activeGoals.length === 1) {
+      const status = computeCountdownStatus(activeGoals[0], today);
+      return `1 active goal · ${status.daysLeft} day${status.daysLeft === 1 ? "" : "s"} left`;
+    }
+    return `${activeGoals.length} active goals`;
+  }, [activeGoals, today]);
 
   const isSupported = isNotificationSupported();
   const notifPermission = getNotificationPermission();
@@ -245,13 +262,9 @@ export default function Settings() {
       <div className="card settings-card">
         <div className="settings-heading">Countdown Goals</div>
         <ActionRow
-          icon={<span style={{ fontSize: 20 }}>{"\uD83C\uDFAF"}</span>}
+          icon={<span style={{ fontSize: 20 }}>{"🎯"}</span>}
           title="Manage Goals"
-          description={
-            goals.length === 0
-              ? "No goals configured yet."
-              : `${goals.length} active goal${goals.length === 1 ? "" : "s"} (${goals.map((g) => g.title).join(", ")})`
-          }
+          description={goalsDescription}
           actionLabel="Manage"
           onAction={() => setGoalsOpen(true)}
         />
