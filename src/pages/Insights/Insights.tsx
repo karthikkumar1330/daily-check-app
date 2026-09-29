@@ -4,7 +4,7 @@ import MetricCard from "../../components/Insights/MetricCard";
 import BreakdownBar from "../../components/Insights/BreakdownBar";
 import TrendChart from "../../components/Insights/TrendChart";
 import { useTasks } from "../../hooks/useTasks";
-import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useCountdowns } from "../../hooks/useCountdowns";
 import {
   calculateCategoryMetrics,
   calculateGoalMetrics,
@@ -29,8 +29,9 @@ const PRESETS: { key: DateRangePreset; label: string }[] = [
 
 export default function Insights() {
   const { appData } = useTasks();
-  const { goals } = useCountdownGoals();
+  const { countdowns } = useCountdowns();
   const [selectedPreset, setSelectedPreset] = useState<DateRangePreset>("current_week");
+
 
   // Date ranges
   const currentRange = useMemo(() => getDateRangePreset(selectedPreset), [selectedPreset]);
@@ -75,9 +76,10 @@ export default function Insights() {
     [periodMetrics.dailyMetrics]
   );
 
-  const goalMetrics = useMemo(() => calculateGoalMetrics(goals, undefined, appData), [goals, appData]);
+  const goalMetrics = useMemo(() => calculateGoalMetrics(countdowns), [countdowns]);
 
   // Deterministic insights
+
   const insights = useMemo(
     () =>
       generateInsights(periodMetrics, {
@@ -681,14 +683,15 @@ export default function Insights() {
           }}
         >
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px 0", color: "var(--ink)" }}>
-            Countdown Goals
+            Countdowns
           </h3>
 
           {goalMetrics.length === 0 ? (
             <div style={{ fontSize: 13, color: "var(--ink-muted)", padding: "8px 0" }}>
-              No countdown goals.
+              No countdowns.
             </div>
           ) : (
+
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {goalMetrics.map((g) => (
                 <div
@@ -772,25 +775,9 @@ export default function Insights() {
                       }}
                     />
                   </div>
-
-                  {g.executionStats && g.executionStats.activeDays > 0 ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: 11,
-                        color: "var(--ink-muted)",
-                        marginTop: 2
-                      }}
-                    >
-                      <span>Execution</span>
-                      <span style={{ fontWeight: 600, color: "var(--ink)" }}>
-                        {g.executionStats.successfulDays} / {g.executionStats.activeDays} successful days ({g.executionStats.successfulPct}%)
-                      </span>
-                    </div>
-                  ) : null}
                 </div>
               ))}
+
             </div>
           )}
         </div>

@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useCountdowns } from "../../hooks/useCountdowns";
 import { useRoutines } from "../../hooks/useRoutines";
 import type { Task } from "../../types";
 import { computeCountdownStatus } from "../../utils/countdownUtils";
-import GoalsManagerModal from "../CountdownGoal/GoalsManagerModal";
 
 interface TodayContextProps {
   viewDate: string;
@@ -18,27 +16,18 @@ export default function TodayContext({
   onOpenFocusSelector
 }: TodayContextProps) {
   const navigate = useNavigate();
-  const { goals, primaryGoal } = useCountdownGoals();
+  const { todayCountdown } = useCountdowns();
   const { routines, isRoutineAppliedOnDate } = useRoutines();
-  const [goalsModalOpen, setGoalsModalOpen] = useState(false);
 
-  // 1. Countdown Goal (use existing countdown calculation, filter out completed)
-  const activeGoals = goals.filter((g) => computeCountdownStatus(g, viewDate).phase !== "complete");
-  const activeGoal =
-    primaryGoal && computeCountdownStatus(primaryGoal, viewDate).phase !== "complete"
-      ? primaryGoal
-      : activeGoals[0] || null;
+  // 1. Countdown: ONLY if todayCountdown exists (has showOnToday === true)
+  const countdownStatus = todayCountdown
+    ? computeCountdownStatus(todayCountdown, viewDate)
+    : null;
 
-  const countdownStatus = activeGoal ? computeCountdownStatus(activeGoal, viewDate) : null;
-  const countdownDaysText = countdownStatus
-    ? countdownStatus.phase === "upcoming"
-      ? countdownStatus.daysUntilStart === 1
-        ? "Starts in 1 day"
-        : `Starts in ${countdownStatus.daysUntilStart}d`
-      : countdownStatus.daysLeft === 1
-      ? "1 day left"
-      : `${countdownStatus.daysLeft} days`
-    : "";
+  const isCountdownActive =
+    todayCountdown &&
+    countdownStatus &&
+    (todayCountdown.mode === "countup" || countdownStatus.phase !== "completed");
 
   // 2. Focus Tasks
   const focusTasks = tasks.filter((t) => t.focusDate === viewDate);
@@ -49,13 +38,17 @@ export default function TodayContext({
   const appliedRoutinesCount = routines.filter((r) => isRoutineAppliedOnDate(r.id, tasks)).length;
 
   // If no contextual data exists at all, render nothing (no empty cards, no placeholder content)
-  const hasAnyContext = !!activeGoal || focusTasks.length > 0 || hasRoutines;
+  const hasAnyContext = Boolean(isCountdownActive) || focusTasks.length > 0 || hasRoutines;
   if (!hasAnyContext) {
     return null;
   }
 
   return (
-    <section className="today-context-section" aria-labelledby="today-context-heading" style={{ marginTop: 20, marginBottom: 16 }}>
+    <section
+      className="today-context-section"
+      aria-labelledby="today-context-heading"
+      style={{ marginTop: 20, marginBottom: 16 }}
+    >
       <h2
         id="today-context-heading"
         style={{
@@ -71,25 +64,25 @@ export default function TodayContext({
       </h2>
 
       <div className="today-context-list" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {/* Active Countdown Goal Row */}
-        {activeGoal && countdownStatus ? (
+        {/* Active Countdown Row (Only if showOnToday === true) */}
+        {isCountdownActive && todayCountdown && countdownStatus ? (
           <button
             type="button"
             className="today-context-row"
-            onClick={() => setGoalsModalOpen(true)}
-            aria-label={`Countdown goal: ${activeGoal.title}, ${countdownDaysText}. Tap to manage goals.`}
+            onClick={() => navigate("/countdown")}
+            aria-label={`Countdown: ${todayCountdown.title}, ${countdownStatus.headlineText}. Tap to view countdowns.`}
           >
             <div className="today-context-row-left">
               <span className="today-context-icon" aria-hidden="true">
-                {activeGoal.icon || "🎯"}
+                {todayCountdown.icon}
               </span>
               <span className="today-context-title">
-                {activeGoal.title}
+                {todayCountdown.title}
               </span>
             </div>
             <div className="today-context-row-right">
               <span className="today-context-info">
-                {countdownDaysText}
+                {countdownStatus.badgeText}
               </span>
               <span className="today-context-arrow" aria-hidden="true">
                 &rarr;
@@ -155,10 +148,6 @@ export default function TodayContext({
           </button>
         ) : null}
       </div>
-
-      {goalsModalOpen ? (
-        <GoalsManagerModal onClose={() => setGoalsModalOpen(false)} />
-      ) : null}
     </section>
   );
 }

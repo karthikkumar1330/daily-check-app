@@ -138,26 +138,49 @@ export interface RoutinesData {
 
 export const CURRENT_ROUTINES_VERSION = 1;
 
-/* ---------------- Countdown Goals (calendar-day based, stored separately from tasks) ---------------- */
+/* ---------------- Countdown V2 (stored in dailyCheck.countdowns.v1) ---------------- */
 
-export interface CountdownGoal {
+export type CountdownMode = "countdown" | "countup";
+export type CountdownDisplayMode = "days" | "weeksDays" | "hours";
+export type CountdownRecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface CountdownReminder {
   id: string;
-  title: string;
-  /** YYYY-MM-DD, inclusive — the first day of the goal. */
-  startDate: string;
-  /** YYYY-MM-DD, inclusive — the final day of the goal. */
-  targetDate: string;
-  icon: string;
-  description: string;
-  createdAt: number;
+  type: "days_before" | "same_day";
+  daysBefore?: number;
+  time?: string;
+  enabled: boolean;
 }
 
-/** The full shape persisted under its own localStorage key. */
-export interface CountdownGoalsData {
-  version: number;
-  goals: Record<string, CountdownGoal>;
-  /** The one goal shown on Today, or null if none/not yet chosen. */
-  primaryGoalId: string | null;
+export interface CountdownRecurrence {
+  frequency: CountdownRecurrenceFrequency;
+  interval: number;
+  endDate?: string;
+}
+
+export interface Countdown {
+  id: string;
+  title: string;
+  icon: string;
+  targetDate: string; // YYYY-MM-DD
+  targetTime?: string; // HH:mm
+  allDay: boolean;
+  mode: CountdownMode;
+  displayMode: CountdownDisplayMode;
+  countWorkingDays: boolean;
+  showOnToday: boolean;
+  pinned: boolean;
+  recurring?: CountdownRecurrence;
+  reminders: CountdownReminder[];
+  notes?: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+
+export interface CountdownsData {
+  version: 1;
+  countdowns: Record<string, Countdown>;
 }
 
 export const CURRENT_COUNTDOWN_VERSION = 1;
+

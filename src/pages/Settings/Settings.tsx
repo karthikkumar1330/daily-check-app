@@ -1,10 +1,10 @@
 import { useRef, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
-import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useCountdowns } from "../../hooks/useCountdowns";
 import { useRoutines } from "../../hooks/useRoutines";
 import { useNotificationCenter } from "../../hooks/useNotificationCenter";
-import type { AppData, CountdownGoalsData, RoutinesData, ThemePreference } from "../../types";
+import type { AppData, CountdownsData, RoutinesData, ThemePreference } from "../../types";
 import { CURRENT_DATA_VERSION, CURRENT_COUNTDOWN_VERSION, CURRENT_ROUTINES_VERSION } from "../../types";
 import { APP_VERSION } from "../../version";
 import { exportBackup, parseImportFile, getStorageUsageKb } from "../../utils/storageUtils";
@@ -15,13 +15,11 @@ import {
   sendTestNotification
 } from "../../utils/notificationUtils";
 import { formatDayMonth, todayStr } from "../../utils/dateUtils";
-import { computeCountdownStatus } from "../../utils/countdownUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import ActionRow from "../../components/ActionRow/ActionRow";
 import { DownloadIcon, InstallIcon, PrintIcon, ShareIcon, TrashIcon, UploadIcon } from "../../components/icons";
 import { usePwaInstall } from "../../hooks/usePwaInstall";
-import GoalsManagerModal from "../../components/CountdownGoal/GoalsManagerModal";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "\u2600\uFE0F Light" },
@@ -33,13 +31,13 @@ const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a vali
 
 interface PendingImportState {
   data: AppData;
-  countdownGoals?: CountdownGoalsData;
+  countdowns?: CountdownsData;
   routines?: RoutinesData;
 }
 
 export default function Settings() {
   const { appData, setTheme, setWeekStartsOn, setHapticsEnabled, replaceAllData, resetAllData, getDay } = useTasks();
-  const { goals, goalsData, replaceAllGoals } = useCountdownGoals();
+  const { countdownsData, replaceAllCountdowns } = useCountdowns();
   const { routines, routinesData, replaceAllRoutines } = useRoutines();
   const { canInstall, installed, promptInstall } = usePwaInstall();
   const { preferences: notifPrefs, updatePreferences: updateNotifPrefs } = useNotificationCenter();
@@ -48,29 +46,13 @@ export default function Settings() {
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [goalsOpen, setGoalsOpen] = useState(false);
   const [, setNotifStateVersion] = useState(0);
 
-  const storageUsage = useMemo(() => getStorageUsageKb(), [appData, goals, routines]);
-
-  const today = todayStr();
-  const activeGoals = useMemo(() => {
-    return goals.filter((g) => computeCountdownStatus(g, today).phase !== "complete");
-  }, [goals, today]);
-
-  const goalsDescription = useMemo(() => {
-    if (activeGoals.length === 0) {
-      return "0 active goals";
-    }
-    if (activeGoals.length === 1) {
-      const status = computeCountdownStatus(activeGoals[0], today);
-      return `1 active goal · ${status.daysLeft} day${status.daysLeft === 1 ? "" : "s"} left`;
-    }
-    return `${activeGoals.length} active goals`;
-  }, [activeGoals, today]);
+  const storageUsage = useMemo(() => getStorageUsageKb(), [appData, routines]);
 
   const isSupported = isNotificationSupported();
   const notifPermission = getNotificationPermission();
+
 
   function showToast(msg: string) {
     setToast(msg);
@@ -91,12 +73,8 @@ export default function Settings() {
     }
   }
 
-  function handleExport() {
-    exportBackup(appData, goalsData, routinesData);
-    showToast("Backup downloaded.");
-  }
-
   async function handleShare() {
+
     const today = todayStr();
     const day = getDay(today);
     const stats = dayStats(day);
@@ -148,19 +126,25 @@ export default function Settings() {
       }
       setPendingImport({
         data: result.data,
-        countdownGoals: result.countdownGoals,
+        countdowns: result.countdowns,
         routines: result.routines
       });
+
     };
     reader.onerror = () => showToast(IMPORT_ERROR);
     reader.readAsText(file);
   }
 
+  function handleExport() {
+    exportBackup(appData, countdownsData, routinesData);
+    showToast("Backup downloaded.");
+  }
+
   function confirmImport() {
     if (!pendingImport) return;
     replaceAllData(pendingImport.data);
-    if (pendingImport.countdownGoals) {
-      replaceAllGoals(pendingImport.countdownGoals);
+    if (pendingImport.countdowns) {
+      replaceAllCountdowns(pendingImport.countdowns);
     }
     if (pendingImport.routines) {
       replaceAllRoutines(pendingImport.routines);
@@ -168,6 +152,7 @@ export default function Settings() {
     setPendingImport(null);
     showToast("Data imported successfully.");
   }
+
 
   async function handleInstall() {
     const outcome = await promptInstall();
@@ -258,21 +243,10 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Goals */}
-      <div className="card settings-card">
-        <div className="settings-heading">Countdown Goals</div>
-        <ActionRow
-          icon={<span style={{ fontSize: 20 }}>{"🎯"}</span>}
-          title="Manage Goals"
-          description={goalsDescription}
-          actionLabel="Manage"
-          onAction={() => setGoalsOpen(true)}
-        />
-      </div>
-
       {/* Reminders & Notifications */}
       <div className="card settings-card">
         <div className="settings-heading">Reminders &amp; Notifications</div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* OS/Browser Permission Sub-section */}
           <div>
@@ -561,7 +535,7 @@ export default function Settings() {
             <span className="about-val">v{CURRENT_DATA_VERSION}</span>
           </div>
           <div className="about-row">
-            <span className="about-label">Countdown Goals Schema:</span>
+            <span className="about-label">Countdowns Schema:</span>
             <span className="about-val">v{CURRENT_COUNTDOWN_VERSION}</span>
           </div>
           <div className="about-row">
@@ -602,8 +576,7 @@ export default function Settings() {
           {toast}
         </div>
       ) : null}
-
-      {goalsOpen ? <GoalsManagerModal onClose={() => setGoalsOpen(false)} /> : null}
     </div>
   );
 }
+

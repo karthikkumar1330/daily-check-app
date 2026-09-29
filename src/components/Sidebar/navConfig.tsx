@@ -3,6 +3,7 @@ import {
   BarChartIcon,
   BellIcon,
   CalendarIcon,
+  CountdownIcon,
   FolderIcon,
   HomeIcon,
   InsightsIcon,
@@ -31,9 +32,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/today", label: "Today", icon: HomeIcon },
       { to: "/tasks", label: "Tasks", icon: TasksIcon },
       { to: "/calendar", label: "Calendar", icon: CalendarIcon },
+      { to: "/countdown", label: "Countdown", icon: CountdownIcon },
       { to: "/weekly", label: "Weekly Progress", icon: BarChartIcon }
     ]
   },
+
   {
     heading: "PRODUCTIVITY",
     items: [

@@ -1,143 +1,227 @@
-import type { CountdownGoal, DayData, Task } from "../types";
-import { addDays, daysBetweenCalendar, isValidDateStr } from "./dateUtils";
-import { dayStats } from "./progressUtils";
-import { resolveDayData } from "./recurrenceUtils";
+import type { Countdown, CountdownDisplayMode, CountdownMode } from "../types";
+import { daysBetweenCalendar, parseDateStr, toDateStr, todayStr } from "./dateUtils";
 
-export type CountdownPhase = "upcoming" | "active" | "complete";
+export type CountdownPhase = "upcoming" | "today" | "completed";
+
+export interface MilestoneInfo {
+  days: number;
+  label: string;
+  isReached: boolean;
+  isNext: boolean;
+}
 
 export interface CountdownStatus {
   phase: CountdownPhase;
-  /** Days from today until the goal starts. Only meaningful when phase === "upcoming". */
-  daysUntilStart: number;
-  /**
-   * Challenge days remaining, INCLUSIVE of today. Start date = day 1, so on
-   * the start date this equals the full challenge length; on the target
-   * date itself it is always 1, never 0 — the target date is still a
-   * counted day of the challenge, not the moment it ends.
-   */
-  daysLeft: number;
-  /** Whole challenge days fully completed before today (0 on the start date). */
-  elapsedDays: number;
-  /** Total challenge days, inclusive of both the start and target dates. */
-  totalDays: number;
-  /** Today's 1-indexed position in the challenge (day 1 = start date). */
-  dayNumber: number;
-  /** 0-100, how far through the challenge "today" is (day 1 of N -> ~1/N). */
+  daysLeft: number; // >= 0
+  rawDaysDiff: number; // targetDate - referenceDate
+  workingDaysLeft: number;
+  displayValue: string;
+  displayUnit: string;
+  badgeText: string;
+  headlineText: string;
   progressPct: number;
-}
-
-export interface GoalExecutionStats {
-  /** Count of days within the elapsed challenge span that had at least one task */
-  activeDays: number;
-  /** Count of active days reaching >= 80% completion */
-  successfulDays: number;
-  /** (successfulDays / activeDays) * 100, or null if activeDays === 0 */
-  successfulPct: number | null;
+  nextMilestone: MilestoneInfo | null;
+  milestones: MilestoneInfo[];
 }
 
 /**
- * Calendar-day-only status for a goal, evaluated against a given "today"
- * (YYYY-MM-DD). Deliberately takes no clock/timestamp input - recalculate
- * by calling this again, never by decrementing a stored number.
- *
- * Counting is inclusive: the start date is challenge day 1, and daysLeft
- * always includes today itself (so the target date reads "1 day", not "0").
+ * Counts working days (Monday-Friday) between two dates.
+ * If targetDate is after fromDate: counts each day from fromDate to targetDate that is Mon-Fri.
  */
-export function computeCountdownStatus(goal: CountdownGoal, today: string): CountdownStatus {
-  // Inclusive span length: start and target both count as challenge days.
-  const totalDays = Math.max(1, daysBetweenCalendar(goal.startDate, goal.targetDate) + 1);
+export function calculateWorkingDays(fromDateStr: string, targetDateStr: string): number {
+  if (fromDateStr === targetDateStr) return 0;
+  const isForward = targetDateStr > fromDateStr;
+  const start = parseDateStr(isForward ? fromDateStr : targetDateStr);
+  const end = parseDateStr(isForward ? targetDateStr : fromDateStr);
 
-  if (today < goal.startDate) {
-    const daysUntilStart = daysBetweenCalendar(today, goal.startDate);
-    return {
-      phase: "upcoming",
-      daysUntilStart,
-      daysLeft: totalDays,
-      elapsedDays: 0,
-      totalDays,
-      dayNumber: 0,
-      progressPct: 0
-    };
+  let workingDays = 0;
+  const cur = new Date(start.getTime());
+
+  // Count days
+  while (cur < end) {
+    cur.setDate(cur.getDate() + 1);
+    const dayOfWeek = cur.getDay(); // 0 is Sun, 6 is Sat
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workingDays++;
+    }
   }
 
-  if (today > goal.targetDate) {
-    return {
-      phase: "complete",
-      daysUntilStart: 0,
-      daysLeft: 0,
-      elapsedDays: totalDays,
-      totalDays,
-      dayNumber: totalDays,
-      progressPct: 100
-    };
-  }
-
-  const dayNumber = Math.min(totalDays, Math.max(1, daysBetweenCalendar(goal.startDate, today) + 1));
-  const daysLeft = totalDays - dayNumber + 1; // inclusive: 1 on the target date, never 0
-  const elapsedDays = dayNumber - 1;
-  const progressPct = Math.round((dayNumber / totalDays) * 100);
-
-  return { phase: "active", daysUntilStart: 0, daysLeft, elapsedDays, totalDays, dayNumber, progressPct };
+  return isForward ? workingDays : -workingDays;
 }
 
+const STANDARD_MILESTONES = [1000, 500, 365, 200, 100, 50, 30, 21, 14, 7, 3, 1, 0];
+
 /**
- * Calculates daily execution metrics for a Countdown Goal.
- * Considers all days from the goal's startDate up to min(today, targetDate).
- * Zero-task days:
- * - do not count as active or successful
- * - do not count as failed
+ * Calculates countdown status, remaining values, milestones and progress safely.
+ * Never returns negative countdown values.
  */
-export function computeGoalExecutionStats(
-  goal: CountdownGoal,
-  days: Record<string, DayData>,
-  recurringTasks: Task[] = [],
-  referenceDate: string
-): GoalExecutionStats {
-  if (!isValidDateStr(goal.startDate) || !isValidDateStr(goal.targetDate)) {
-    return { activeDays: 0, successfulDays: 0, successfulPct: null };
+export function computeCountdownStatus(
+  item: Countdown,
+  referenceDate: string = todayStr()
+): CountdownStatus {
+  const diff = daysBetweenCalendar(referenceDate, item.targetDate);
+  const workingDays = item.countWorkingDays
+    ? Math.max(0, calculateWorkingDays(referenceDate, item.targetDate))
+    : Math.max(0, diff);
+
+  const effectiveDays = item.countWorkingDays ? workingDays : Math.max(0, diff);
+
+  // Phase
+  let phase: CountdownPhase = "upcoming";
+  if (diff === 0) {
+    phase = "today";
+  } else if (diff < 0) {
+    phase = "completed";
+  } else {
+    phase = "upcoming";
   }
 
-  if (referenceDate < goal.startDate) {
-    return { activeDays: 0, successfulDays: 0, successfulPct: null };
+  // Display value and unit formatting
+  let displayValue = "";
+  let displayUnit = "";
+  let badgeText = "";
+  let headlineText = "";
+
+  if (item.mode === "countup") {
+    // Count up from target date
+    const elapsedDays = Math.max(0, -diff);
+    if (diff === 0) {
+      displayValue = "TODAY";
+      displayUnit = "";
+      badgeText = "Today";
+      headlineText = "Today";
+    } else if (diff < 0) {
+      displayValue = String(elapsedDays);
+      displayUnit = elapsedDays === 1 ? "DAY AGO" : "DAYS AGO";
+      badgeText = `${elapsedDays}d ago`;
+      headlineText = `${elapsedDays} ${elapsedDays === 1 ? "day" : "days"} ago`;
+    } else {
+      displayValue = String(diff);
+      displayUnit = diff === 1 ? "DAY UNTIL START" : "DAYS UNTIL START";
+      badgeText = `Starts in ${diff}d`;
+      headlineText = `Starts in ${diff} ${diff === 1 ? "day" : "days"}`;
+    }
+  } else {
+    // Standard Countdown mode
+    if (diff === 0) {
+      displayValue = "TODAY";
+      displayUnit = "";
+      badgeText = "Today";
+      headlineText = "Today";
+    } else if (diff === 1 && !item.countWorkingDays) {
+      displayValue = "1";
+      displayUnit = "DAY LEFT";
+      badgeText = "Tomorrow";
+      headlineText = "1 day left";
+    } else if (diff > 0) {
+      if (item.displayMode === "weeksDays") {
+        const weeks = Math.floor(effectiveDays / 7);
+        const remDays = effectiveDays % 7;
+        displayValue = `${weeks}w ${remDays}d`;
+        displayUnit = item.countWorkingDays ? "WORK DAYS LEFT" : "LEFT";
+        badgeText = `${weeks}w ${remDays}d left`;
+        headlineText = `${weeks} weeks, ${remDays} days left`;
+      } else if (item.displayMode === "hours") {
+        const totalHours = effectiveDays * 24;
+        displayValue = totalHours.toLocaleString();
+        displayUnit = "HOURS LEFT";
+        badgeText = `${totalHours}h left`;
+        headlineText = `${totalHours.toLocaleString()} hours left`;
+      } else {
+        displayValue = String(effectiveDays);
+        displayUnit = item.countWorkingDays
+          ? effectiveDays === 1
+            ? "WORK DAY LEFT"
+            : "WORK DAYS LEFT"
+          : effectiveDays === 1
+          ? "DAY LEFT"
+          : "DAYS LEFT";
+        badgeText = `${effectiveDays}d left`;
+        headlineText = `${effectiveDays} ${effectiveDays === 1 ? "day" : "days"} left`;
+      }
+    } else {
+      // Completed / past
+      const pastDays = Math.abs(diff);
+      displayValue = String(pastDays);
+      displayUnit = pastDays === 1 ? "DAY AGO" : "DAYS AGO";
+      badgeText = `${pastDays}d ago`;
+      headlineText = `Completed ${pastDays} ${pastDays === 1 ? "day" : "days"} ago`;
+    }
   }
 
-  const endEvalDate = referenceDate > goal.targetDate ? goal.targetDate : referenceDate;
+  // Progress percentage calculation
+  let progressPct = 0;
+  const createdDateStr = item.createdAt ? toDateStr(new Date(item.createdAt)) : referenceDate;
+  const totalDays = Math.max(1, daysBetweenCalendar(createdDateStr, item.targetDate));
+  const elapsed = Math.max(0, daysBetweenCalendar(createdDateStr, referenceDate));
 
-  let activeDays = 0;
-  let successfulDays = 0;
+  if (diff <= 0) {
+    progressPct = 100;
+  } else {
+    progressPct = Math.min(99, Math.max(0, Math.round((elapsed / totalDays) * 100)));
+  }
 
-  // Iterate day-by-day from startDate to endEvalDate
-  let cursor = goal.startDate;
-  let guard = 0;
+  // Milestones
+  const relevantMilestones = STANDARD_MILESTONES.filter((m) => m <= totalDays || m <= diff);
+  if (!relevantMilestones.includes(0)) relevantMilestones.push(0);
+  relevantMilestones.sort((a, b) => b - a);
 
-  while (cursor <= endEvalDate && guard < 5000) {
-    const day = recurringTasks.length > 0
-      ? resolveDayData(cursor, days[cursor], recurringTasks)
-      : days[cursor];
-    const st = dayStats(day);
-
-    if (st.total > 0 && st.pct !== null) {
-      activeDays++;
-      if (st.pct >= 80) {
-        successfulDays++;
+  let nextMilestoneDays: number | null = null;
+  if (diff > 0) {
+    for (const m of relevantMilestones) {
+      if (m < diff) {
+        nextMilestoneDays = m;
+        break;
       }
     }
-
-    // Increment cursor by 1 calendar day
-    cursor = addDays(cursor, 1);
-    guard++;
   }
 
-  const successfulPct = activeDays > 0 ? Math.round((successfulDays / activeDays) * 100) : null;
+  const milestones: MilestoneInfo[] = relevantMilestones.map((m) => {
+    const isReached = diff <= m;
+    const isNext = nextMilestoneDays === m;
+    return {
+      days: m,
+      label: m === 0 ? "Today" : `${m} days`,
+      isReached,
+      isNext
+    };
+  });
+
+  const nextMilestone = milestones.find((m) => m.isNext) || null;
 
   return {
-    activeDays,
-    successfulDays,
-    successfulPct
+    phase,
+    daysLeft: Math.max(0, diff),
+    rawDaysDiff: diff,
+    workingDaysLeft: Math.max(0, workingDays),
+    displayValue,
+    displayUnit,
+    badgeText,
+    headlineText,
+    progressPct,
+    nextMilestone,
+    milestones
   };
 }
 
-export function isValidGoalDateRange(startDate: string, targetDate: string): boolean {
-  return targetDate >= startDate;
+/**
+ * Common quick templates for Countdown creation.
+ */
+export interface CountdownTemplate {
+  key: string;
+  name: string;
+  icon: string;
+  defaultAllDay: boolean;
+  defaultWorkingDays: boolean;
 }
 
+export const COUNTDOWN_TEMPLATES: CountdownTemplate[] = [
+  { key: "exam", name: "Exam", icon: "📚", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "trip", name: "Trip", icon: "✈️", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "birthday", name: "Birthday", icon: "🎂", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "deadline", name: "Deadline", icon: "⏳", defaultAllDay: false, defaultWorkingDays: true },
+  { key: "fitness", name: "Fitness", icon: "🏃", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "goal", name: "Goal", icon: "🎯", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "anniversary", name: "Anniversary", icon: "💍", defaultAllDay: true, defaultWorkingDays: false },
+  { key: "custom", name: "Custom", icon: "✨", defaultAllDay: true, defaultWorkingDays: false }
+];

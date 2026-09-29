@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
-import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useCountdowns } from "../../hooks/useCountdowns";
 import { formatLong, addDays, getWeekDates, getWeekStart, todayStr, weekLabel } from "../../utils/dateUtils";
 import { dayStats, formatPct, weekSummary } from "../../utils/progressUtils";
 import { resolveDayData } from "../../utils/recurrenceUtils";
@@ -20,8 +20,9 @@ type TrendPreset = "last_7_days" | "last_30_days" | "last_90_days";
 export default function WeeklyProgress() {
   const navigate = useNavigate();
   const { appData } = useTasks();
-  const { goals } = useCountdownGoals();
+  const { countdowns } = useCountdowns();
   const weekStartsOn = appData.weekStartsOn ?? 1;
+
   const [activeTab, setActiveTab] = useState<WeeklyTab>("overview");
   const [weekStart, setWeekStart] = useState(() => getWeekStart(todayStr(), weekStartsOn));
   const [selectedDate, setSelectedDate] = useState(todayStr());
@@ -164,11 +165,12 @@ export default function WeeklyProgress() {
       {activeTab === "review" && (
         <WeeklyReview
           appData={appData}
-          goals={goals}
+          countdowns={countdowns}
           weekStart={weekStart}
           onNavigateWeek={setWeekStart}
         />
       )}
+
 
       {activeTab === "trends" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

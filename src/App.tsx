@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TasksProvider, useTasks } from "./hooks/useTasks";
 import { FocusTimerProvider } from "./hooks/useFocusTimer";
-import { CountdownGoalsProvider } from "./hooks/useCountdownGoals";
+import { CountdownsProvider } from "./hooks/useCountdowns";
 import { RoutinesProvider } from "./hooks/useRoutines";
 import { NotificationCenterProvider } from "./hooks/useNotificationCenter";
 import { useTheme } from "./hooks/useTheme";
@@ -15,6 +15,7 @@ import Today from "./pages/Today/Today";
 // Non-initial routes are code-split to drastically reduce initial bundle size and startup time
 const Tasks = lazy(() => import("./pages/Tasks/Tasks"));
 const CalendarPage = lazy(() => import("./pages/Calendar/CalendarPage"));
+const CountdownPage = lazy(() => import("./pages/Countdown/CountdownPage"));
 const WeeklyProgress = lazy(() => import("./pages/WeeklyProgress/WeeklyProgress"));
 const RoutinesPage = lazy(() => import("./pages/Routines/RoutinesPage"));
 const Insights = lazy(() => import("./pages/Insights/Insights"));
@@ -38,6 +39,7 @@ function Shell() {
         <Route path="today" element={<Today />} />
         <Route path="tasks" element={<Suspense fallback={fallback}><Tasks /></Suspense>} />
         <Route path="calendar" element={<Suspense fallback={fallback}><CalendarPage /></Suspense>} />
+        <Route path="countdown" element={<Suspense fallback={fallback}><CountdownPage /></Suspense>} />
         <Route path="weekly" element={<Suspense fallback={fallback}><WeeklyProgress /></Suspense>} />
         <Route path="routines" element={<Suspense fallback={fallback}><RoutinesPage /></Suspense>} />
         <Route path="insights" element={<Suspense fallback={fallback}><Insights /></Suspense>} />
@@ -57,17 +59,18 @@ export default function App() {
     <BrowserRouter>
       <TasksProvider>
         <FocusTimerProvider>
-          <CountdownGoalsProvider>
+          <CountdownsProvider>
             <RoutinesProvider>
               <NotificationCenterProvider>
                 <Shell />
               </NotificationCenterProvider>
             </RoutinesProvider>
-          </CountdownGoalsProvider>
+          </CountdownsProvider>
         </FocusTimerProvider>
       </TasksProvider>
     </BrowserRouter>
   );
 }
+
 
 

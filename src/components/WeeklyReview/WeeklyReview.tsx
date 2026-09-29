@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { AppData, CountdownGoal } from "../../types";
+import type { AppData, Countdown } from "../../types";
 import {
   addDays,
   formatLong,
@@ -14,17 +14,18 @@ import { isTaskScheduledOnDate, resolveDayData } from "../../utils/recurrenceUti
 
 interface WeeklyReviewProps {
   appData: AppData;
-  goals?: CountdownGoal[];
+  countdowns?: Countdown[];
   weekStart?: string;
   onNavigateWeek?: (newWeekStart: string) => void;
 }
 
 export default function WeeklyReview({
   appData,
-  goals = [],
+  countdowns = [],
   weekStart: propWeekStart,
   onNavigateWeek
 }: WeeklyReviewProps) {
+
   const currentWeekStart = useMemo(
     () => propWeekStart || getWeekStart(todayStr()),
     [propWeekStart]
@@ -80,28 +81,20 @@ export default function WeeklyReview({
       );
     }
 
-    // Check upcoming goal deadlines or starts
-    const activeGoals = goals.filter((g) => {
-      return (
-        (g.targetDate >= nextWeekStart && g.targetDate <= nextWeekDates[6]) ||
-        (g.startDate >= nextWeekStart && g.startDate <= nextWeekDates[6])
-      );
+    // Check upcoming countdown targets in next week
+    const activeCountdowns = countdowns.filter((c) => {
+      return c.targetDate >= nextWeekStart && c.targetDate <= nextWeekDates[6];
     });
 
-    for (const g of activeGoals) {
-      if (g.targetDate >= nextWeekStart && g.targetDate <= nextWeekDates[6]) {
-        observations.push(
-          `Goal target date: "${g.title}" concludes on ${formatShort(g.targetDate)}.`
-        );
-      } else if (g.startDate >= nextWeekStart && g.startDate <= nextWeekDates[6]) {
-        observations.push(
-          `Goal start: "${g.title}" begins on ${formatShort(g.startDate)}.`
-        );
-      }
+    for (const c of activeCountdowns) {
+      observations.push(
+        `Countdown target: "${c.title}" is on ${formatShort(c.targetDate)}.`
+      );
     }
 
     return observations;
-  }, [appData, nextWeekDates, nextWeekStart, goals]);
+  }, [appData, nextWeekDates, nextWeekStart, countdowns]);
+
 
   // Successful days list (80%+ completion)
   const successfulDays = useMemo(

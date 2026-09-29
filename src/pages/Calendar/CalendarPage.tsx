@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTasks } from "../../hooks/useTasks";
-import { useCountdownGoals } from "../../hooks/useCountdownGoals";
+import { useCountdowns } from "../../hooks/useCountdowns";
 import { addMonths, formatLong, monthAnchor, todayStr } from "../../utils/dateUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
 import Calendar from "../../components/Calendar/Calendar";
@@ -10,7 +10,7 @@ import ConfirmModal from "../../components/Modals/ConfirmModal";
 
 export default function CalendarPage() {
   const { appData, getDay, toggleTask, saveEdit, deleteTask, moveTask } = useTasks();
-  const { goals } = useCountdownGoals();
+  const { countdowns } = useCountdowns();
   const [anchor, setAnchor] = useState(monthAnchor(todayStr()));
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,8 +36,9 @@ export default function CalendarPage() {
         selectedDate={selectedDate}
         days={appData.days}
         recurringTasks={appData.recurringTasks}
-        goals={goals}
+        countdowns={countdowns}
         weekStartsOn={appData.weekStartsOn ?? 1}
+
         onSelectDate={(d) => {
           setSelectedDate(d);
           setEditingId(null);

@@ -1,8 +1,7 @@
 import type {
   AppData,
   CategoryId,
-  CountdownGoal,
-  CountdownGoalsData,
+  Countdown,
   DayData,
   Priority,
   Task
@@ -20,9 +19,9 @@ import {
   todayStr,
   weekdayFull
 } from "./dateUtils";
-import { computeGoalExecutionStats, type GoalExecutionStats } from "./countdownUtils";
 import { dayStats } from "./progressUtils";
 import { isTaskScheduledOnDate, resolveDayData } from "./recurrenceUtils";
+
 import { computeStreaks } from "./streakUtils";
 
 /* ==========================================================================
@@ -149,8 +148,8 @@ export interface GoalInsight {
   daysTotal: number;
   daysRemaining: number;
   progressPct: number;
-  executionStats?: GoalExecutionStats;
 }
+
 
 export type InsightType =
   | "best_day"
@@ -682,67 +681,57 @@ export function calculatePriorityMetrics(
    ========================================================================== */
 
 /**
- * Reads Countdown Goals and derives progress, timeline status, and execution stats safely.
+ * Reads Countdowns and derives progress, timeline status safely.
  * Never mutates input or persistence.
  */
 export function calculateGoalMetrics(
-  goalsInput: CountdownGoal[] | CountdownGoalsData | null | undefined,
-  referenceDate = todayStr(),
-  appData?: AppData
+  countdownsInput: Countdown[] | null | undefined,
+  referenceDate = todayStr()
 ): GoalInsight[] {
-  if (!goalsInput) return [];
-
-  const goals: CountdownGoal[] = Array.isArray(goalsInput)
-    ? goalsInput
-    : goalsInput.goals
-    ? Object.values(goalsInput.goals)
-    : [];
+  if (!countdownsInput || !Array.isArray(countdownsInput)) return [];
 
   const results: GoalInsight[] = [];
 
-  for (const g of goals) {
-    if (!isValidDateStr(g.startDate) || !isValidDateStr(g.targetDate)) continue;
+  for (const c of countdownsInput) {
+    if (!isValidDateStr(c.targetDate)) continue;
 
-    const daysTotal = Math.max(1, daysBetweenCalendar(g.startDate, g.targetDate));
+    const startDate = c.createdAt ? c.createdAt.slice(0, 10) : referenceDate;
+    const daysTotal = Math.max(1, daysBetweenCalendar(startDate, c.targetDate));
     let status: "upcoming" | "active" | "completed" = "active";
     let daysRemaining = 0;
     let progressPct = 0;
 
-    if (referenceDate < g.startDate) {
+    if (referenceDate < startDate) {
       status = "upcoming";
-      daysRemaining = daysBetweenCalendar(referenceDate, g.targetDate);
+      daysRemaining = daysBetweenCalendar(referenceDate, c.targetDate);
       progressPct = 0;
-    } else if (referenceDate > g.targetDate) {
+    } else if (referenceDate > c.targetDate) {
       status = "completed";
       daysRemaining = 0;
       progressPct = 100;
     } else {
       status = "active";
-      const daysElapsed = Math.max(0, daysBetweenCalendar(g.startDate, referenceDate));
-      daysRemaining = Math.max(0, daysBetweenCalendar(referenceDate, g.targetDate));
+      const daysElapsed = Math.max(0, daysBetweenCalendar(startDate, referenceDate));
+      daysRemaining = Math.max(0, daysBetweenCalendar(referenceDate, c.targetDate));
       progressPct = Math.min(100, Math.max(0, Math.round((daysElapsed / daysTotal) * 100)));
     }
 
-    const executionStats = appData
-      ? computeGoalExecutionStats(g, appData.days, appData.recurringTasks, referenceDate)
-      : undefined;
-
     results.push({
-      id: g.id,
-      title: g.title,
-      startDate: g.startDate,
-      targetDate: g.targetDate,
-      icon: g.icon,
+      id: c.id,
+      title: c.title,
+      startDate,
+      targetDate: c.targetDate,
+      icon: c.icon,
       status,
       daysTotal,
       daysRemaining,
-      progressPct,
-      executionStats
+      progressPct
     });
   }
 
   return results.sort((a, b) => a.daysRemaining - b.daysRemaining);
 }
+
 
 /* ==========================================================================
    11. DETERMINISTIC INSIGHT GENERATION

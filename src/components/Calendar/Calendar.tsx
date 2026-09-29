@@ -1,4 +1,4 @@
-import type { CountdownGoal, DayData, Task } from "../../types";
+import type { Countdown, DayData, Task } from "../../types";
 import { getMonthGrid, monthLabel, todayStr } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
 import { resolveDayData } from "../../utils/recurrenceUtils";
@@ -8,7 +8,7 @@ interface CalendarProps {
   selectedDate: string;
   days: Record<string, DayData>;
   recurringTasks?: Task[];
-  goals?: CountdownGoal[];
+  countdowns?: Countdown[];
   weekStartsOn?: 0 | 1;
   onSelectDate: (date: string) => void;
   onPrevMonth: () => void;
@@ -24,7 +24,7 @@ export default function Calendar({
   selectedDate,
   days,
   recurringTasks,
-  goals = [],
+  countdowns = [],
   weekStartsOn = 1,
   onSelectDate,
   onPrevMonth,
@@ -34,6 +34,7 @@ export default function Calendar({
   const cells = getMonthGrid(monthAnchor, weekStartsOn);
   const weekdayHeaders = weekStartsOn === 0 ? SUN_HEADERS : MON_HEADERS;
   const today = todayStr();
+
 
   return (
     <div className="card calendar-card">
@@ -70,8 +71,8 @@ export default function Calendar({
           const isSelected = cell.date === selectedDate;
           const dayNum = Number(cell.date.slice(-2));
 
-          // Check if any active countdown goal spans this date
-          const inGoalPeriod = goals.some((g) => cell.date >= g.startDate && cell.date <= g.targetDate);
+          // Check if any countdown target date falls on this date
+          const hasCountdownTarget = countdowns.some((c) => cell.date === c.targetDate);
 
           // Check if date has any focus tasks assigned
           const hasFocusTasks = (day?.tasks ?? []).some(
@@ -95,15 +96,16 @@ export default function Calendar({
                 (cell.inMonth ? "" : " outside") +
                 (isToday ? " today" : "") +
                 (isSelected ? " selected" : "") +
-                (inGoalPeriod && cell.inMonth ? " in-goal" : "")
+                (hasCountdownTarget && cell.inMonth ? " in-goal" : "")
               }
               onClick={() => onSelectDate(cell.date)}
               aria-label={
                 cell.date +
                 (st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks") +
                 (hasFocusTasks ? ", has focus tasks" : "") +
-                (inGoalPeriod ? ", in goal window" : "")
+                (hasCountdownTarget ? ", has countdown target" : "")
               }
+
               aria-pressed={isSelected}
             >
               <span>{dayNum}</span>

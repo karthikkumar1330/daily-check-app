@@ -1,8 +1,9 @@
-import type { AppData, CategoryId, CountdownGoalsData, DayData, Priority, ReminderMinutes, RoutinesData, Task, TaskRecurrence, ThemePreference } from "../types";
+import type { AppData, CategoryId, CountdownsData, DayData, Priority, ReminderMinutes, RoutinesData, Task, TaskRecurrence, ThemePreference } from "../types";
 import { CURRENT_DATA_VERSION } from "../types";
 import { isValidDateStr } from "./dateUtils";
-import { loadCountdownGoals, saveCountdownGoals } from "./countdownStorage";
+import { loadCountdowns, saveCountdowns } from "./countdownStorage";
 import { loadRoutines, sanitizeRoutines, saveRoutines } from "./routineStorage";
+
 import type { NotificationPreferences } from "../types/notification";
 import { loadNotificationPreferences } from "./notificationStorage";
 
@@ -365,14 +366,14 @@ export function saveData(data: AppData): boolean {
 }
 
 /** Triggers a browser download of the full backup as JSON. */
-export function exportBackup(data: AppData, goalsData?: CountdownGoalsData, routinesData?: RoutinesData): void {
-  const currentGoals = goalsData ?? loadCountdownGoals();
+export function exportBackup(data: AppData, countdownsData?: CountdownsData, routinesData?: RoutinesData): void {
+  const currentCountdowns = countdownsData ?? loadCountdowns();
   const currentRoutines = routinesData ?? loadRoutines();
   const currentNotifPrefs = loadNotificationPreferences();
 
   const payload = {
     ...data,
-    countdownGoals: currentGoals,
+    countdowns: currentCountdowns,
     routines: currentRoutines,
     notificationPreferences: currentNotifPrefs,
     exportedAt: new Date().toISOString(),
@@ -392,7 +393,7 @@ export function exportBackup(data: AppData, goalsData?: CountdownGoalsData, rout
 export interface ImportResult {
   ok: boolean;
   data?: AppData;
-  countdownGoals?: CountdownGoalsData;
+  countdowns?: CountdownsData;
   routines?: RoutinesData;
   notificationPreferences?: NotificationPreferences;
   error?: string;
@@ -427,16 +428,16 @@ export function parseImportFile(text: string): ImportResult {
       recurringTasks: sanitizeRecurringTasks(parsed.recurringTasks)
     };
 
-    let countdownGoals: CountdownGoalsData | undefined;
-    if (parsed.countdownGoals && typeof parsed.countdownGoals === "object") {
-      countdownGoals = {
-        version: typeof parsed.countdownGoals.version === "number" ? parsed.countdownGoals.version : 1,
-        goals: parsed.countdownGoals.goals || {},
-        primaryGoalId: parsed.countdownGoals.primaryGoalId || null
+    let countdowns: CountdownsData | undefined;
+    if (parsed.countdowns && typeof parsed.countdowns === "object") {
+      countdowns = {
+        version: 1,
+        countdowns: parsed.countdowns.countdowns || {}
       };
     }
 
     let routines: RoutinesData | undefined;
+
     if (parsed.routines && typeof parsed.routines === "object") {
       routines = {
         version: typeof parsed.routines.version === "number" ? parsed.routines.version : 1,
@@ -457,7 +458,8 @@ export function parseImportFile(text: string): ImportResult {
       };
     }
 
-    return { ok: true, data: migrate(data), countdownGoals, routines, notificationPreferences };
+    return { ok: true, data: migrate(data), countdowns, routines, notificationPreferences };
+
   } catch {
     return { ok: false, error: genericError };
   }

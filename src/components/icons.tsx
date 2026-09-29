@@ -395,6 +395,17 @@ export function ShareIcon() {
   );
 }
 
+export function CountdownIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
+      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+
 
 
 

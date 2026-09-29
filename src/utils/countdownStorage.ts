@@ -1,73 +1,145 @@
-import type { CountdownGoal, CountdownGoalsData } from "../types";
-import { CURRENT_COUNTDOWN_VERSION } from "../types";
-import { isValidDateStr } from "./dateUtils";
+import type { Countdown, CountdownsData } from "../types";
 
-// Deliberately a separate key from `dailyCheck.data` (tasks) — countdown
-// goals must never be mixed with, or affect, task/day storage or stats.
-const STORAGE_KEY = "dailyCheck.countdownGoals.v1";
+export const STORAGE_KEY_COUNTDOWNS = "dailyCheck.countdowns.v1";
+const LEGACY_STORAGE_KEY = "dailyCheck.countdownGoals.v1";
 
-function emptyData(): CountdownGoalsData {
-  return { version: CURRENT_COUNTDOWN_VERSION, goals: {}, primaryGoalId: null };
+function emptyData(): CountdownsData {
+  return {
+    version: 1,
+    countdowns: {}
+  };
 }
 
-function sanitizeGoals(raw: unknown): Record<string, CountdownGoal> {
-  const clean: Record<string, CountdownGoal> = {};
-  if (!raw || typeof raw !== "object") return clean;
+function sanitizeCountdown(raw: unknown): Countdown | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Partial<Countdown>;
 
-  Object.entries(raw as Record<string, unknown>).forEach(([id, value]) => {
-    if (!value || typeof value !== "object") return;
-    const g = value as Partial<CountdownGoal>;
-    if (typeof g.id !== "string" || g.id !== id) return;
-    if (typeof g.title !== "string" || !g.title.trim()) return;
-    if (!isValidDateStr(g.startDate as string) || !isValidDateStr(g.targetDate as string)) return;
-    if ((g.targetDate as string) < (g.startDate as string)) return;
+  if (typeof c.id !== "string" || !c.id.trim()) return null;
+  if (typeof c.title !== "string" || !c.title.trim()) return null;
+  if (typeof c.targetDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(c.targetDate)) return null;
 
-    clean[id] = {
-      id,
-      title: g.title,
-      startDate: g.startDate as string,
-      targetDate: g.targetDate as string,
-      icon: typeof g.icon === "string" && g.icon ? g.icon : "\uD83C\uDFAF",
-      description: typeof g.description === "string" ? g.description : "",
-      createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now()
-    };
-  });
+  const validModes = ["countdown", "countup"] as const;
+  const mode = validModes.includes(c.mode as any) ? (c.mode as any) : "countdown";
 
-  return clean;
+  const validDisplayModes = ["days", "weeksDays", "hours"] as const;
+  const displayMode = validDisplayModes.includes(c.displayMode as any)
+    ? (c.displayMode as any)
+    : "days";
+
+  return {
+    id: c.id,
+    title: c.title.trim(),
+    icon: typeof c.icon === "string" && c.icon.trim() ? c.icon.trim() : "🎯",
+    targetDate: c.targetDate,
+    targetTime: typeof c.targetTime === "string" && /^\d{2}:\d{2}$/.test(c.targetTime) ? c.targetTime : undefined,
+    allDay: c.allDay !== false,
+    mode,
+    displayMode,
+    countWorkingDays: Boolean(c.countWorkingDays),
+    showOnToday: Boolean(c.showOnToday),
+    pinned: Boolean(c.pinned),
+    recurring:
+      c.recurring && typeof c.recurring === "object" && typeof c.recurring.frequency === "string"
+        ? {
+            frequency: (["daily", "weekly", "monthly", "yearly"].includes(c.recurring.frequency)
+              ? c.recurring.frequency
+              : "yearly") as any,
+            interval: typeof c.recurring.interval === "number" && c.recurring.interval > 0 ? c.recurring.interval : 1,
+            endDate: typeof c.recurring.endDate === "string" ? c.recurring.endDate : undefined
+          }
+        : undefined,
+    reminders: Array.isArray(c.reminders)
+      ? c.reminders.filter((r) => r && typeof r.id === "string")
+      : [],
+    notes: typeof c.notes === "string" ? c.notes : undefined,
+    createdAt: typeof c.createdAt === "string" ? c.createdAt : new Date().toISOString(),
+    updatedAt: typeof c.updatedAt === "string" ? c.updatedAt : new Date().toISOString()
+  };
 }
 
-export function loadCountdownGoals(): CountdownGoalsData {
+/**
+ * Loads countdowns from isolated dailyCheck.countdowns.v1 storage.
+ * Automatically migrates legacy countdownGoals once if found.
+ */
+export function loadCountdowns(): CountdownsData {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return emptyData();
+  }
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyData();
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return emptyData();
-
-    const goals = sanitizeGoals(parsed.goals);
-    const primaryGoalId =
-      typeof parsed.primaryGoalId === "string" && goals[parsed.primaryGoalId] ? parsed.primaryGoalId : null;
-
-    return { version: CURRENT_COUNTDOWN_VERSION, goals, primaryGoalId };
-  } catch (e) {
-    console.error("Daily Check: could not read countdown goals. Backing up corrupted data.", e);
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        localStorage.setItem(`dailyCheck.countdownGoals.corrupted_recovery.${Date.now()}`, raw);
+    const raw = window.localStorage.getItem(STORAGE_KEY_COUNTDOWNS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.countdowns && typeof parsed.countdowns === "object") {
+        const clean: Record<string, Countdown> = {};
+        for (const [id, item] of Object.entries(parsed.countdowns)) {
+          const sanitized = sanitizeCountdown(item);
+          if (sanitized) clean[id] = sanitized;
+        }
+        return { version: 1, countdowns: clean };
       }
-    } catch {
-      // Ignore fallback error
     }
+
+    // Check for legacy migration
+    const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyRaw) {
+      try {
+        const legacyParsed = JSON.parse(legacyRaw);
+        if (legacyParsed && legacyParsed.goals && typeof legacyParsed.goals === "object") {
+          const migrated: Record<string, Countdown> = {};
+          const primaryId = legacyParsed.primaryGoalId;
+
+          for (const [id, g] of Object.entries(legacyParsed.goals) as [string, any][]) {
+            if (g && typeof g.title === "string" && typeof g.targetDate === "string") {
+              migrated[id] = {
+                id,
+                title: g.title,
+                icon: g.icon || "🎯",
+                targetDate: g.targetDate,
+                allDay: true,
+                mode: "countdown",
+                displayMode: "days",
+                countWorkingDays: false,
+                showOnToday: id === primaryId,
+                pinned: id === primaryId,
+                reminders: [{ id: "rem-default", type: "same_day", daysBefore: 0, enabled: true }],
+                notes: g.description || undefined,
+                createdAt: new Date(g.createdAt || Date.now()).toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+            }
+          }
+
+          const result: CountdownsData = { version: 1, countdowns: migrated };
+          saveCountdowns(result);
+          // Clean legacy key
+          window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+          return result;
+        }
+      } catch {
+        // Ignore legacy parse error
+      }
+    }
+
+    return emptyData();
+  } catch (err) {
+    console.error("Failed to load countdowns:", err);
     return emptyData();
   }
 }
 
-export function saveCountdownGoals(data: CountdownGoalsData): boolean {
+/**
+ * Saves Countdowns to localStorage under dailyCheck.countdowns.v1.
+ */
+export function saveCountdowns(data: CountdownsData): boolean {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return false;
+  }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    window.localStorage.setItem(STORAGE_KEY_COUNTDOWNS, JSON.stringify(data));
     return true;
-  } catch (e) {
-    console.error("Daily Check: could not save countdown goals.", e);
+  } catch (err) {
+    console.error("Failed to save countdowns:", err);
     return false;
   }
 }
