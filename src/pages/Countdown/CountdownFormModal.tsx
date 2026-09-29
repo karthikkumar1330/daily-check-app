@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Countdown,
   CountdownDisplayMode,
@@ -120,6 +120,8 @@ export default function CountdownFormModal({
   useBodyScrollLock(true);
 
   const isEditing = Boolean(initialCountdown);
+  const [isClosing, setIsClosing] = useState(false);
+  const closingTimeoutRef = useRef<number | null>(null);
 
   const [title, setTitle] = useState(initialCountdown?.title || "");
   const [icon, setIcon] = useState(initialCountdown?.icon || "🎯");
@@ -163,13 +165,30 @@ export default function CountdownFormModal({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Smooth exit handler
+  function handleClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    closingTimeoutRef.current = window.setTimeout(() => {
+      onCancel();
+    }, 280);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closingTimeoutRef.current) {
+        window.clearTimeout(closingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") handleClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
+  }, [isClosing]);
 
   function handleSelectTemplate(tpl: (typeof PRIMARY_TEMPLATES)[0]) {
     setIcon(tpl.icon);
@@ -229,10 +248,20 @@ export default function CountdownFormModal({
     });
   }
 
+  // Smooth scroll into view when input receives focus to prevent keyboard obstruction
+  function handleInputFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setTimeout(() => {
+      e.target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 120);
+  }
+
   return (
-    <div className="countdown-sheet-overlay" onClick={onCancel}>
+    <div
+      className={`countdown-sheet-overlay ${isClosing ? "is-closing" : ""}`}
+      onClick={handleClose}
+    >
       <div
-        className="countdown-sheet"
+        className={`countdown-sheet ${isClosing ? "is-closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -243,572 +272,597 @@ export default function CountdownFormModal({
           <div className="countdown-grab-handle" />
         </div>
 
-        {/* Header */}
-        <div className="countdown-sheet-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }} aria-hidden="true">
-              {icon}
-            </span>
-            <h2
-              id="countdown-modal-title"
-              style={{
-                fontSize: 17.5,
-                fontWeight: 700,
-                margin: 0,
-                color: "var(--ink)",
-                letterSpacing: "-0.01em"
-              }}
-            >
-              {isEditing ? "Edit Countdown" : "New Countdown"}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onCancel}
-            aria-label="Close dialog"
-            style={{ width: 36, height: 36 }}
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        {/* Scrollable Body */}
-        <form onSubmit={handleSubmit} className="countdown-sheet-body">
-          {error ? (
-            <div
-              style={{
-                padding: "10px 14px",
-                background: "rgba(239, 68, 68, 0.1)",
-                color: "var(--danger, #ef4444)",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 16
-              }}
-            >
-              {error}
-            </div>
-          ) : null}
-
-          {/* Section 1: What are you counting toward? */}
-          <div style={{ marginBottom: 18 }}>
-            <label
-              htmlFor="countdown-title"
-              style={{
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: "var(--ink)",
-                display: "block",
-                marginBottom: 8
-              }}
-            >
-              What are you counting down to?
-            </label>
-
-            <div style={{ display: "flex", gap: 8, position: "relative" }}>
-              {/* Emoji Button */}
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                style={{
-                  width: 48,
-                  height: 46,
-                  fontSize: 22,
-                  background: "var(--surface-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0
-                }}
-                aria-label="Choose icon"
-              >
+        {/* Form wrapping fixed header and scrollable body */}
+        <form onSubmit={handleSubmit} className="countdown-sheet-form">
+          {/* Header - Stays permanently visible while body scrolls */}
+          <div className="countdown-sheet-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }} aria-hidden="true">
                 {icon}
-              </button>
+              </span>
+              <h2
+                id="countdown-modal-title"
+                style={{
+                  fontSize: 17.5,
+                  fontWeight: 700,
+                  margin: 0,
+                  color: "var(--ink)",
+                  letterSpacing: "-0.01em"
+                }}
+              >
+                {isEditing ? "Edit Countdown" : "New Countdown"}
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={handleClose}
+              aria-label="Close dialog"
+              style={{ width: 36, height: 36 }}
+            >
+              <CloseIcon />
+            </button>
+          </div>
 
-              {showEmojiPicker ? (
+          {/* Scrollable Body - ONLY this area scrolls */}
+          <div className="countdown-sheet-body">
+            {error ? (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  color: "var(--danger, #ef4444)",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 16
+                }}
+              >
+                {error}
+              </div>
+            ) : null}
+
+            {/* Section 1: What are you counting toward? */}
+            <div style={{ marginBottom: 18 }}>
+              <label
+                htmlFor="countdown-title"
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  display: "block",
+                  marginBottom: 8
+                }}
+              >
+                What are you counting down to?
+              </label>
+
+              <div style={{ display: "flex", gap: 8, position: "relative" }}>
+                {/* Emoji Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  style={{
+                    width: 48,
+                    height: 46,
+                    fontSize: 22,
+                    background: "var(--surface-hover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0
+                  }}
+                  aria-label="Choose icon"
+                >
+                  {icon}
+                </button>
+
+                {showEmojiPicker ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 52,
+                      left: 0,
+                      zIndex: 40,
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 14,
+                      padding: 10,
+                      display: "grid",
+                      gridTemplateColumns: "repeat(5, 1fr)",
+                      gap: 6,
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+                      width: 230
+                    }}
+                  >
+                    {COMMON_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          setIcon(emoji);
+                          setShowEmojiPicker(false);
+                        }}
+                        style={{
+                          fontSize: 20,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 6,
+                          borderRadius: 8
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* Title Input */}
+                <input
+                  id="countdown-title"
+                  type="text"
+                  className="input"
+                  placeholder="e.g. SBI PO Exam, Trip, Birthday"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  onFocus={handleInputFocus}
+                  autoFocus={!isEditing}
+                  required
+                  style={{
+                    flex: 1,
+                    minHeight: 46,
+                    fontSize: 14.5,
+                    borderRadius: 12,
+                    padding: "0 14px"
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Section 2: Choose a template (only on new) */}
+            {!isEditing ? (
+              <div style={{ marginBottom: 18 }}>
                 <div
                   style={{
-                    position: "absolute",
-                    top: 52,
-                    left: 0,
-                    zIndex: 40,
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 14,
-                    padding: 10,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: 6,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-                    width: 230
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-muted)",
+                    marginBottom: 8
                   }}
                 >
-                  {COMMON_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        setIcon(emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      style={{
-                        fontSize: 20,
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 6,
-                        borderRadius: 8
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                  Choose a template
                 </div>
-              ) : null}
 
-              {/* Title Input */}
-              <input
-                id="countdown-title"
-                type="text"
-                className="input"
-                placeholder="e.g. SBI PO Exam, Trip, Birthday"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (error) setError(null);
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {PRIMARY_TEMPLATES.map((tpl) => {
+                    const isSelected = icon === tpl.icon;
+                    return (
+                      <button
+                        key={tpl.key}
+                        type="button"
+                        onClick={() => handleSelectTemplate(tpl)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          padding: "6px 12px",
+                          borderRadius: 18,
+                          background: isSelected ? "var(--surface-hover)" : "var(--surface)",
+                          border: `1px solid ${isSelected ? "var(--ink)" : "var(--border)"}`,
+                          color: "var(--ink)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        <span aria-hidden="true">{tpl.icon}</span>
+                        <span>{tpl.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Section 3: Target date */}
+            <div style={{ marginBottom: 20 }}>
+              <label
+                htmlFor="countdown-target-date"
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  display: "block",
+                  marginBottom: 8
                 }}
-                autoFocus={!isEditing}
+              >
+                Target date
+              </label>
+              <input
+                id="countdown-target-date"
+                type="date"
+                className="input"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                onFocus={handleInputFocus}
                 required
                 style={{
-                  flex: 1,
+                  width: "100%",
                   minHeight: 46,
-                  fontSize: 14.5,
+                  fontSize: 14,
                   borderRadius: 12,
                   padding: "0 14px"
                 }}
               />
             </div>
-          </div>
 
-          {/* Section 2: Choose a template (only on new) */}
-          {!isEditing ? (
-            <div style={{ marginBottom: 18 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-muted)",
-                  marginBottom: 8
-                }}
-              >
-                Choose a template
-              </div>
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {PRIMARY_TEMPLATES.map((tpl) => {
-                  const isSelected = icon === tpl.icon;
-                  return (
-                    <button
-                      key={tpl.key}
-                      type="button"
-                      onClick={() => handleSelectTemplate(tpl)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        padding: "6px 12px",
-                        borderRadius: 18,
-                        background: isSelected ? "var(--surface-hover)" : "var(--surface)",
-                        border: `1px solid ${isSelected ? "var(--ink)" : "var(--border)"}`,
-                        color: "var(--ink)",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease"
-                      }}
-                    >
-                      <span aria-hidden="true">{tpl.icon}</span>
-                      <span>{tpl.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Section 3: Target date */}
-          <div style={{ marginBottom: 20 }}>
-            <label
-              htmlFor="countdown-target-date"
-              style={{
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: "var(--ink)",
-                display: "block",
-                marginBottom: 8
-              }}
-            >
-              Target date
-            </label>
-            <input
-              id="countdown-target-date"
-              type="date"
-              className="input"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              required
+            {/* Primary CTA */}
+            <button
+              type="submit"
+              className="btn btn-primary"
               style={{
                 width: "100%",
-                minHeight: 46,
-                fontSize: 14,
+                minHeight: 48,
+                background: "var(--accent, #10b981)",
+                color: "#fff",
+                fontSize: 14.5,
+                fontWeight: 700,
                 borderRadius: 12,
-                padding: "0 14px"
+                marginBottom: 16,
+                boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)"
               }}
-            />
-          </div>
-
-          {/* Primary CTA */}
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{
-              width: "100%",
-              minHeight: 48,
-              background: "var(--accent, #10b981)",
-              color: "#fff",
-              fontSize: 14.5,
-              fontWeight: 700,
-              borderRadius: 12,
-              marginBottom: 14,
-              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)"
-            }}
-          >
-            {isEditing ? "Save Changes" : "Create Countdown"}
-          </button>
-
-          {/* Progressive Disclosure: Advanced options accordion */}
-          <div>
-            <button
-              type="button"
-              className="countdown-accordion-toggle"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              aria-expanded={advancedOpen}
             >
-              <span>Advanced options</span>
-              <span style={{ display: "flex", alignItems: "center" }}>
-                {advancedOpen ? <UpIcon /> : <DownIcon />}
-              </span>
+              {isEditing ? "Save Changes" : "Create Countdown"}
             </button>
 
-            {advancedOpen ? (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "16px 14px",
-                  background: "var(--surface-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14
-                }}
+            {/* Progressive Disclosure: Advanced options accordion */}
+            <div>
+              <button
+                type="button"
+                className="countdown-accordion-toggle"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                aria-expanded={advancedOpen}
               >
-                {/* Mode Segmented Control */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      display: "block",
-                      marginBottom: 6
-                    }}
-                  >
-                    Mode
-                  </label>
-                  <div
-                    style={{
-                      display: "flex",
-                      background: "var(--surface)",
-                      borderRadius: 10,
-                      padding: 3,
-                      border: "1px solid var(--border)"
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setMode("countdown")}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        border: "none",
-                        cursor: "pointer",
-                        background: mode === "countdown" ? "var(--ink)" : "transparent",
-                        color: mode === "countdown" ? "var(--surface)" : "var(--ink-muted)",
-                        transition: "all 0.15s ease"
-                      }}
-                    >
-                      Countdown
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("countup")}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        border: "none",
-                        cursor: "pointer",
-                        background: mode === "countup" ? "var(--ink)" : "transparent",
-                        color: mode === "countup" ? "var(--surface)" : "var(--ink-muted)",
-                        transition: "all 0.15s ease"
-                      }}
-                    >
-                      Count Up
-                    </button>
-                  </div>
-                </div>
+                <span>Advanced options</span>
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  {advancedOpen ? <UpIcon /> : <DownIcon />}
+                </span>
+              </button>
 
-                {/* Units */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      display: "block",
-                      marginBottom: 6
-                    }}
-                  >
-                    Units
-                  </label>
-                  <select
-                    className="input"
-                    value={displayMode}
-                    onChange={(e) => setDisplayMode(e.target.value as CountdownDisplayMode)}
-                    style={{
-                      width: "100%",
-                      minHeight: 40,
-                      background: "var(--surface)",
-                      fontSize: 13.5
-                    }}
-                  >
-                    <option value="days">Days</option>
-                    <option value="weeksDays">Weeks + Days</option>
-                    <option value="hours">Hours</option>
-                  </select>
-                </div>
-
-                {/* Working days toggle */}
-                <ToggleSwitch
-                  checked={countWorkingDays}
-                  onChange={setCountWorkingDays}
-                  label="Working days only"
-                  description="Exclude Saturdays &amp; Sundays from remaining count"
-                />
-
-                {/* Show on Today toggle (Prominently featured) */}
-                <ToggleSwitch
-                  checked={showOnToday}
-                  onChange={setShowOnToday}
-                  label="Show on Today"
-                  description="Display this countdown in your Today screen contextual slot"
-                />
-
-                {/* Pin to top toggle */}
-                <ToggleSwitch
-                  checked={pinned}
-                  onChange={setPinned}
-                  label="Pin to top"
-                  description="Pin as featured card at the top of Countdowns"
-                />
-
-                {/* Time & All-Day option */}
+              {advancedOpen ? (
                 <div
                   style={{
-                    background: "var(--surface)",
-                    padding: 12,
-                    borderRadius: 12,
-                    border: "1px solid var(--border)"
+                    marginTop: 12,
+                    padding: "16px 14px",
+                    background: "var(--surface-hover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between"
-                    }}
-                  >
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
-                      All-day event
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={allDay}
-                      onChange={(e) => setAllDay(e.target.checked)}
-                      style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
-                    />
-                  </div>
-
-                  {!allDay ? (
-                    <div style={{ marginTop: 10 }}>
-                      <label
+                  {/* Mode Segmented Control */}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--ink-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        display: "block",
+                        marginBottom: 6
+                      }}
+                    >
+                      Mode
+                    </label>
+                    <div
+                      style={{
+                        display: "flex",
+                        background: "var(--surface)",
+                        borderRadius: 10,
+                        padding: 3,
+                        border: "1px solid var(--border)"
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setMode("countdown")}
                         style={{
-                          fontSize: 12,
-                          color: "var(--ink-muted)",
-                          display: "block",
-                          marginBottom: 4
+                          flex: 1,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          border: "none",
+                          cursor: "pointer",
+                          background: mode === "countdown" ? "var(--ink)" : "transparent",
+                          color: mode === "countdown" ? "var(--surface)" : "var(--ink-muted)",
+                          transition: "all 0.15s ease"
                         }}
                       >
-                        Target Time
-                      </label>
-                      <input
-                        type="time"
-                        className="input"
-                        value={targetTime}
-                        onChange={(e) => setTargetTime(e.target.value)}
-                        style={{ width: "100%", minHeight: 38 }}
-                      />
+                        Countdown
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode("countup")}
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          border: "none",
+                          cursor: "pointer",
+                          background: mode === "countup" ? "var(--ink)" : "transparent",
+                          color: mode === "countup" ? "var(--surface)" : "var(--ink-muted)",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        Count Up
+                      </button>
                     </div>
-                  ) : null}
-                </div>
+                  </div>
 
-                {/* Recurrence (Birthdays, Anniversaries) */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      display: "block",
-                      marginBottom: 6
-                    }}
-                  >
-                    Repeat
-                  </label>
-                  <select
-                    className="input"
-                    value={recurrenceFreq}
-                    onChange={(e) => setRecurrenceFreq(e.target.value as any)}
-                    style={{
-                      width: "100%",
-                      minHeight: 40,
-                      background: "var(--surface)",
-                      fontSize: 13.5
-                    }}
-                  >
-                    <option value="none">Does not repeat</option>
-                    <option value="yearly">Every year (Yearly)</option>
-                    <option value="monthly">Every month (Monthly)</option>
-                    <option value="weekly">Every week (Weekly)</option>
-                    <option value="daily">Every day (Daily)</option>
-                  </select>
-                </div>
+                  {/* Units */}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--ink-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        display: "block",
+                        marginBottom: 6
+                      }}
+                    >
+                      Units
+                    </label>
+                    <select
+                      className="input"
+                      value={displayMode}
+                      onChange={(e) => setDisplayMode(e.target.value as CountdownDisplayMode)}
+                      style={{
+                        width: "100%",
+                        minHeight: 40,
+                        background: "var(--surface)",
+                        fontSize: 13.5
+                      }}
+                    >
+                      <option value="days">Days</option>
+                      <option value="weeksDays">Weeks + Days</option>
+                      <option value="hours">Hours</option>
+                    </select>
+                  </div>
 
-                {/* Reminders */}
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      display: "block",
-                      marginBottom: 6
-                    }}
-                  >
-                    Reminders
-                  </label>
+                  {/* Working days toggle */}
+                  <ToggleSwitch
+                    checked={countWorkingDays}
+                    onChange={setCountWorkingDays}
+                    label="Working days only"
+                    description="Exclude Saturdays &amp; Sundays from remaining count"
+                  />
+
+                  {/* Show on Today toggle (Prominently featured) */}
+                  <ToggleSwitch
+                    checked={showOnToday}
+                    onChange={setShowOnToday}
+                    label="Show on Today"
+                    description="Display this countdown in your Today screen contextual slot"
+                  />
+
+                  {/* Pin to top toggle */}
+                  <ToggleSwitch
+                    checked={pinned}
+                    onChange={setPinned}
+                    label="Pin to top"
+                    description="Pin as featured card at the top of Countdowns"
+                  />
+
+                  {/* Time & All-Day option */}
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 6,
                       background: "var(--surface)",
-                      padding: "8px 12px",
+                      padding: 12,
                       borderRadius: 12,
                       border: "1px solid var(--border)"
                     }}
                   >
-                    {REMINDER_OPTIONS.map((opt) => {
-                      const checked = selectedReminders.includes(opt.daysBefore);
-                      return (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                      }}
+                    >
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+                        All-day event
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={allDay}
+                        onChange={(e) => setAllDay(e.target.checked)}
+                        style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
+                      />
+                    </div>
+
+                    {!allDay ? (
+                      <div style={{ marginTop: 10 }}>
                         <label
-                          key={opt.daysBefore}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            fontSize: 12.5,
-                            color: "var(--ink)",
-                            cursor: "pointer",
-                            padding: "4px 0"
+                            fontSize: 12,
+                            color: "var(--ink-muted)",
+                            display: "block",
+                            marginBottom: 4
                           }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleReminder(opt.daysBefore)}
-                            style={{ accentColor: "var(--accent)" }}
-                          />
-                          <span>{opt.label}</span>
+                          Target Time
                         </label>
-                      );
-                    })}
+                        <input
+                          type="time"
+                          className="input"
+                          value={targetTime}
+                          onChange={(e) => setTargetTime(e.target.value)}
+                          onFocus={handleInputFocus}
+                          style={{ width: "100%", minHeight: 38 }}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                </div>
 
-                {/* Notes */}
-                <div>
-                  <label
-                    htmlFor="countdown-notes"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      display: "block",
-                      marginBottom: 6
-                    }}
-                  >
-                    Notes (optional)
-                  </label>
-                  <textarea
-                    id="countdown-notes"
-                    className="input"
-                    rows={2}
-                    placeholder="Details, flight numbers, milestone checklist..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                  {/* Recurrence (Birthdays, Anniversaries) */}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--ink-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        display: "block",
+                        marginBottom: 6
+                      }}
+                    >
+                      Repeat
+                    </label>
+                    <select
+                      className="input"
+                      value={recurrenceFreq}
+                      onChange={(e) => setRecurrenceFreq(e.target.value as any)}
+                      style={{
+                        width: "100%",
+                        minHeight: 40,
+                        background: "var(--surface)",
+                        fontSize: 13.5
+                      }}
+                    >
+                      <option value="none">Does not repeat</option>
+                      <option value="yearly">Every year (Yearly)</option>
+                      <option value="monthly">Every month (Monthly)</option>
+                      <option value="weekly">Every week (Weekly)</option>
+                      <option value="daily">Every day (Daily)</option>
+                    </select>
+                  </div>
+
+                  {/* Reminders */}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--ink-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        display: "block",
+                        marginBottom: 6
+                      }}
+                    >
+                      Reminders
+                    </label>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 6,
+                        background: "var(--surface)",
+                        padding: "8px 12px",
+                        borderRadius: 12,
+                        border: "1px solid var(--border)"
+                      }}
+                    >
+                      {REMINDER_OPTIONS.map((opt) => {
+                        const checked = selectedReminders.includes(opt.daysBefore);
+                        return (
+                          <label
+                            key={opt.daysBefore}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              fontSize: 12.5,
+                              color: "var(--ink)",
+                              cursor: "pointer",
+                              padding: "4px 0"
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleReminder(opt.daysBefore)}
+                              style={{ accentColor: "var(--accent)" }}
+                            />
+                            <span>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label
+                      htmlFor="countdown-notes"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--ink-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        display: "block",
+                        marginBottom: 6
+                      }}
+                    >
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      id="countdown-notes"
+                      className="input"
+                      rows={2}
+                      placeholder="Details, flight numbers, milestone checklist..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      onFocus={handleInputFocus}
+                      style={{
+                        width: "100%",
+                        resize: "vertical",
+                        fontFamily: "inherit",
+                        background: "var(--surface)"
+                      }}
+                    />
+                  </div>
+
+                  {/* Secondary Save/Create action at the bottom of advanced options */}
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     style={{
                       width: "100%",
-                      resize: "vertical",
-                      fontFamily: "inherit",
-                      background: "var(--surface)"
+                      minHeight: 46,
+                      background: "var(--accent, #10b981)",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      borderRadius: 12,
+                      marginTop: 8
                     }}
-                  />
+                  >
+                    {isEditing ? "Save Changes" : "Create Countdown"}
+                  </button>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </form>
       </div>

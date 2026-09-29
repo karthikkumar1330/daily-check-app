@@ -28,12 +28,30 @@ export default function CountdownDetailModal({
   onToast
 }: CountdownDetailModalProps) {
   useBodyScrollLock(true);
+  const [isClosing, setIsClosing] = useState(false);
+  const closingTimeoutRef = useRef<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [milestonesExpanded, setMilestonesExpanded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const status = computeCountdownStatus(countdown, todayStr());
+
+  function handleClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    closingTimeoutRef.current = window.setTimeout(() => {
+      onClose();
+    }, 280);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closingTimeoutRef.current) {
+        window.clearTimeout(closingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Close overflow menu on outside click
   useEffect(() => {
@@ -51,11 +69,11 @@ export default function CountdownDetailModal({
   // Handle escape key
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [isClosing]);
 
   async function handleShare() {
     const text = `${countdown.icon} ${countdown.title}\n${status.displayValue} ${status.displayUnit}\nTarget: ${formatLong(countdown.targetDate)}${countdown.targetTime ? " at " + countdown.targetTime : ""}\n— via Daily Check`;
@@ -86,9 +104,12 @@ export default function CountdownDetailModal({
   const isCountUp = countdown.mode === "countup";
 
   return (
-    <div className="countdown-sheet-overlay" onClick={onClose}>
+    <div
+      className={`countdown-sheet-overlay ${isClosing ? "is-closing" : ""}`}
+      onClick={handleClose}
+    >
       <div
-        className="countdown-sheet"
+        className={`countdown-sheet ${isClosing ? "is-closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -104,7 +125,7 @@ export default function CountdownDetailModal({
           <button
             type="button"
             className="icon-btn"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Back to countdowns"
             style={{
               display: "inline-flex",
@@ -140,7 +161,7 @@ export default function CountdownDetailModal({
             <button
               type="button"
               className="icon-btn"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Close dialog"
               style={{ width: 36, height: 36 }}
             >
