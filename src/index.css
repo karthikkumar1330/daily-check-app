@@ -3625,3 +3625,181 @@ textarea:focus-visible,
   }
 }
 
+/* ==========================================================================
+   Countdown V2 — Premium Redesign Styles
+   ========================================================================== */
+
+.countdown-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1050;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  animation: overlayFadeIn 0.2s ease-out;
+}
+
+@media (min-width: 641px) {
+  .countdown-sheet-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+}
+
+.countdown-sheet {
+  background: var(--surface);
+  color: var(--ink);
+  width: 100%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border: 1px solid var(--border);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  animation: countdownSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 641px) {
+  .countdown-sheet {
+    max-width: 490px;
+    max-height: 88vh;
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+    animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes countdownSheetSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.countdown-grab-handle-bar {
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+  padding-bottom: 2px;
+}
+
+@media (min-width: 641px) {
+  .countdown-grab-handle-bar {
+    display: none;
+  }
+}
+
+.countdown-grab-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  opacity: 0.8;
+}
+
+.countdown-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.countdown-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 12px));
+  flex: 1;
+}
+
+/* Card Hero Styles */
+.countdown-hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.countdown-hero-card:hover {
+  border-color: var(--border-hover, var(--border));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.countdown-list-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.countdown-list-card:hover {
+  border-color: var(--border-hover, var(--border));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Filter pills */
+.countdown-filter-pill {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.countdown-filter-pill:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.countdown-filter-pill.active {
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
+}
+
+/* Accordion transition for advanced options */
+.countdown-accordion-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.countdown-accordion-toggle:hover {
+  background: var(--border);
+}
+
