@@ -8,9 +8,7 @@ import { consumePendingDeepLink } from "../../utils/notificationStorage";
 import { dayStats } from "../../utils/progressUtils";
 import DateNavigator from "../../components/DateNavigator/DateNavigator";
 import ProgressCard from "../../components/ProgressCard/ProgressCard";
-import CountdownCard from "../../components/CountdownGoal/CountdownCard";
-import TodayRoutinesBar from "../../components/Routines/TodayRoutinesBar";
-import TodayFocusSection from "../../components/Focus/TodayFocusSection";
+import TodayContext from "../../components/TodayContext/TodayContext";
 import FocusSelectorModal from "../../components/Focus/FocusSelectorModal";
 import QuickAddTask from "../../components/QuickAddTask/QuickAddTask";
 import TaskList from "../../components/TaskList/TaskList";
@@ -151,12 +149,6 @@ export default function Today() {
   }, [viewDate, getDay]);
 
   const isToday = viewDate === currentToday;
-  const isFuture = viewDate > currentToday;
-  const greeting = isToday
-    ? "Let’s make today count 💪"
-    : isFuture
-    ? "Planning ahead for this day"
-    : "Looking back at this day";
   const day = getDay(viewDate);
   const stats = dayStats(day);
 
@@ -189,9 +181,8 @@ export default function Today() {
   return (
     <div className="page today-page">
       <div className="today-header-block">
-        <div className="today-weekday-label">{weekdayFull(viewDate)}</div>
         <h1 className="today-date-heading">{formatDayMonth(viewDate)}</h1>
-        <p className="page-greeting">{greeting}</p>
+        <div className="today-weekday-label">{weekdayFull(viewDate)}</div>
       </div>
 
 
@@ -317,18 +308,12 @@ export default function Today() {
         )}
       </div>
 
-      {/* Contextual Sections (Render only when real user data exists) */}
-      <TodayFocusSection
-        dateStr={viewDate}
+      {/* Adaptive Today's Context zone (Renders ONLY when real contextual data exists) */}
+      <TodayContext
+        viewDate={viewDate}
         tasks={day.tasks}
-        onToggleTask={(id) => toggleTask(viewDate, id)}
-        onToggleFocus={handleToggleFocus}
-        onOpenSelector={() => setFocusSelectorOpen(true)}
+        onOpenFocusSelector={() => setFocusSelectorOpen(true)}
       />
-
-      <TodayRoutinesBar viewDate={viewDate} onToast={showToast} />
-
-      <CountdownCard />
 
       {focusSelectorOpen ? (
         <FocusSelectorModal

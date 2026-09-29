@@ -2238,26 +2238,87 @@ textarea:focus-visible,
 .today-header-block {
   margin-bottom: 12px;
 }
-.today-weekday-label {
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  margin-bottom: 2px;
-}
 .today-date-heading {
   font-size: clamp(22px, 6.5vw, 28px);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--ink);
-  margin: 0 0 4px;
+  margin: 0 0 2px;
 }
-.page-greeting {
-  font-size: 13.5px;
+.today-weekday-label {
+  font-size: 14.5px;
+  font-weight: 500;
   color: var(--ink-muted);
   margin: 0;
+  letter-spacing: normal;
+  text-transform: capitalize;
+}
+
+/* Today's Context Adaptive Zone */
+.today-context-section {
+  margin-top: 20px;
+  margin-bottom: 16px;
+}
+.today-context-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  min-height: 44px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+.today-context-row:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+.today-context-row:active {
+  transform: scale(0.995);
+}
+.today-context-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.today-context-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.today-context-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-context-row-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.today-context-info {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+.today-context-arrow {
+  font-size: 13px;
+  color: var(--ink-muted);
+  opacity: 0.7;
 }
 
 
