@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Countdown } from "../../types";
 import { computeCountdownStatus } from "../../utils/countdownUtils";
 import { formatLong, formatShort, todayStr } from "../../utils/dateUtils";
@@ -103,70 +104,83 @@ export default function CountdownDetailModal({
   const isCompleted = countdown.mode !== "countup" && status.phase === "completed";
   const isCountUp = countdown.mode === "countup";
 
-  return (
-    <div
-      className={`countdown-sheet-overlay ${isClosing ? "is-closing" : ""}`}
-      onClick={handleClose}
-    >
+  const detailContent = (
+    <>
+      {/* Viewport-level Backdrop */}
       <div
-        className={`countdown-sheet ${isClosing ? "is-closing" : ""}`}
-        onClick={(e) => e.stopPropagation()}
+        className={`countdown-sheet-backdrop ${isClosing ? "is-closing" : ""}`}
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+
+      {/* True Viewport-anchored Bottom Sheet */}
+      <div
+        className={`countdown-sheet is-expanded ${isClosing ? "is-closing" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="countdown-detail-title"
       >
-        {/* Mobile Grab Handle */}
-        <div className="countdown-grab-handle-bar">
-          <div className="countdown-grab-handle" />
-        </div>
-
-        {/* Header Bar */}
+        {/* Header Bar with Grab Handle */}
         <div className="countdown-sheet-header">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={handleClose}
-            aria-label="Back to countdowns"
+          <div className="countdown-grab-handle-bar">
+            <div className="countdown-grab-handle" />
+          </div>
+
+          <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: 4,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: "var(--ink)",
-              width: "auto",
-              padding: "4px 8px"
+              justifyContent: "space-between",
+              width: "100%",
+              paddingTop: 2
             }}
           >
-            <BackIcon />
-            <span>Countdown</span>
-          </button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {countdown.pinned ? (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "var(--accent, #10b981)",
-                  background: "rgba(16, 185, 129, 0.12)",
-                  padding: "3px 8px",
-                  borderRadius: 12
-                }}
-              >
-                PINNED
-              </span>
-            ) : null}
-
             <button
               type="button"
               className="icon-btn"
               onClick={handleClose}
-              aria-label="Close dialog"
-              style={{ width: 36, height: 36 }}
+              aria-label="Back to countdowns"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--ink)",
+                width: "auto",
+                padding: "4px 8px"
+              }}
             >
-              <CloseIcon />
+              <BackIcon />
+              <span>Countdown</span>
             </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {countdown.pinned ? (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--accent, #10b981)",
+                    background: "rgba(16, 185, 129, 0.12)",
+                    padding: "3px 8px",
+                    borderRadius: 12
+                  }}
+                >
+                  PINNED
+                </span>
+              ) : null}
+
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={handleClose}
+                aria-label="Close dialog"
+                style={{ width: 36, height: 36 }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -746,6 +760,8 @@ export default function CountdownDetailModal({
           />
         ) : null}
       </div>
-    </div>
+    </>
   );
+
+  return typeof document !== "undefined" ? createPortal(detailContent, document.body) : null;
 }

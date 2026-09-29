@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
   Countdown,
   CountdownDisplayMode,
@@ -57,18 +58,19 @@ function ToggleSwitch({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "10px 12px",
-        borderRadius: 12,
+        padding: "12px 14px",
+        borderRadius: 14,
         background: "var(--surface)",
         border: "1px solid var(--border)",
         cursor: "pointer",
-        userSelect: "none"
+        userSelect: "none",
+        minHeight: 48
       }}
     >
-      <div>
+      <div style={{ flex: 1, paddingRight: 10 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{label}</div>
         {description ? (
-          <div style={{ fontSize: 11.5, color: "var(--ink-muted)", marginTop: 2 }}>
+          <div style={{ fontSize: 11.5, color: "var(--ink-muted)", marginTop: 2, lineHeight: 1.4 }}>
             {description}
           </div>
         ) : null}
@@ -84,14 +86,13 @@ function ToggleSwitch({
           }
         }}
         style={{
-          width: 42,
+          width: 44,
           height: 24,
           borderRadius: 12,
           background: checked ? "var(--accent, #10b981)" : "var(--border)",
           position: "relative",
           transition: "background 0.2s ease",
-          flexShrink: 0,
-          marginLeft: 12
+          flexShrink: 0
         }}
       >
         <div
@@ -102,7 +103,7 @@ function ToggleSwitch({
             background: "#fff",
             position: "absolute",
             top: 3,
-            left: checked ? 21 : 3,
+            left: checked ? 23 : 3,
             transition: "left 0.2s ease",
             boxShadow: "0 1px 3px rgba(0,0,0,0.25)"
           }}
@@ -150,7 +151,7 @@ export default function CountdownFormModal({
   });
   const [notes, setNotes] = useState(initialCountdown?.notes || "");
 
-  // Progressive disclosure state
+  // Progressive disclosure: collapsed by default for compact native sheet
   const [advancedOpen, setAdvancedOpen] = useState(
     Boolean(
       initialCountdown &&
@@ -166,12 +167,16 @@ export default function CountdownFormModal({
   const [error, setError] = useState<string | null>(null);
 
   // Smooth exit handler
-  function handleClose() {
+  function handleClose(callback?: () => void) {
     if (isClosing) return;
     setIsClosing(true);
     closingTimeoutRef.current = window.setTimeout(() => {
-      onCancel();
-    }, 280);
+      if (callback) {
+        callback();
+      } else {
+        onCancel();
+      }
+    }, 270);
   }
 
   useEffect(() => {
@@ -225,7 +230,7 @@ export default function CountdownFormModal({
       enabled: true
     }));
 
-    onSave({
+    const dataToSave = {
       title: cleanTitle,
       icon: icon || "🎯",
       targetDate,
@@ -245,63 +250,81 @@ export default function CountdownFormModal({
           : undefined,
       reminders,
       notes: notes.trim() || undefined
+    };
+
+    // Smooth exit animation before unmounting on successful creation
+    handleClose(() => {
+      onSave(dataToSave);
     });
   }
 
   // Smooth scroll into view when input receives focus to prevent keyboard obstruction
   function handleInputFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setTimeout(() => {
-      e.target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      e.target.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 120);
   }
 
-  return (
-    <div
-      className={`countdown-sheet-overlay ${isClosing ? "is-closing" : ""}`}
-      onClick={handleClose}
-    >
+  const modalContent = (
+    <>
+      {/* Viewport-level Backdrop */}
       <div
-        className={`countdown-sheet ${isClosing ? "is-closing" : ""}`}
-        onClick={(e) => e.stopPropagation()}
+        className={`countdown-sheet-backdrop ${isClosing ? "is-closing" : ""}`}
+        onClick={() => handleClose()}
+        aria-hidden="true"
+      />
+
+      {/* True Viewport-anchored Bottom Sheet */}
+      <div
+        className={`countdown-sheet ${advancedOpen ? "is-expanded" : ""} ${isClosing ? "is-closing" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="countdown-modal-title"
       >
-        {/* Mobile Grab Handle */}
-        <div className="countdown-grab-handle-bar">
-          <div className="countdown-grab-handle" />
-        </div>
-
-        {/* Form wrapping fixed header and scrollable body */}
+        {/* Form wrapping sticky header and scrollable body */}
         <form onSubmit={handleSubmit} className="countdown-sheet-form">
-          {/* Header - Stays permanently visible while body scrolls */}
+          {/* Header with visual drag handle & sticky title row */}
           <div className="countdown-sheet-header">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }} aria-hidden="true">
-                {icon}
-              </span>
-              <h2
-                id="countdown-modal-title"
-                style={{
-                  fontSize: 17.5,
-                  fontWeight: 700,
-                  margin: 0,
-                  color: "var(--ink)",
-                  letterSpacing: "-0.01em"
-                }}
-              >
-                {isEditing ? "Edit Countdown" : "New Countdown"}
-              </h2>
+            <div className="countdown-grab-handle-bar">
+              <div className="countdown-grab-handle" />
             </div>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={handleClose}
-              aria-label="Close dialog"
-              style={{ width: 36, height: 36 }}
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                paddingTop: 2
+              }}
             >
-              <CloseIcon />
-            </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }} aria-hidden="true">
+                  {icon}
+                </span>
+                <h2
+                  id="countdown-modal-title"
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    margin: 0,
+                    color: "var(--ink)",
+                    letterSpacing: "-0.01em"
+                  }}
+                >
+                  {isEditing ? "Edit Countdown" : "New Countdown"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => handleClose()}
+                aria-label="Close dialog"
+                style={{ width: 36, height: 36 }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
           </div>
 
           {/* Scrollable Body - ONLY this area scrolls */}
@@ -312,18 +335,18 @@ export default function CountdownFormModal({
                   padding: "10px 14px",
                   background: "rgba(239, 68, 68, 0.1)",
                   color: "var(--danger, #ef4444)",
-                  borderRadius: 10,
+                  borderRadius: 12,
                   fontSize: 13,
                   fontWeight: 600,
-                  marginBottom: 16
+                  marginBottom: 14
                 }}
               >
                 {error}
               </div>
             ) : null}
 
-            {/* Section 1: What are you counting toward? */}
-            <div style={{ marginBottom: 18 }}>
+            {/* Step 1: What are you counting down to? */}
+            <div style={{ marginBottom: 16 }}>
               <label
                 htmlFor="countdown-title"
                 style={{
@@ -338,7 +361,7 @@ export default function CountdownFormModal({
               </label>
 
               <div style={{ display: "flex", gap: 8, position: "relative" }}>
-                {/* Emoji Button */}
+                {/* Emoji Selector Button */}
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker((v) => !v)}
@@ -401,12 +424,12 @@ export default function CountdownFormModal({
                   </div>
                 ) : null}
 
-                {/* Title Input */}
+                {/* Name Input */}
                 <input
                   id="countdown-title"
                   type="text"
                   className="input"
-                  placeholder="e.g. SBI PO Exam, Trip, Birthday"
+                  placeholder="e.g. Exam, Trip, Birthday..."
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
@@ -426,9 +449,9 @@ export default function CountdownFormModal({
               </div>
             </div>
 
-            {/* Section 2: Choose a template (only on new) */}
+            {/* Step 2: Choose a template (only on new countdown) */}
             {!isEditing ? (
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div
                   style={{
                     fontSize: 11.5,
@@ -453,11 +476,12 @@ export default function CountdownFormModal({
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 5,
-                          fontSize: 12.5,
+                          gap: 6,
+                          fontSize: 13,
                           fontWeight: 600,
-                          padding: "6px 12px",
-                          borderRadius: 18,
+                          padding: "8px 14px",
+                          minHeight: 42,
+                          borderRadius: 20,
                           background: isSelected ? "var(--surface-hover)" : "var(--surface)",
                           border: `1px solid ${isSelected ? "var(--ink)" : "var(--border)"}`,
                           color: "var(--ink)",
@@ -474,8 +498,8 @@ export default function CountdownFormModal({
               </div>
             ) : null}
 
-            {/* Section 3: Target date */}
-            <div style={{ marginBottom: 20 }}>
+            {/* Step 3: Target date */}
+            <div style={{ marginBottom: 18 }}>
               <label
                 htmlFor="countdown-target-date"
                 style={{
@@ -499,14 +523,14 @@ export default function CountdownFormModal({
                 style={{
                   width: "100%",
                   minHeight: 46,
-                  fontSize: 14,
+                  fontSize: 14.5,
                   borderRadius: 12,
                   padding: "0 14px"
                 }}
               />
             </div>
 
-            {/* Primary CTA */}
+            {/* Primary Action Button: Create Countdown */}
             <button
               type="submit"
               className="btn btn-primary"
@@ -515,18 +539,18 @@ export default function CountdownFormModal({
                 minHeight: 48,
                 background: "var(--accent, #10b981)",
                 color: "#fff",
-                fontSize: 14.5,
+                fontSize: 15,
                 fontWeight: 700,
-                borderRadius: 12,
-                marginBottom: 16,
-                boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)"
+                borderRadius: 14,
+                marginBottom: 12,
+                boxShadow: "0 3px 10px rgba(16, 185, 129, 0.28)"
               }}
             >
               {isEditing ? "Save Changes" : "Create Countdown"}
             </button>
 
             {/* Progressive Disclosure: Advanced options accordion */}
-            <div>
+            <div style={{ marginBottom: 4 }}>
               <button
                 type="button"
                 className="countdown-accordion-toggle"
@@ -546,21 +570,21 @@ export default function CountdownFormModal({
                     padding: "16px 14px",
                     background: "var(--surface-hover)",
                     border: "1px solid var(--border)",
-                    borderRadius: 14,
+                    borderRadius: 16,
                     display: "flex",
                     flexDirection: "column",
                     gap: 14
                   }}
                 >
-                  {/* Mode Segmented Control */}
+                  {/* Mode: Countdown vs Count Up */}
                   <div>
                     <label
                       style={{
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         color: "var(--ink-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.06em",
                         display: "block",
                         marginBottom: 6
                       }}
@@ -571,7 +595,7 @@ export default function CountdownFormModal({
                       style={{
                         display: "flex",
                         background: "var(--surface)",
-                        borderRadius: 10,
+                        borderRadius: 12,
                         padding: 3,
                         border: "1px solid var(--border)"
                       }}
@@ -581,8 +605,8 @@ export default function CountdownFormModal({
                         onClick={() => setMode("countdown")}
                         style={{
                           flex: 1,
-                          padding: "8px 12px",
-                          borderRadius: 8,
+                          padding: "10px 12px",
+                          borderRadius: 10,
                           fontSize: 13,
                           fontWeight: 600,
                           border: "none",
@@ -599,8 +623,8 @@ export default function CountdownFormModal({
                         onClick={() => setMode("countup")}
                         style={{
                           flex: 1,
-                          padding: "8px 12px",
-                          borderRadius: 8,
+                          padding: "10px 12px",
+                          borderRadius: 10,
                           fontSize: 13,
                           fontWeight: 600,
                           border: "none",
@@ -619,11 +643,11 @@ export default function CountdownFormModal({
                   <div>
                     <label
                       style={{
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         color: "var(--ink-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.06em",
                         display: "block",
                         marginBottom: 6
                       }}
@@ -636,9 +660,10 @@ export default function CountdownFormModal({
                       onChange={(e) => setDisplayMode(e.target.value as CountdownDisplayMode)}
                       style={{
                         width: "100%",
-                        minHeight: 40,
+                        minHeight: 44,
                         background: "var(--surface)",
-                        fontSize: 13.5
+                        fontSize: 13.5,
+                        borderRadius: 12
                       }}
                     >
                       <option value="days">Days</option>
@@ -655,7 +680,7 @@ export default function CountdownFormModal({
                     description="Exclude Saturdays &amp; Sundays from remaining count"
                   />
 
-                  {/* Show on Today toggle (Prominently featured) */}
+                  {/* Show on Today toggle */}
                   <ToggleSwitch
                     checked={showOnToday}
                     onChange={setShowOnToday}
@@ -668,15 +693,15 @@ export default function CountdownFormModal({
                     checked={pinned}
                     onChange={setPinned}
                     label="Pin to top"
-                    description="Pin as featured card at the top of Countdowns"
+                    description="Feature as pinned card at the top of Countdowns"
                   />
 
-                  {/* Time & All-Day option */}
+                  {/* All-day event & Time */}
                   <div
                     style={{
                       background: "var(--surface)",
-                      padding: 12,
-                      borderRadius: 12,
+                      padding: "12px 14px",
+                      borderRadius: 14,
                       border: "1px solid var(--border)"
                     }}
                   >
@@ -684,7 +709,8 @@ export default function CountdownFormModal({
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "space-between"
+                        justifyContent: "space-between",
+                        minHeight: 32
                       }}
                     >
                       <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
@@ -694,12 +720,12 @@ export default function CountdownFormModal({
                         type="checkbox"
                         checked={allDay}
                         onChange={(e) => setAllDay(e.target.checked)}
-                        style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
+                        style={{ width: 20, height: 20, accentColor: "var(--accent)" }}
                       />
                     </div>
 
                     {!allDay ? (
-                      <div style={{ marginTop: 10 }}>
+                      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
                         <label
                           style={{
                             fontSize: 12,
@@ -716,7 +742,7 @@ export default function CountdownFormModal({
                           value={targetTime}
                           onChange={(e) => setTargetTime(e.target.value)}
                           onFocus={handleInputFocus}
-                          style={{ width: "100%", minHeight: 38 }}
+                          style={{ width: "100%", minHeight: 40, borderRadius: 10 }}
                         />
                       </div>
                     ) : null}
@@ -726,11 +752,11 @@ export default function CountdownFormModal({
                   <div>
                     <label
                       style={{
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         color: "var(--ink-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.06em",
                         display: "block",
                         marginBottom: 6
                       }}
@@ -743,9 +769,10 @@ export default function CountdownFormModal({
                       onChange={(e) => setRecurrenceFreq(e.target.value as any)}
                       style={{
                         width: "100%",
-                        minHeight: 40,
+                        minHeight: 44,
                         background: "var(--surface)",
-                        fontSize: 13.5
+                        fontSize: 13.5,
+                        borderRadius: 12
                       }}
                     >
                       <option value="none">Does not repeat</option>
@@ -760,11 +787,11 @@ export default function CountdownFormModal({
                   <div>
                     <label
                       style={{
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         color: "var(--ink-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.06em",
                         display: "block",
                         marginBottom: 6
                       }}
@@ -775,10 +802,10 @@ export default function CountdownFormModal({
                       style={{
                         display: "grid",
                         gridTemplateColumns: "1fr 1fr",
-                        gap: 6,
+                        gap: 8,
                         background: "var(--surface)",
-                        padding: "8px 12px",
-                        borderRadius: 12,
+                        padding: "10px 12px",
+                        borderRadius: 14,
                         border: "1px solid var(--border)"
                       }}
                     >
@@ -794,14 +821,15 @@ export default function CountdownFormModal({
                               fontSize: 12.5,
                               color: "var(--ink)",
                               cursor: "pointer",
-                              padding: "4px 0"
+                              padding: "6px 0",
+                              minHeight: 38
                             }}
                           >
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleReminder(opt.daysBefore)}
-                              style={{ accentColor: "var(--accent)" }}
+                              style={{ width: 17, height: 17, accentColor: "var(--accent)" }}
                             />
                             <span>{opt.label}</span>
                           </label>
@@ -815,11 +843,11 @@ export default function CountdownFormModal({
                     <label
                       htmlFor="countdown-notes"
                       style={{
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         color: "var(--ink-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
+                        letterSpacing: "0.06em",
                         display: "block",
                         marginBottom: 6
                       }}
@@ -838,12 +866,13 @@ export default function CountdownFormModal({
                         width: "100%",
                         resize: "vertical",
                         fontFamily: "inherit",
-                        background: "var(--surface)"
+                        background: "var(--surface)",
+                        borderRadius: 12
                       }}
                     />
                   </div>
 
-                  {/* Secondary Save/Create action at the bottom of advanced options */}
+                  {/* Secondary Create/Save button at the base of Advanced Options */}
                   <button
                     type="submit"
                     className="btn btn-primary"
@@ -852,10 +881,10 @@ export default function CountdownFormModal({
                       minHeight: 46,
                       background: "var(--accent, #10b981)",
                       color: "#fff",
-                      fontSize: 14,
+                      fontSize: 14.5,
                       fontWeight: 700,
                       borderRadius: 12,
-                      marginTop: 8
+                      marginTop: 6
                     }}
                   >
                     {isEditing ? "Save Changes" : "Create Countdown"}
@@ -866,6 +895,8 @@ export default function CountdownFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : null;
 }

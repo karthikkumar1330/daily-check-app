@@ -3629,22 +3629,20 @@ textarea:focus-visible,
    Countdown V2 — Premium Mobile Bottom Sheet & Responsive Modal
    ========================================================================== */
 
-.countdown-sheet-overlay {
+.countdown-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.48);
+  background: rgba(0, 0, 0, 0.54);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 1050;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
+  z-index: 1000;
   opacity: 1;
   transition: opacity 240ms ease;
   animation: countdownBackdropFadeIn 240ms ease forwards;
+  pointer-events: auto;
 }
 
-.countdown-sheet-overlay.is-closing {
+.countdown-sheet-backdrop.is-closing {
   opacity: 0;
   pointer-events: none;
 }
@@ -3658,13 +3656,7 @@ textarea:focus-visible,
   }
 }
 
-@media (min-width: 641px) {
-  .countdown-sheet-overlay {
-    align-items: center;
-    padding: 24px;
-  }
-}
-
+/* Mobile <= 640px: True Viewport Bottom Sheet */
 .countdown-sheet {
   background: var(--surface);
   color: var(--ink);
@@ -3674,8 +3666,11 @@ textarea:focus-visible,
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: 92vh;
-  max-height: min(92dvh, 760px);
+  z-index: 1001;
+  height: auto;
+  min-height: min(340px, 85dvh);
+  max-height: 60dvh;
+  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3685,15 +3680,19 @@ textarea:focus-visible,
   border-bottom-right-radius: 0;
   border: 1px solid var(--border);
   border-bottom: none;
-  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   will-change: transform;
   transform: translateY(0);
   animation: countdownSheetSlideIn 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.countdown-sheet.is-expanded {
+  max-height: min(92dvh, 760px);
+}
+
 .countdown-sheet.is-closing {
-  animation: countdownSheetSlideOut 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: countdownSheetSlideOut 270ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes countdownSheetSlideIn {
@@ -3714,19 +3713,28 @@ textarea:focus-visible,
   }
 }
 
+/* Desktop >= 641px: Centered Responsive Modal */
 @media (min-width: 641px) {
   .countdown-sheet {
-    position: relative;
-    left: auto;
-    right: auto;
+    position: fixed;
+    top: 50%;
+    left: 50%;
     bottom: auto;
-    max-width: 490px;
-    max-height: 88vh;
-    max-height: min(88dvh, 780px);
+    right: auto;
+    width: calc(100% - 48px);
+    max-width: 520px;
+    height: auto;
+    max-height: 85vh;
     border-radius: 20px;
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.24);
+    transform: translate(-50%, -50%);
     animation: countdownModalScaleIn 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .countdown-sheet.is-expanded {
+    height: auto;
+    max-height: 85vh;
   }
 
   .countdown-sheet.is-closing {
@@ -3737,22 +3745,22 @@ textarea:focus-visible,
 @keyframes countdownModalScaleIn {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(8px);
+    transform: translate(-50%, -48%) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
 @keyframes countdownModalScaleOut {
   from {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translate(-50%, -50%) scale(1);
   }
   to {
     opacity: 0;
-    transform: scale(0.96) translateY(8px);
+    transform: translate(-50%, -48%) scale(0.96);
   }
 }
 
@@ -3760,8 +3768,8 @@ textarea:focus-visible,
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  padding-top: 8px;
-  padding-bottom: 4px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 @media (min-width: 641px) {
@@ -3780,14 +3788,14 @@ textarea:focus-visible,
 
 .countdown-sheet-header {
   flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px 14px;
+  flex-direction: column;
+  padding: 4px 18px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  position: relative;
-  z-index: 2;
 }
 
 .countdown-sheet-form {
@@ -3795,6 +3803,7 @@ textarea:focus-visible,
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   width: 100%;
   overflow: hidden;
 }
@@ -3805,7 +3814,7 @@ textarea:focus-visible,
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 16px));
+  padding: 16px 18px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Card Hero Styles */
