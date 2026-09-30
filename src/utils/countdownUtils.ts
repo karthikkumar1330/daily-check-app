@@ -1,5 +1,5 @@
 import type { Countdown, CountdownDisplayMode, CountdownMode } from "../types";
-import { daysBetweenCalendar, parseDateStr, toDateStr, todayStr } from "./dateUtils";
+import { addDays, daysBetweenCalendar, parseDateStr, toDateStr, todayStr } from "./dateUtils";
 
 export type CountdownPhase = "upcoming" | "today" | "completed";
 
@@ -62,6 +62,35 @@ export function formatDays(count: number): string {
 export function formatMilestoneDays(days: number): string {
   if (days === 0) return "Target day";
   return formatDays(days);
+}
+
+/**
+ * Contextual smart target date display:
+ * - Today -> "Today"
+ * - Tomorrow -> "Tomorrow"
+ * - Same year -> "24 October"
+ * - Different year -> "31 March 2027"
+ */
+export function formatSmartTargetDate(targetDate: string, referenceDate: string = todayStr()): string {
+  if (targetDate === referenceDate) return "Today";
+  if (targetDate === addDays(referenceDate, 1)) return "Tomorrow";
+
+  const target = parseDateStr(targetDate);
+  const ref = parseDateStr(referenceDate);
+
+  if (target.getFullYear() === ref.getFullYear()) {
+    return target.toLocaleDateString("en-US", { day: "numeric", month: "long" });
+  }
+
+  return target.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/**
+ * Standard full date display format: "31 December 2026"
+ */
+export function formatFullTargetDate(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
 }
 
 const STANDARD_MILESTONES = [1000, 500, 365, 200, 100, 50, 30, 21, 14, 7, 3, 1, 0];

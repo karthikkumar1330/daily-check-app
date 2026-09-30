@@ -18,12 +18,14 @@ interface CountdownsContextValue {
   activeCountdowns: Countdown[];
   completedCountdowns: Countdown[];
   featuredCountdown: Countdown | null;
+  explicitFeaturedCountdown: Countdown | null;
   todayCountdown: Countdown | null;
   createCountdown: (item: Omit<Countdown, "id" | "createdAt" | "updatedAt">) => Countdown;
   updateCountdown: (id: string, updates: Partial<Countdown>) => void;
   deleteCountdown: (id: string) => void;
   duplicateCountdown: (id: string) => Countdown | null;
   togglePin: (id: string) => void;
+  toggleFeatured: (id: string) => void;
   toggleShowOnToday: (id: string) => void;
   replaceAllCountdowns: (data: CountdownsData) => void;
 }
@@ -69,21 +71,30 @@ export function CountdownsProvider({ children }: { children: ReactNode }) {
     return { activeCountdowns: active, completedCountdowns: completed };
   }, [countdowns, today]);
 
-  // Featured countdown: Pinned item first; if none, nearest upcoming active countdown
+  // Explicitly featured countdown (user marked featured === true)
+  const explicitFeaturedCountdown = useMemo<Countdown | null>(() => {
+    return activeCountdowns.find((c) => c.featured) || null;
+  }, [activeCountdowns]);
+
+  // Featured countdown: Explicitly featured item first; if none, pinned item; if none, nearest upcoming active countdown
   const featuredCountdown = useMemo<Countdown | null>(() => {
     if (activeCountdowns.length === 0) return null;
+    if (explicitFeaturedCountdown) return explicitFeaturedCountdown;
     const pinned = activeCountdowns.find((c) => c.pinned);
     if (pinned) return pinned;
     return activeCountdowns[0];
-  }, [activeCountdowns]);
+  }, [activeCountdowns, explicitFeaturedCountdown]);
 
-  // Today countdown: Must have showOnToday === true. Pinned first, then nearest active
+  // Today countdown: Must have showOnToday === true. Explicit featured first, then pinned, then nearest active
   const todayCountdown = useMemo<Countdown | null>(() => {
     const candidates = activeCountdowns.filter((c) => c.showOnToday);
     if (candidates.length === 0) return null;
+    if (explicitFeaturedCountdown && explicitFeaturedCountdown.showOnToday) {
+      return explicitFeaturedCountdown;
+    }
     const pinned = candidates.find((c) => c.pinned);
     return pinned || candidates[0];
-  }, [activeCountdowns]);
+  }, [activeCountdowns, explicitFeaturedCountdown]);
 
   const createCountdown = useCallback(
     (item: Omit<Countdown, "id" | "createdAt" | "updatedAt">): Countdown => {
@@ -185,6 +196,37 @@ export function CountdownsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const toggleFeatured = useCallback((id: string) => {
+    setData((prev) => {
+      const existing = prev.countdowns[id];
+      if (!existing) return prev;
+      const nextFeatured = !existing.featured;
+      const nextCountdowns: Record<string, Countdown> = {};
+      const now = new Date().toISOString();
+
+      for (const [key, c] of Object.entries(prev.countdowns)) {
+        if (key === id) {
+          nextCountdowns[key] = {
+            ...c,
+            featured: nextFeatured,
+            updatedAt: now
+          };
+        } else {
+          // At most one countdown can be featured at a time
+          nextCountdowns[key] =
+            nextFeatured && c.featured
+              ? { ...c, featured: false, updatedAt: now }
+              : c;
+        }
+      }
+
+      return {
+        ...prev,
+        countdowns: nextCountdowns
+      };
+    });
+  }, []);
+
   const toggleShowOnToday = useCallback((id: string) => {
     setData((prev) => {
       const existing = prev.countdowns[id];
@@ -214,12 +256,14 @@ export function CountdownsProvider({ children }: { children: ReactNode }) {
       activeCountdowns,
       completedCountdowns,
       featuredCountdown,
+      explicitFeaturedCountdown,
       todayCountdown,
       createCountdown,
       updateCountdown,
       deleteCountdown,
       duplicateCountdown,
       togglePin,
+      toggleFeatured,
       toggleShowOnToday,
       replaceAllCountdowns
     }),
@@ -229,12 +273,14 @@ export function CountdownsProvider({ children }: { children: ReactNode }) {
       activeCountdowns,
       completedCountdowns,
       featuredCountdown,
+      explicitFeaturedCountdown,
       todayCountdown,
       createCountdown,
       updateCountdown,
       deleteCountdown,
       duplicateCountdown,
       togglePin,
+      toggleFeatured,
       toggleShowOnToday,
       replaceAllCountdowns
     ]

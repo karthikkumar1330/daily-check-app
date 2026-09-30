@@ -170,6 +170,7 @@ export interface Countdown {
   countWorkingDays: boolean;
   showOnToday: boolean;
   pinned: boolean;
+  featured?: boolean;
   recurring?: CountdownRecurrence;
   reminders: CountdownReminder[];
   notes?: string;
