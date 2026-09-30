@@ -3637,13 +3637,12 @@ textarea:focus-visible,
   -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
   opacity: 1;
-  transition: opacity 240ms ease;
   animation: countdownBackdropFadeIn 240ms ease forwards;
   pointer-events: auto;
 }
 
 .countdown-sheet-backdrop.is-closing {
-  opacity: 0;
+  animation: countdownBackdropFadeOut 250ms ease forwards;
   pointer-events: none;
 }
 
@@ -3653,6 +3652,15 @@ textarea:focus-visible,
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes countdownBackdropFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
@@ -3668,9 +3676,8 @@ textarea:focus-visible,
   bottom: 0;
   z-index: 1001;
   height: auto;
-  min-height: min(340px, 85dvh);
-  max-height: 60dvh;
-  transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  max-height: min(calc(100vh - env(safe-area-inset-top, 0px) - 20px), 760px);
+  max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 20px), 760px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3680,15 +3687,12 @@ textarea:focus-visible,
   border-bottom-right-radius: 0;
   border: 1px solid var(--border);
   border-bottom: none;
-  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.28);
   overflow: hidden;
   will-change: transform;
   transform: translateY(0);
-  animation: countdownSheetSlideIn 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.countdown-sheet.is-expanded {
-  max-height: min(92dvh, 760px);
+  animation: countdownSheetSlideIn 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  touch-action: pan-y;
 }
 
 .countdown-sheet.is-closing {
@@ -3724,17 +3728,12 @@ textarea:focus-visible,
     width: calc(100% - 48px);
     max-width: 520px;
     height: auto;
-    max-height: 85vh;
+    max-height: min(85vh, 760px);
     border-radius: 20px;
     border: 1px solid var(--border);
     box-shadow: 0 16px 44px rgba(0, 0, 0, 0.24);
     transform: translate(-50%, -50%);
     animation: countdownModalScaleIn 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .countdown-sheet.is-expanded {
-    height: auto;
-    max-height: 85vh;
   }
 
   .countdown-sheet.is-closing {
@@ -3768,8 +3767,11 @@ textarea:focus-visible,
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  align-items: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  cursor: grab;
+  touch-action: none;
 }
 
 @media (min-width: 641px) {
@@ -3779,8 +3781,8 @@ textarea:focus-visible,
 }
 
 .countdown-grab-handle {
-  width: 38px;
-  height: 4px;
+  width: 40px;
+  height: 4.5px;
   border-radius: 999px;
   background: var(--border);
   opacity: 0.85;
@@ -3803,7 +3805,7 @@ textarea:focus-visible,
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
+  max-height: 100%;
   width: 100%;
   overflow: hidden;
 }
@@ -3814,38 +3816,256 @@ textarea:focus-visible,
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 16px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior-y: contain;
+  padding: 16px 18px calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Card Hero Styles */
-.countdown-hero-card {
+/* ==========================================================================
+   Countdown V2 — Minimal Glanceable Widget Cards & Dashboard
+   ========================================================================== */
+
+.countdown-page-container {
+  max-width: 580px;
+  margin: 0 auto;
+  padding: 0 16px 64px;
+}
+
+.countdown-widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.countdown-widget-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
   position: relative;
-  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+  user-select: none;
 }
 
-.countdown-hero-card:hover {
+.countdown-widget-card:hover {
   border-color: var(--border-hover, var(--border));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  background: var(--surface-hover, var(--surface));
 }
 
-.countdown-list-card {
+.countdown-widget-card:active {
+  transform: scale(0.995);
+}
+
+.countdown-widget-card.is-completed {
+  opacity: 0.82;
+}
+
+/* Card Top: Left (icon + number/status), Right (⋮ menu) */
+.countdown-widget-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.countdown-widget-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.countdown-widget-icon {
+  font-size: 20px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.countdown-widget-status {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.countdown-widget-status.status-upcoming {
+  color: var(--ink);
+}
+
+.countdown-widget-status.status-urgent {
+  color: var(--accent, #10b981);
+}
+
+.countdown-widget-status.status-today {
+  color: var(--accent, #10b981);
+}
+
+.countdown-widget-status.status-completed {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.countdown-widget-status.status-countup {
+  color: var(--ink);
+}
+
+.countdown-widget-badge-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent, #10b981);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.countdown-widget-today-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-hover);
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Actions Menu Trigger */
+.countdown-widget-actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.countdown-widget-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 19px;
+  line-height: 1;
+  padding: 0;
+  margin: -4px -6px -4px 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.countdown-widget-menu-btn:hover {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+/* Card Content: Title & Date with left margin to align under status */
+.countdown-widget-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 3px;
+  margin-left: 34px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.countdown-widget-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin-top: 2px;
+  margin-left: 34px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Section labels */
+.countdown-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* Overflow Menu Dropdown */
+.countdown-overflow-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 60;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  min-width: 175px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.countdown-list-card:hover {
-  border-color: var(--border-hover, var(--border));
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+.countdown-menu-item {
+  padding: 10px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  transition: background 0.12s ease;
+}
+
+.countdown-menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.countdown-menu-item:last-child {
+  border-bottom: none;
+}
+
+.countdown-menu-item-danger {
+  color: var(--danger, #ef4444);
+}
+
+@media (min-width: 641px) {
+  .desktop-inline-label {
+    display: inline !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-widget-card {
+    transition: none !important;
+  }
 }
 
 /* Filter pills */
@@ -3863,6 +4083,7 @@ textarea:focus-visible,
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  min-height: 36px;
 }
 
 .countdown-filter-pill:hover {

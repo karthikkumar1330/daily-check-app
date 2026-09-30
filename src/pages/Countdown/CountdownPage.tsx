@@ -2,8 +2,8 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCountdowns } from "../../hooks/useCountdowns";
 import type { Countdown } from "../../types";
-import { computeCountdownStatus } from "../../utils/countdownUtils";
-import { formatShort, todayStr } from "../../utils/dateUtils";
+import { computeCountdownStatus, type CountdownStatus } from "../../utils/countdownUtils";
+import { parseDateStr, todayStr } from "../../utils/dateUtils";
 import CountdownFormModal from "./CountdownFormModal";
 import CountdownDetailModal from "./CountdownDetailModal";
 import { BackIcon } from "../../components/icons";
@@ -11,6 +11,66 @@ import ConfirmModal from "../../components/Modals/ConfirmModal";
 
 type FilterTab = "all" | "active" | "completed";
 type SortOption = "target_asc" | "target_desc" | "pinned" | "recent";
+
+/**
+ * Format target date cleanly as "21 Oct 2026"
+ */
+function formatCardDate(dateStr: string): string {
+  const d = parseDateStr(dateStr);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleDateString("en-US", { month: "short" });
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+/**
+ * Derives the prominent glanceable status string (e.g. "21 DAYS LEFT", "TODAY", "✓ COMPLETED", "143 DAYS")
+ */
+function getStatusText(
+  countdown: Countdown,
+  status: CountdownStatus
+): { text: string; variant: "upcoming" | "urgent" | "today" | "completed" | "countup" } {
+  if (countdown.mode === "countup") {
+    if (status.rawDaysDiff === 0) return { text: "TODAY", variant: "today" };
+    if (status.rawDaysDiff < 0) {
+      const days = Math.abs(status.rawDaysDiff);
+      return { text: `${days} ${days === 1 ? "DAY" : "DAYS"}`, variant: "countup" };
+    }
+    return { text: `STARTS IN ${status.displayValue}D`, variant: "upcoming" };
+  }
+
+  if (status.phase === "completed") {
+    return { text: "✓ COMPLETED", variant: "completed" };
+  }
+
+  if (status.rawDaysDiff === 0) {
+    return { text: "TODAY", variant: "today" };
+  }
+
+  if (status.rawDaysDiff === 1 && !countdown.countWorkingDays) {
+    return { text: "1 DAY LEFT", variant: "urgent" };
+  }
+
+  if (countdown.displayMode === "weeksDays") {
+    const weeks = Math.floor(status.workingDaysLeft / 7);
+    const rem = status.workingDaysLeft % 7;
+    return { text: `${weeks}W ${rem}D LEFT`, variant: "upcoming" };
+  }
+
+  if (countdown.displayMode === "hours") {
+    return { text: `${status.workingDaysLeft * 24} HOURS LEFT`, variant: "upcoming" };
+  }
+
+  const days = countdown.countWorkingDays ? status.workingDaysLeft : status.daysLeft;
+  const unitText = countdown.countWorkingDays
+    ? days === 1 ? "WORK DAY LEFT" : "WORK DAYS LEFT"
+    : days === 1 ? "DAY LEFT" : "DAYS LEFT";
+
+  return {
+    text: `${days} ${unitText}`,
+    variant: days <= 3 ? "urgent" : "upcoming"
+  };
+}
 
 export default function CountdownPage() {
   const navigate = useNavigate();
@@ -101,130 +161,70 @@ export default function CountdownPage() {
   }, [activeCountdowns, completedCountdowns, searchQuery, sortBy]);
 
   const totalVisibleCount =
-    (filterTab === "completed"
+    filterTab === "completed"
       ? displayedCompleted.length
       : filterTab === "active"
       ? pinnedCountdowns.length + regularActiveCountdowns.length
-      : pinnedCountdowns.length + regularActiveCountdowns.length + displayedCompleted.length);
+      : pinnedCountdowns.length + regularActiveCountdowns.length + displayedCompleted.length;
 
   return (
-    <div className="page countdown-page" style={{ paddingBottom: 64 }}>
-      {/* Toast Notification */}
-      {toast ? (
-        <div
-          role="status"
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--ink)",
-            color: "var(--surface)",
-            padding: "10px 18px",
-            borderRadius: 24,
-            fontSize: 13,
-            fontWeight: 600,
-            zIndex: 1100,
-            boxShadow: "0 4px 14px rgba(0,0,0,0.18)"
-          }}
-        >
-          {toast}
-        </div>
-      ) : null}
-
-      {/* Header: Countdowns   + New */}
-      <div
-        className="section-row"
-        style={{
-          margin: "0 0 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => navigate(-1)}
-            aria-label="Go back"
-            style={{ width: 38, height: 38 }}
+    <div className="page countdown-page">
+      <div className="countdown-page-container" ref={menuContainerRef}>
+        {/* Toast Notification */}
+        {toast ? (
+          <div
+            role="status"
+            style={{
+              position: "fixed",
+              bottom: 24,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "var(--ink)",
+              color: "var(--surface)",
+              padding: "10px 18px",
+              borderRadius: 24,
+              fontSize: 13,
+              fontWeight: 600,
+              zIndex: 1100,
+              boxShadow: "0 4px 14px rgba(0,0,0,0.18)"
+            }}
           >
-            <BackIcon />
-          </button>
-          <h1 className="page-title" style={{ margin: 0, fontSize: 24 }}>
-            Countdowns
-          </h1>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setEditingCountdown(null);
-            setFormModalOpen(true);
-          }}
-          style={{
-            padding: "0 16px",
-            minHeight: 40,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "var(--accent, #10b981)",
-            color: "#fff",
-            fontSize: 13.5,
-            fontWeight: 700,
-            borderRadius: 12,
-            boxShadow: "0 2px 6px rgba(16, 185, 129, 0.25)"
-          }}
-          aria-label="Create new countdown"
-        >
-          <span>+ New</span>
-        </button>
-      </div>
-
-      {/* Zero Countdowns Empty State (Compact & Vertically Balanced) */}
-      {countdowns.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            textAlign: "center",
-            padding: "44px 20px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-            borderRadius: 18,
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            marginTop: 16
-          }}
-        >
-          <div style={{ fontSize: 44, lineHeight: 1 }} aria-hidden="true">
-            🎯
+            {toast}
           </div>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              margin: 0,
-              color: "var(--ink)",
-              letterSpacing: "-0.01em"
-            }}
-          >
-            No countdowns yet
-          </h2>
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--ink-muted)",
-              margin: 0,
-              maxWidth: 300,
-              lineHeight: 1.5
-            }}
-          >
-            Create a countdown for an exam, trip, deadline, milestone, birthday or goal.
-          </p>
+        ) : null}
+
+        {/* Header: Clean top row (Countdowns + New) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            margin: "0 0 14px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              style={{ width: 38, height: 38 }}
+            >
+              <BackIcon />
+            </button>
+            <h1
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                margin: 0,
+                color: "var(--ink)",
+                letterSpacing: "-0.01em"
+              }}
+            >
+              Countdowns
+            </h1>
+          </div>
+
           <button
             type="button"
             className="btn btn-primary"
@@ -233,264 +233,198 @@ export default function CountdownPage() {
               setFormModalOpen(true);
             }}
             style={{
-              marginTop: 6,
-              minHeight: 44,
-              padding: "0 20px",
-              background: "var(--accent, #10b981)",
-              color: "#fff",
+              minHeight: 38,
+              padding: "0 14px",
+              fontSize: 13.5,
               fontWeight: 700,
-              borderRadius: 12
+              borderRadius: 10,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4
             }}
           >
-            + Create Countdown
+            <span>+ New</span>
+            <span className="desktop-inline-label" style={{ display: "none" }}>Countdown</span>
           </button>
         </div>
-      ) : (
-        <>
-          {/* Search Box */}
-          <div style={{ marginBottom: 12 }}>
-            <input
-              type="search"
-              className="input"
-              placeholder="Search countdowns..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                minHeight: 42,
-                fontSize: 14,
-                borderRadius: 12,
-                padding: "0 14px"
-              }}
-              aria-label="Search countdowns"
-            />
-          </div>
 
-          {/* Filter Pills & Subtle Sort */}
+        {/* Global Empty State (Zero countdowns in storage) */}
+        {countdowns.length === 0 ? (
           <div
             style={{
+              textAlign: "center",
+              padding: "48px 16px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 20
+              flexDirection: "column",
+              alignItems: "center"
             }}
           >
-            {/* Filter Pills: [ All ] [ Active ] [ Completed ] */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button
-                type="button"
-                className={`countdown-filter-pill ${filterTab === "all" ? "active" : ""}`}
-                onClick={() => setFilterTab("all")}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={`countdown-filter-pill ${filterTab === "active" ? "active" : ""}`}
-                onClick={() => setFilterTab("active")}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                className={`countdown-filter-pill ${filterTab === "completed" ? "active" : ""}`}
-                onClick={() => setFilterTab("completed")}
-              >
-                Completed
-              </button>
+            <div style={{ fontSize: 36, marginBottom: 12 }} aria-hidden="true">
+              🎯
             </div>
-
-            {/* Subtle Sort Control */}
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <select
-                className="input"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                style={{
-                  minHeight: 34,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  padding: "0 8px",
-                  borderRadius: 10,
-                  background: "transparent",
-                  border: "1px solid var(--border)",
-                  color: "var(--ink-muted)",
-                  cursor: "pointer"
-                }}
-                aria-label="Sort countdowns"
-              >
-                <option value="target_asc">Sort: Target date ▾</option>
-                <option value="target_desc">Sort: Latest date ▾</option>
-                <option value="pinned">Sort: Pinned first ▾</option>
-                <option value="recent">Sort: Recently added ▾</option>
-              </select>
-            </div>
-          </div>
-
-          {/* No matches for search */}
-          {totalVisibleCount === 0 ? (
-            <div
+            <h2
               style={{
-                textAlign: "center",
-                padding: "36px 16px",
-                color: "var(--ink-muted)",
-                fontSize: 14
+                fontSize: 16,
+                fontWeight: 700,
+                color: "var(--ink)",
+                margin: "0 0 6px"
               }}
             >
-              No countdowns found matching &ldquo;{searchQuery}&rdquo;.
+              No countdowns yet
+            </h2>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--ink-muted)",
+                margin: "0 0 16px",
+                maxWidth: 280,
+                lineHeight: 1.4
+              }}
+            >
+              Track an exam, trip, deadline or milestone.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setEditingCountdown(null);
+                setFormModalOpen(true);
+              }}
+              style={{
+                minHeight: 40,
+                padding: "0 18px",
+                fontSize: 13.5,
+                fontWeight: 700,
+                borderRadius: 10
+              }}
+            >
+              + New Countdown
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Search Field (compact ~44px height) */}
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <span
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: 13,
+                  color: "var(--ink-muted)",
+                  pointerEvents: "none"
+                }}
+                aria-hidden="true"
+              >
+                🔎
+              </span>
+              <input
+                type="search"
+                className="input"
+                placeholder="Search countdowns..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: 44,
+                  height: 44,
+                  padding: "0 14px 0 38px",
+                  fontSize: 14,
+                  borderRadius: 12,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)"
+                }}
+                aria-label="Search countdowns"
+              />
             </div>
-          ) : null}
 
-          {/* ========================================================
-              SECTION: PINNED COUNTDOWNS (Hero Card layout)
-             ======================================================== */}
-          {filterTab !== "completed" && pinnedCountdowns.length > 0 ? (
-            <div style={{ marginBottom: 28 }} ref={menuContainerRef}>
+            {/* Filter Pills + Sort Dropdown */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 18,
+                flexWrap: "wrap"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  className={`countdown-filter-pill ${filterTab === "all" ? "active" : ""}`}
+                  onClick={() => setFilterTab("all")}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={`countdown-filter-pill ${filterTab === "active" ? "active" : ""}`}
+                  onClick={() => setFilterTab("active")}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  className={`countdown-filter-pill ${filterTab === "completed" ? "active" : ""}`}
+                  onClick={() => setFilterTab("completed")}
+                >
+                  Completed
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <select
+                  className="input"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  style={{
+                    minHeight: 34,
+                    height: 34,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "0 8px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    color: "var(--ink-muted)",
+                    cursor: "pointer"
+                  }}
+                  aria-label="Sort countdowns"
+                >
+                  <option value="target_asc">Target date ▾</option>
+                  <option value="target_desc">Latest date ▾</option>
+                  <option value="pinned">Pinned first ▾</option>
+                  <option value="recent">Recently added ▾</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Search Empty State */}
+            {totalVisibleCount === 0 ? (
               <div
                 style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
+                  textAlign: "center",
+                  padding: "36px 16px",
                   color: "var(--ink-muted)",
-                  marginBottom: 10,
-                  paddingLeft: 2
+                  fontSize: 13.5
                 }}
               >
-                PINNED
+                <div style={{ fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
+                  No matching countdowns
+                </div>
+                <div>Try another search query.</div>
               </div>
+            ) : null}
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {pinnedCountdowns.map((item) => (
-                  <HeroCountdownCard
-                    key={item.id}
-                    countdown={item}
-                    today={today}
-                    onOpen={() => setSelectedCountdown(item)}
-                    isMenuOpen={menuOpenId === item.id}
-                    onToggleMenu={() =>
-                      setMenuOpenId((curr) => (curr === item.id ? null : item.id))
-                    }
-                    onEdit={() => {
-                      setMenuOpenId(null);
-                      setEditingCountdown(item);
-                      setFormModalOpen(true);
-                    }}
-                    onTogglePin={() => {
-                      setMenuOpenId(null);
-                      togglePin(item.id);
-                      showToast(item.pinned ? "Unpinned countdown." : "Pinned to top.");
-                    }}
-                    onToggleShowOnToday={() => {
-                      setMenuOpenId(null);
-                      toggleShowOnToday(item.id);
-                      showToast(
-                        item.showOnToday ? "Hidden from Today." : "Shown on Today screen."
-                      );
-                    }}
-                    onDuplicate={() => {
-                      setMenuOpenId(null);
-                      duplicateCountdown(item.id);
-                      showToast(`Duplicated "${item.title}".`);
-                    }}
-                    onDelete={() => {
-                      setMenuOpenId(null);
-                      setDeleteConfirmTarget(item);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* ========================================================
-              SECTION: ALL / ACTIVE COUNTDOWNS
-             ======================================================== */}
-          {filterTab !== "completed" && regularActiveCountdowns.length > 0 ? (
-            <div style={{ marginBottom: 28 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-muted)",
-                  marginBottom: 10,
-                  paddingLeft: 2
-                }}
-              >
-                {pinnedCountdowns.length > 0 ? "ALL COUNTDOWNS" : "ACTIVE COUNTDOWNS"}
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {regularActiveCountdowns.map((item) => (
-                  <HeroCountdownCard
-                    key={item.id}
-                    countdown={item}
-                    today={today}
-                    onOpen={() => setSelectedCountdown(item)}
-                    isMenuOpen={menuOpenId === item.id}
-                    onToggleMenu={() =>
-                      setMenuOpenId((curr) => (curr === item.id ? null : item.id))
-                    }
-                    onEdit={() => {
-                      setMenuOpenId(null);
-                      setEditingCountdown(item);
-                      setFormModalOpen(true);
-                    }}
-                    onTogglePin={() => {
-                      setMenuOpenId(null);
-                      togglePin(item.id);
-                      showToast("Pinned to top.");
-                    }}
-                    onToggleShowOnToday={() => {
-                      setMenuOpenId(null);
-                      toggleShowOnToday(item.id);
-                      showToast(
-                        item.showOnToday ? "Hidden from Today." : "Shown on Today screen."
-                      );
-                    }}
-                    onDuplicate={() => {
-                      setMenuOpenId(null);
-                      duplicateCountdown(item.id);
-                      showToast(`Duplicated "${item.title}".`);
-                    }}
-                    onDelete={() => {
-                      setMenuOpenId(null);
-                      setDeleteConfirmTarget(item);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* ========================================================
-              SECTION: COMPLETED COUNTDOWNS
-             ======================================================== */}
-          {(filterTab === "all" || filterTab === "completed") &&
-          displayedCompleted.length > 0 ? (
-            <div style={{ marginBottom: 28 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-muted)",
-                  marginBottom: 10,
-                  paddingLeft: 2
-                }}
-              >
-                COMPLETED ({displayedCompleted.length})
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {displayedCompleted.map((item) => {
-                  return (
-                    <HeroCountdownCard
+            {/* PINNED SECTION */}
+            {filterTab !== "completed" && pinnedCountdowns.length > 0 ? (
+              <div style={{ marginBottom: 18 }}>
+                <div className="countdown-section-label">PINNED</div>
+                <div className="countdown-widget-list">
+                  {pinnedCountdowns.map((item) => (
+                    <CompactCountdownCard
                       key={item.id}
                       countdown={item}
                       today={today}
@@ -526,102 +460,206 @@ export default function CountdownPage() {
                         setDeleteConfirmTarget(item);
                       }}
                     />
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </>
-      )}
+            ) : null}
 
-      {/* Form Modal (Create / Edit) */}
-      {formModalOpen ? (
-        <CountdownFormModal
-          initialCountdown={editingCountdown}
-          onSave={(data) => {
-            if (editingCountdown) {
-              updateCountdown(editingCountdown.id, data);
-              showToast(`Updated "${data.title}".`);
-              if (selectedCountdown?.id === editingCountdown.id) {
-                setSelectedCountdown({ ...editingCountdown, ...data });
+            {/* ACTIVE SECTION */}
+            {filterTab !== "completed" && regularActiveCountdowns.length > 0 ? (
+              <div style={{ marginBottom: 18 }}>
+                <div className="countdown-section-label">
+                  {pinnedCountdowns.length > 0 ? "ACTIVE" : "ALL COUNTDOWNS"}
+                </div>
+                <div className="countdown-widget-list">
+                  {regularActiveCountdowns.map((item) => (
+                    <CompactCountdownCard
+                      key={item.id}
+                      countdown={item}
+                      today={today}
+                      onOpen={() => setSelectedCountdown(item)}
+                      isMenuOpen={menuOpenId === item.id}
+                      onToggleMenu={() =>
+                        setMenuOpenId((curr) => (curr === item.id ? null : item.id))
+                      }
+                      onEdit={() => {
+                        setMenuOpenId(null);
+                        setEditingCountdown(item);
+                        setFormModalOpen(true);
+                      }}
+                      onTogglePin={() => {
+                        setMenuOpenId(null);
+                        togglePin(item.id);
+                        showToast("Pinned to top.");
+                      }}
+                      onToggleShowOnToday={() => {
+                        setMenuOpenId(null);
+                        toggleShowOnToday(item.id);
+                        showToast(
+                          item.showOnToday ? "Hidden from Today." : "Shown on Today screen."
+                        );
+                      }}
+                      onDuplicate={() => {
+                        setMenuOpenId(null);
+                        duplicateCountdown(item.id);
+                        showToast(`Duplicated "${item.title}".`);
+                      }}
+                      onDelete={() => {
+                        setMenuOpenId(null);
+                        setDeleteConfirmTarget(item);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* COMPLETED SECTION */}
+            {(filterTab === "all" || filterTab === "completed") && displayedCompleted.length > 0 ? (
+              <div style={{ marginBottom: 18 }}>
+                <div className="countdown-section-label">
+                  COMPLETED ({displayedCompleted.length})
+                </div>
+                <div className="countdown-widget-list">
+                  {displayedCompleted.map((item) => (
+                    <CompactCountdownCard
+                      key={item.id}
+                      countdown={item}
+                      today={today}
+                      onOpen={() => setSelectedCountdown(item)}
+                      isMenuOpen={menuOpenId === item.id}
+                      onToggleMenu={() =>
+                        setMenuOpenId((curr) => (curr === item.id ? null : item.id))
+                      }
+                      onEdit={() => {
+                        setMenuOpenId(null);
+                        setEditingCountdown(item);
+                        setFormModalOpen(true);
+                      }}
+                      onTogglePin={() => {
+                        setMenuOpenId(null);
+                        togglePin(item.id);
+                        showToast(item.pinned ? "Unpinned countdown." : "Pinned to top.");
+                      }}
+                      onToggleShowOnToday={() => {
+                        setMenuOpenId(null);
+                        toggleShowOnToday(item.id);
+                        showToast(
+                          item.showOnToday ? "Hidden from Today." : "Shown on Today screen."
+                        );
+                      }}
+                      onDuplicate={() => {
+                        setMenuOpenId(null);
+                        duplicateCountdown(item.id);
+                        showToast(`Duplicated "${item.title}".`);
+                      }}
+                      onDelete={() => {
+                        setMenuOpenId(null);
+                        setDeleteConfirmTarget(item);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+
+        {/* Creation/Edit Form Modal */}
+        {formModalOpen ? (
+          <CountdownFormModal
+            initialCountdown={editingCountdown}
+            onSave={(data) => {
+              if (editingCountdown) {
+                updateCountdown(editingCountdown.id, data);
+                showToast(`Updated "${data.title}".`);
+                if (selectedCountdown?.id === editingCountdown.id) {
+                  setSelectedCountdown({ ...editingCountdown, ...data });
+                }
+              } else {
+                const created = createCountdown(data);
+                showToast(`Created "${data.title}".`);
+                setSelectedCountdown(created);
               }
-            } else {
-              const created = createCountdown(data);
-              showToast(`Created "${data.title}".`);
-              setSelectedCountdown(created);
-            }
-            setFormModalOpen(false);
-            setEditingCountdown(null);
-          }}
-          onCancel={() => {
-            setFormModalOpen(false);
-            setEditingCountdown(null);
-          }}
-        />
-      ) : null}
+              setFormModalOpen(false);
+              setEditingCountdown(null);
+            }}
+            onCancel={() => {
+              setFormModalOpen(false);
+              setEditingCountdown(null);
+            }}
+          />
+        ) : null}
 
-      {/* Detail Modal */}
-      {selectedCountdown ? (
-        <CountdownDetailModal
-          countdown={selectedCountdown}
-          onClose={() => setSelectedCountdown(null)}
-          onEdit={() => {
-            setEditingCountdown(selectedCountdown);
-            setFormModalOpen(true);
-            setSelectedCountdown(null);
-          }}
-          onDuplicate={() => {
-            const dup = duplicateCountdown(selectedCountdown.id);
-            if (dup) {
-              showToast(`Duplicated "${selectedCountdown.title}".`);
-              setSelectedCountdown(dup);
-            }
-          }}
-          onDelete={() => {
-            deleteCountdown(selectedCountdown.id);
-            showToast(`Deleted "${selectedCountdown.title}".`);
-            setSelectedCountdown(null);
-          }}
-          onTogglePin={() => {
-            togglePin(selectedCountdown.id);
-            setSelectedCountdown((curr) =>
-              curr ? { ...curr, pinned: !curr.pinned } : null
-            );
-          }}
-          onToggleShowOnToday={() => {
-            toggleShowOnToday(selectedCountdown.id);
-            setSelectedCountdown((curr) =>
-              curr ? { ...curr, showOnToday: !curr.showOnToday } : null
-            );
-          }}
-          onToast={showToast}
-        />
-      ) : null}
+        {/* Detailed Inspection Modal */}
+        {selectedCountdown ? (
+          <CountdownDetailModal
+            countdown={selectedCountdown}
+            onClose={() => setSelectedCountdown(null)}
+            onEdit={() => {
+              setEditingCountdown(selectedCountdown);
+              setFormModalOpen(true);
+              setSelectedCountdown(null);
+            }}
+            onDuplicate={() => {
+              const dup = duplicateCountdown(selectedCountdown.id);
+              if (dup) {
+                showToast(`Duplicated "${selectedCountdown.title}".`);
+                setSelectedCountdown(dup);
+              }
+            }}
+            onDelete={() => {
+              deleteCountdown(selectedCountdown.id);
+              showToast(`Deleted "${selectedCountdown.title}".`);
+              setSelectedCountdown(null);
+            }}
+            onTogglePin={() => {
+              togglePin(selectedCountdown.id);
+              setSelectedCountdown((curr) =>
+                curr ? { ...curr, pinned: !curr.pinned } : null
+              );
+            }}
+            onToggleShowOnToday={() => {
+              toggleShowOnToday(selectedCountdown.id);
+              setSelectedCountdown((curr) =>
+                curr ? { ...curr, showOnToday: !curr.showOnToday } : null
+              );
+            }}
+            onToast={showToast}
+          />
+        ) : null}
 
-      {/* Delete Confirmation */}
-      {deleteConfirmTarget ? (
-        <ConfirmModal
-          title={`Delete "${deleteConfirmTarget.title}"?`}
-          message="This countdown will be permanently removed."
-          confirmLabel="Delete"
-          danger
-          onConfirm={() => {
-            deleteCountdown(deleteConfirmTarget.id);
-            showToast(`Deleted "${deleteConfirmTarget.title}".`);
-            setDeleteConfirmTarget(null);
-          }}
-          onCancel={() => setDeleteConfirmTarget(null)}
-        />
-      ) : null}
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmTarget ? (
+          <ConfirmModal
+            title={`Delete "${deleteConfirmTarget.title}"?`}
+            message="This countdown will be permanently removed."
+            confirmLabel="Delete"
+            danger
+            onConfirm={() => {
+              deleteCountdown(deleteConfirmTarget.id);
+              showToast(`Deleted "${deleteConfirmTarget.title}".`);
+              setDeleteConfirmTarget(null);
+            }}
+            onCancel={() => setDeleteConfirmTarget(null)}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
 
 /**
- * Modern Hero Countdown Card
- * The countdown number is the visual hero!
+ * Compact Glanceable Countdown Widget Card
+ *
+ * Structure:
+ * ┌────────────────────────────────────┐
+ * │ 🎯  21 DAYS LEFT               ⋮  │
+ * │     SBI PO 2027                    │
+ * │     21 Oct 2026 · Active           │
+ * └────────────────────────────────────┘
  */
-interface HeroCountdownCardProps {
+interface CompactCountdownCardProps {
   countdown: Countdown;
   today: string;
   onOpen: () => void;
@@ -634,7 +672,7 @@ interface HeroCountdownCardProps {
   onDelete: () => void;
 }
 
-function HeroCountdownCard({
+function CompactCountdownCard({
   countdown,
   today,
   onOpen,
@@ -645,15 +683,16 @@ function HeroCountdownCard({
   onToggleShowOnToday,
   onDuplicate,
   onDelete
-}: HeroCountdownCardProps) {
+}: CompactCountdownCardProps) {
   const status = computeCountdownStatus(countdown, today);
   const isCompleted = countdown.mode !== "countup" && status.phase === "completed";
-  const isToday = status.phase === "today";
-  const isCountUp = countdown.mode === "countup";
+  const { text: statusText, variant } = getStatusText(countdown, status);
+  const formattedDate = formatCardDate(countdown.targetDate);
+  const statusLabel = isCompleted ? "Completed" : "Active";
 
   return (
     <div
-      className="card countdown-hero-card"
+      className={`countdown-widget-card ${isCompleted ? "is-completed" : ""}`}
       onClick={onOpen}
       role="button"
       tabIndex={0}
@@ -663,157 +702,55 @@ function HeroCountdownCard({
           onOpen();
         }
       }}
-      style={{
-        padding: "18px 20px",
-        borderRadius: 18,
-        cursor: "pointer",
-        position: "relative",
-        background: "var(--surface)",
-        border: "1px solid var(--border)"
-      }}
-      aria-label={`${countdown.title}, ${
-        isCompleted
-          ? "Completed"
-          : isToday
-          ? "Today"
-          : isCountUp
-          ? `${status.displayValue} days`
-          : `${status.displayValue} ${status.displayUnit || "days left"}`
-      }`}
+      aria-label={`${countdown.title}, ${statusText}, ${formattedDate}`}
     >
-      {/* Top Header: Icon + Name on left; Subtle Pin + Overflow Menu on right */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 14
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 0,
-            flex: 1
-          }}
-        >
-          <span style={{ fontSize: 24, flexShrink: 0 }} aria-hidden="true">
-            {countdown.icon}
+      {/* Top Row: Icon + Status on Left, Overflow Menu on Right */}
+      <div className="countdown-widget-top">
+        <div className="countdown-widget-left">
+          <span className="countdown-widget-icon" aria-hidden="true">
+            {countdown.icon || "🎯"}
           </span>
-          <div
-            style={{
-              fontSize: 16.5,
-              fontWeight: 700,
-              color: "var(--ink)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              letterSpacing: "-0.01em"
-            }}
-          >
-            {countdown.title}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            flexShrink: 0,
-            position: "relative"
-          }}
-        >
+          <span className={`countdown-widget-status status-${variant}`}>
+            {statusText}
+          </span>
           {countdown.pinned ? (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "2px 7px",
-                borderRadius: 10,
-                background: "rgba(16, 185, 129, 0.12)",
-                color: "var(--accent, #10b981)"
-              }}
-            >
-              PINNED
-            </span>
+            <span className="countdown-widget-badge-pill">PINNED</span>
           ) : null}
-
           {countdown.showOnToday ? (
             <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "2px 6px",
-                borderRadius: 8,
-                background: "var(--surface-hover)",
-                color: "var(--ink-muted)",
-                border: "1px solid var(--border)"
-              }}
+              className="countdown-widget-today-pill"
               title="Shown on Today screen"
             >
               TODAY
             </span>
           ) : null}
+        </div>
 
-          {/* Overflow Menu Button */}
+        {/* Overflow Menu Trigger */}
+        <div
+          className="countdown-widget-actions"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
-            className="icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleMenu();
-            }}
-            aria-label="Countdown actions"
-            style={{
-              width: 32,
-              height: 32,
-              fontSize: 18,
-              borderRadius: 8,
-              color: "var(--ink-muted)"
-            }}
+            className="countdown-widget-menu-btn"
+            onClick={onToggleMenu}
+            aria-label={`Options for ${countdown.title}`}
+            aria-expanded={isMenuOpen}
           >
             ⋮
           </button>
 
-          {/* Dropdown Menu */}
+          {/* Overflow Menu Dropdown */}
           {isMenuOpen ? (
             <div
+              className="countdown-overflow-dropdown"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                top: 36,
-                right: 0,
-                zIndex: 60,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-                minWidth: 175,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column"
-              }}
             >
               <button
                 type="button"
+                className="countdown-menu-item"
                 onClick={onTogglePin}
-                style={{
-                  padding: "10px 14px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
               >
                 <span>📌</span>
                 <span>{countdown.pinned ? "Unpin" : "Pin to top"}</span>
@@ -821,21 +758,8 @@ function HeroCountdownCard({
 
               <button
                 type="button"
+                className="countdown-menu-item"
                 onClick={onToggleShowOnToday}
-                style={{
-                  padding: "10px 14px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
               >
                 <span>📅</span>
                 <span>{countdown.showOnToday ? "Hide from Today" : "Show on Today"}</span>
@@ -843,21 +767,8 @@ function HeroCountdownCard({
 
               <button
                 type="button"
+                className="countdown-menu-item"
                 onClick={onEdit}
-                style={{
-                  padding: "10px 14px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
               >
                 <span>✏️</span>
                 <span>Edit</span>
@@ -865,21 +776,8 @@ function HeroCountdownCard({
 
               <button
                 type="button"
+                className="countdown-menu-item"
                 onClick={onDuplicate}
-                style={{
-                  padding: "10px 14px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
               >
                 <span>📋</span>
                 <span>Duplicate</span>
@@ -887,20 +785,8 @@ function HeroCountdownCard({
 
               <button
                 type="button"
+                className="countdown-menu-item countdown-menu-item-danger"
                 onClick={onDelete}
-                style={{
-                  padding: "10px 14px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--danger, #ef4444)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
               >
                 <span>🗑️</span>
                 <span>Delete</span>
@@ -910,112 +796,14 @@ function HeroCountdownCard({
         </div>
       </div>
 
-      {/* Hero Number Section */}
-      <div style={{ textAlign: "center", margin: "10px 0 16px" }}>
-        {isCompleted ? (
-          <div>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                color: "var(--ink-muted)",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase"
-              }}
-            >
-              COMPLETED
-            </div>
-          </div>
-        ) : isToday ? (
-          <div>
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 800,
-                color: "var(--accent, #10b981)",
-                letterSpacing: "-0.02em"
-              }}
-            >
-              TODAY
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div
-              style={{
-                fontSize: "clamp(36px, 9vw, 52px)",
-                fontWeight: 800,
-                lineHeight: 1,
-                color: "var(--accent, #10b981)",
-                letterSpacing: "-0.03em"
-              }}
-            >
-              {status.displayValue}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: "var(--ink-muted)",
-                marginTop: 6
-              }}
-            >
-              {isCountUp ? "DAYS" : status.displayUnit || "DAYS LEFT"}
-            </div>
-          </div>
-        )}
+      {/* Row 2: Title */}
+      <div className="countdown-widget-title" title={countdown.title}>
+        {countdown.title}
       </div>
 
-      {/* Target Date Below Number */}
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: "var(--ink-muted)",
-          marginBottom: 10,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <span>
-          {isCompleted
-            ? `Target reached · ${formatShort(countdown.targetDate)}`
-            : isCountUp
-            ? `Since · ${formatShort(countdown.targetDate)}`
-            : `Target · ${formatShort(countdown.targetDate)}`}
-          {countdown.countWorkingDays ? " (work days)" : ""}
-        </span>
-
-        {/* Elapsed % indicator */}
-        {!isCompleted ? (
-          <span style={{ fontSize: 11.5, fontWeight: 600 }}>
-            {status.progressPct}%
-          </span>
-        ) : null}
-      </div>
-
-      {/* Optional Progress Indicator */}
-      <div
-        style={{
-          width: "100%",
-          height: 6,
-          background: "var(--surface-hover)",
-          borderRadius: 3,
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            width: `${status.progressPct}%`,
-            height: "100%",
-            background: isCompleted ? "var(--ink-muted)" : "var(--accent, #10b981)",
-            borderRadius: 3,
-            transition: "width 0.3s ease"
-          }}
-        />
+      {/* Row 3: Target date · Status */}
+      <div className="countdown-widget-date">
+        {formattedDate} · {statusLabel}
       </div>
     </div>
   );

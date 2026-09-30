@@ -35,6 +35,7 @@ export default function CountdownDetailModal({
   const [menuOpen, setMenuOpen] = useState(false);
   const [milestonesExpanded, setMilestonesExpanded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
 
   const status = computeCountdownStatus(countdown, todayStr());
 
@@ -44,6 +45,19 @@ export default function CountdownDetailModal({
     closingTimeoutRef.current = window.setTimeout(() => {
       onClose();
     }, 280);
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      handleClose();
+    }
+    touchStartY.current = null;
   }
 
   useEffect(() => {
@@ -122,7 +136,12 @@ export default function CountdownDetailModal({
       >
         {/* Header Bar with Grab Handle */}
         <div className="countdown-sheet-header">
-          <div className="countdown-grab-handle-bar">
+          <div
+            className="countdown-grab-handle-bar"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            title="Drag down to close"
+          >
             <div className="countdown-grab-handle" />
           </div>
 

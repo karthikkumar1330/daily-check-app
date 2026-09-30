@@ -165,6 +165,7 @@ export default function CountdownFormModal({
   );
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   // Smooth exit handler
   function handleClose(callback?: () => void) {
@@ -177,6 +178,19 @@ export default function CountdownFormModal({
         onCancel();
       }
     }, 270);
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      handleClose();
+    }
+    touchStartY.current = null;
   }
 
   useEffect(() => {
@@ -285,7 +299,12 @@ export default function CountdownFormModal({
         <form onSubmit={handleSubmit} className="countdown-sheet-form">
           {/* Header with visual drag handle & sticky title row */}
           <div className="countdown-sheet-header">
-            <div className="countdown-grab-handle-bar">
+            <div
+              className="countdown-grab-handle-bar"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              title="Drag down to close"
+            >
               <div className="countdown-grab-handle" />
             </div>
 
