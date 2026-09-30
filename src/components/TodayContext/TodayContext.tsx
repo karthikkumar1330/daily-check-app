@@ -27,7 +27,7 @@ export default function TodayContext({
   const isCountdownActive =
     todayCountdown &&
     countdownStatus &&
-    (todayCountdown.mode === "countup" || countdownStatus.phase !== "completed");
+    countdownStatus.phase !== "completed";
 
   // 2. Focus Tasks
   const focusTasks = tasks.filter((t) => t.focusDate === viewDate);

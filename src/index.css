@@ -3836,6 +3836,27 @@ textarea:focus-visible,
   gap: 9px;
 }
 
+.countdown-hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 16px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.countdown-hero-card:hover {
+  border-color: var(--border-hover, var(--border));
+  background: var(--surface-hover, var(--surface));
+}
+
+.countdown-hero-card:active {
+  transform: scale(0.995);
+}
+
 .countdown-widget-card {
   background: var(--surface);
   border: 1px solid var(--border);

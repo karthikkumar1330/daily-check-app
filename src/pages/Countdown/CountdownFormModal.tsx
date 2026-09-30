@@ -12,25 +12,13 @@ interface CountdownFormModalProps {
   onCancel: () => void;
 }
 
-const COMMON_EMOJIS = [
-  "🎯", "📚", "✈️", "🎂", "⏰", "🏃", "💍", "🎓", "🚀", "🏝️",
-  "💼", "💻", "🎉", "👶", "🚗", "🏠", "🌟", "🔥", "🏆", "❤️"
-];
+const QUICK_ICONS = ["🎯", "🎓", "💼", "✈️", "🎂", "❤️", "🏆", "📅"];
 
-const PRIMARY_TEMPLATES = [
-  { key: "exam", name: "Exam", icon: "📚" },
-  { key: "trip", name: "Trip", icon: "✈️" },
-  { key: "birthday", name: "Birthday", icon: "🎂" },
-  { key: "deadline", name: "Deadline", icon: "⏰" },
-  { key: "fitness", name: "Fitness", icon: "🏃" },
-  { key: "custom", name: "Custom", icon: "✨" }
-];
-
-const STREAMLINED_REMINDERS = [
-  { daysBefore: 7, label: "7d" },
-  { daysBefore: 3, label: "3d" },
-  { daysBefore: 1, label: "1d" },
-  { daysBefore: 0, label: "On day" }
+const REMINDER_OPTIONS = [
+  { daysBefore: 7, label: "7 days before" },
+  { daysBefore: 3, label: "3 days before" },
+  { daysBefore: 1, label: "1 day before" },
+  { daysBefore: 0, label: "On the day" }
 ];
 
 function ToggleRow({
@@ -53,17 +41,17 @@ function ToggleRow({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "10px 12px",
+        padding: "10px 14px",
         borderRadius: 12,
         background: "var(--surface)",
         border: "1px solid var(--border)",
         cursor: "pointer",
         userSelect: "none",
-        minHeight: 46
+        minHeight: 48
       }}
     >
-      <div style={{ flex: 1, paddingRight: 10, display: "flex", alignItems: "center", gap: 8 }}>
-        {icon ? <span style={{ fontSize: 16 }} aria-hidden="true">{icon}</span> : null}
+      <div style={{ flex: 1, paddingRight: 10, display: "flex", alignItems: "center", gap: 10 }}>
+        {icon ? <span style={{ fontSize: 18 }} aria-hidden="true">{icon}</span> : null}
         <div>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{label}</div>
           {description ? (
@@ -137,12 +125,9 @@ export default function CountdownFormModal({
     return [7, 1, 0];
   });
   const [notes, setNotes] = useState(initialCountdown?.notes || "");
-
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Smooth exit handler
   function handleClose(callback?: () => void) {
     if (isClosing) return;
     setIsClosing(true);
@@ -184,13 +169,6 @@ export default function CountdownFormModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isClosing]);
 
-  function handleSelectTemplate(tpl: (typeof PRIMARY_TEMPLATES)[0]) {
-    setIcon(tpl.icon);
-    if (!title || PRIMARY_TEMPLATES.some((t) => t.name === title) || title === "Goal") {
-      setTitle(tpl.name === "Custom" ? "" : tpl.name);
-    }
-  }
-
   function toggleReminder(days: number) {
     setSelectedReminders((prev) =>
       prev.includes(days) ? prev.filter((d) => d !== days) : [...prev, days]
@@ -201,11 +179,11 @@ export default function CountdownFormModal({
     e.preventDefault();
     const cleanTitle = title.trim();
     if (!cleanTitle) {
-      setError("Please enter what you are counting down to.");
+      setError("Please enter the event name.");
       return;
     }
     if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-      setError("Please choose a valid target date.");
+      setError("Please select a valid target date.");
       return;
     }
 
@@ -216,15 +194,17 @@ export default function CountdownFormModal({
       enabled: true
     }));
 
+    // Preserve legacy fields safely internally for backwards compatibility,
+    // while user operates with clean simplified model
     const dataToSave: Omit<Countdown, "id" | "createdAt" | "updatedAt"> = {
       title: cleanTitle,
       icon: icon || "🎯",
       targetDate,
       targetTime: initialCountdown?.targetTime,
       allDay: initialCountdown?.allDay ?? true,
-      mode: initialCountdown?.mode || "countdown",
-      displayMode: initialCountdown?.displayMode || "days",
-      countWorkingDays: initialCountdown?.countWorkingDays ?? false,
+      mode: "countdown",
+      displayMode: "days",
+      countWorkingDays: false,
       showOnToday,
       featured,
       pinned,
@@ -247,7 +227,7 @@ export default function CountdownFormModal({
         aria-hidden="true"
       />
 
-      {/* True Viewport-anchored Bottom Sheet */}
+      {/* Viewport-anchored Bottom Sheet */}
       <div
         className={`countdown-sheet ${isClosing ? "is-closing" : ""}`}
         role="dialog"
@@ -255,7 +235,7 @@ export default function CountdownFormModal({
         aria-labelledby="countdown-modal-title"
       >
         <form onSubmit={handleSubmit} className="countdown-sheet-form">
-          {/* Header with visual drag handle & sticky title row */}
+          {/* Header Bar with grab handle and close */}
           <div className="countdown-sheet-header">
             <div
               className="countdown-grab-handle-bar"
@@ -275,23 +255,19 @@ export default function CountdownFormModal({
                 paddingTop: 2
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }} aria-hidden="true">
-                  {icon}
-                </span>
-                <h2
-                  id="countdown-modal-title"
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 700,
-                    margin: 0,
-                    color: "var(--ink)",
-                    letterSpacing: "-0.01em"
-                  }}
-                >
-                  {isEditing ? "Edit Countdown" : "New Countdown"}
-                </h2>
-              </div>
+              <h2
+                id="countdown-modal-title"
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  margin: 0,
+                  color: "var(--ink)",
+                  letterSpacing: "-0.01em"
+                }}
+              >
+                {isEditing ? "Edit Countdown" : "New Countdown"}
+              </h2>
+
               <button
                 type="button"
                 className="icon-btn"
@@ -304,7 +280,7 @@ export default function CountdownFormModal({
             </div>
           </div>
 
-          {/* Scrollable Body */}
+          {/* Form Content Body */}
           <div className="countdown-sheet-body">
             {error ? (
               <div
@@ -322,162 +298,108 @@ export default function CountdownFormModal({
               </div>
             ) : null}
 
-            {/* 1. What are you counting down to? */}
+            {/* Event Name */}
             <div style={{ marginBottom: 14 }}>
               <label
                 htmlFor="countdown-title"
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--ink)",
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-muted)",
                   display: "block",
                   marginBottom: 6
                 }}
               >
-                What are you counting down to?
+                Event name
               </label>
-
-              <div style={{ display: "flex", gap: 8, position: "relative" }}>
-                {/* Emoji Selector Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker((v) => !v)}
-                  style={{
-                    width: 46,
-                    height: 44,
-                    fontSize: 22,
-                    background: "var(--surface-hover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0
-                  }}
-                  aria-label="Choose icon"
-                >
-                  {icon}
-                </button>
-
-                {showEmojiPicker ? (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 50,
-                      left: 0,
-                      zIndex: 40,
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 14,
-                      padding: 10,
-                      display: "grid",
-                      gridTemplateColumns: "repeat(5, 1fr)",
-                      gap: 6,
-                      boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-                      width: 230
-                    }}
-                  >
-                    {COMMON_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => {
-                          setIcon(emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                        style={{
-                          fontSize: 20,
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: 6,
-                          borderRadius: 8
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                <input
-                  id="countdown-title"
-                  type="text"
-                  className="input"
-                  placeholder="e.g. Exam, Trip, Birthday..."
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  autoFocus={!isEditing}
-                  required
-                  style={{
-                    flex: 1,
-                    minHeight: 44,
-                    fontSize: 14.5,
-                    borderRadius: 12,
-                    padding: "0 14px"
-                  }}
-                />
-              </div>
+              <input
+                id="countdown-title"
+                type="text"
+                className="input"
+                placeholder="e.g. SBI PO Exam"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (error) setError(null);
+                }}
+                autoFocus={!isEditing}
+                required
+                style={{
+                  width: "100%",
+                  minHeight: 46,
+                  fontSize: 15,
+                  borderRadius: 12,
+                  padding: "0 14px",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)"
+                }}
+              />
             </div>
 
-            {/* 2. Choose a template */}
-            {!isEditing ? (
-              <div style={{ marginBottom: 14 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--ink-muted)",
-                    marginBottom: 6
-                  }}
-                >
-                  Templates
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {PRIMARY_TEMPLATES.map((tpl) => {
-                    const isSelected = icon === tpl.icon;
-                    return (
-                      <button
-                        key={tpl.key}
-                        type="button"
-                        onClick={() => handleSelectTemplate(tpl)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          padding: "6px 12px",
-                          minHeight: 36,
-                          borderRadius: 18,
-                          background: isSelected ? "var(--surface-hover)" : "var(--surface)",
-                          border: `1px solid ${isSelected ? "var(--ink)" : "var(--border)"}`,
-                          color: "var(--ink)",
-                          cursor: "pointer",
-                          transition: "all 0.15s ease"
-                        }}
-                      >
-                        <span aria-hidden="true">{tpl.icon}</span>
-                        <span>{tpl.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {/* 3. Target Date with Smart Date Picker */}
+            {/* Icon Selector (Horizontal Quick Icons) */}
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-muted)",
+                  marginBottom: 8
+                }}
+              >
+                Icon
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  overflowX: "auto",
+                  paddingBottom: 4
+                }}
+              >
+                {QUICK_ICONS.map((emoji) => {
+                  const isSelected = icon === emoji;
+                  return (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setIcon(emoji)}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        fontSize: 22,
+                        borderRadius: 12,
+                        border: isSelected
+                          ? "2px solid var(--accent, #10b981)"
+                          : "1px solid var(--border)",
+                        background: isSelected
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "var(--surface)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        transition: "all 0.15s ease"
+                      }}
+                      aria-label={`Select icon ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Target Date Section */}
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 11.5,
                   fontWeight: 700,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
@@ -494,14 +416,14 @@ export default function CountdownFormModal({
               />
             </div>
 
-            {/* 4. Streamlined Toggles */}
+            {/* Toggles: Show on Today, Pin to top, Featured */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
               <ToggleRow
                 checked={showOnToday}
                 onChange={setShowOnToday}
-                icon="🏠"
+                icon="🎯"
                 label="Show on Today"
-                description="Put this countdown in your Daily Check Today context"
+                description="View countdown directly on the Today screen"
               />
 
               <ToggleRow
@@ -509,7 +431,7 @@ export default function CountdownFormModal({
                 onChange={setFeatured}
                 icon="⭐"
                 label="Featured"
-                description="Highlight as the main Hero card on your Countdown dashboard"
+                description="Highlight as the prominent hero card"
               />
 
               <ToggleRow
@@ -517,27 +439,33 @@ export default function CountdownFormModal({
                 onChange={setPinned}
                 icon="📌"
                 label="Pin to top"
-                description="Keep near the top of your upcoming countdowns list"
+                description="Keep near the top of the countdown list"
               />
             </div>
 
-            {/* 5. Reminders */}
+            {/* Reminders (4 clean choices) */}
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   color: "var(--ink-muted)",
-                  marginBottom: 6
+                  marginBottom: 8
                 }}
               >
                 Reminders
               </div>
 
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {STREAMLINED_REMINDERS.map((opt) => {
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8
+                }}
+              >
+                {REMINDER_OPTIONS.map((opt) => {
                   const isChecked = selectedReminders.includes(opt.daysBefore);
                   return (
                     <button
@@ -545,24 +473,29 @@ export default function CountdownFormModal({
                       type="button"
                       onClick={() => toggleReminder(opt.daysBefore)}
                       style={{
-                        flex: "1 1 calc(25% - 6px)",
-                        minWidth: 62,
-                        minHeight: 38,
+                        minHeight: 40,
+                        padding: "8px 12px",
                         borderRadius: 10,
-                        border: isChecked ? "1.5px solid var(--accent, #10b981)" : "1px solid var(--border)",
-                        background: isChecked ? "rgba(16, 185, 129, 0.12)" : "var(--surface)",
+                        border: isChecked
+                          ? "1.5px solid var(--accent, #10b981)"
+                          : "1px solid var(--border)",
+                        background: isChecked
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "var(--surface)",
                         color: isChecked ? "var(--accent, #10b981)" : "var(--ink)",
                         fontSize: 12.5,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: "pointer",
-                        display: "inline-flex",
+                        display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        gap: 4,
-                        transition: "all 0.15s ease"
+                        gap: 8,
+                        transition: "all 0.15s ease",
+                        textAlign: "left"
                       }}
                     >
-                      <span>{isChecked ? "✓" : "+"}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>
+                        {isChecked ? "✓" : "+"}
+                      </span>
                       <span>{opt.label}</span>
                     </button>
                   );
@@ -570,12 +503,12 @@ export default function CountdownFormModal({
               </div>
             </div>
 
-            {/* 6. Notes (Optional) */}
-            <div style={{ marginBottom: 16 }}>
+            {/* Notes (Optional) */}
+            <div style={{ marginBottom: 18 }}>
               <label
                 htmlFor="countdown-notes"
                 style={{
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
@@ -590,7 +523,7 @@ export default function CountdownFormModal({
                 id="countdown-notes"
                 className="input"
                 rows={2}
-                placeholder="Details, milestone checklist, goals..."
+                placeholder="Important details, goals or checklist..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 style={{
@@ -598,12 +531,14 @@ export default function CountdownFormModal({
                   resize: "vertical",
                   fontFamily: "inherit",
                   background: "var(--surface)",
-                  borderRadius: 12
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13.5
                 }}
               />
             </div>
 
-            {/* 7. Submit Action Button */}
+            {/* Primary Action CTA */}
             <button
               type="submit"
               className="btn btn-primary"

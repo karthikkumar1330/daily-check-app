@@ -76,14 +76,11 @@ export function CountdownsProvider({ children }: { children: ReactNode }) {
     return activeCountdowns.find((c) => c.featured) || null;
   }, [activeCountdowns]);
 
-  // Featured countdown: Explicitly featured item first; if none, pinned item; if none, nearest upcoming active countdown
+  // Featured countdown: Strictly explicit featured countdown.
+  // Rule #11: If there is no Featured countdown: Do NOT silently assign one. Instead show normal list.
   const featuredCountdown = useMemo<Countdown | null>(() => {
-    if (activeCountdowns.length === 0) return null;
-    if (explicitFeaturedCountdown) return explicitFeaturedCountdown;
-    const pinned = activeCountdowns.find((c) => c.pinned);
-    if (pinned) return pinned;
-    return activeCountdowns[0];
-  }, [activeCountdowns, explicitFeaturedCountdown]);
+    return explicitFeaturedCountdown;
+  }, [explicitFeaturedCountdown]);
 
   // Today countdown: Must have showOnToday === true. Explicit featured first, then pinned, then nearest active
   const todayCountdown = useMemo<Countdown | null>(() => {

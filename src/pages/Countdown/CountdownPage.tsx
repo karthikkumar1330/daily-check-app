@@ -2,8 +2,12 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCountdowns } from "../../hooks/useCountdowns";
 import type { Countdown } from "../../types";
-import { computeCountdownStatus, type CountdownStatus } from "../../utils/countdownUtils";
-import { parseDateStr, todayStr } from "../../utils/dateUtils";
+import {
+  computeCountdownStatus,
+  formatFullTargetDate,
+  formatSmartTargetDate
+} from "../../utils/countdownUtils";
+import { todayStr } from "../../utils/dateUtils";
 import CountdownFormModal from "./CountdownFormModal";
 import CountdownDetailModal from "./CountdownDetailModal";
 import { BackIcon } from "../../components/icons";
@@ -12,64 +16,30 @@ import ConfirmModal from "../../components/Modals/ConfirmModal";
 type FilterTab = "all" | "active" | "completed";
 type SortOption = "target_asc" | "target_desc" | "pinned" | "recent";
 
-/**
- * Format target date cleanly as "21 Oct 2026"
- */
-function formatCardDate(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  const year = d.getFullYear();
-  return `${day} ${month} ${year}`;
-}
+async function shareCountdownSummary(countdown: Countdown, onToast: (msg: string) => void) {
+  const status = computeCountdownStatus(countdown, todayStr());
+  const dateFormatted = formatFullTargetDate(countdown.targetDate);
+  const text = `${countdown.icon} ${countdown.title}\n${status.displayValue} ${status.displayUnit}\nTarget: ${dateFormatted}\n— via Daily Check`;
 
-/**
- * Derives the prominent glanceable status string (e.g. "21 DAYS LEFT", "TODAY", "✓ COMPLETED", "143 DAYS")
- */
-function getStatusText(
-  countdown: Countdown,
-  status: CountdownStatus
-): { text: string; variant: "upcoming" | "urgent" | "today" | "completed" | "countup" } {
-  if (countdown.mode === "countup") {
-    if (status.rawDaysDiff === 0) return { text: "TODAY", variant: "today" };
-    if (status.rawDaysDiff < 0) {
-      const days = Math.abs(status.rawDaysDiff);
-      return { text: `${days} ${days === 1 ? "DAY" : "DAYS"}`, variant: "countup" };
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: countdown.title,
+        text
+      });
+      onToast("Shared countdown.");
+      return;
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
     }
-    return { text: `STARTS IN ${status.displayValue}D`, variant: "upcoming" };
   }
 
-  if (status.phase === "completed") {
-    return { text: "✓ COMPLETED", variant: "completed" };
+  try {
+    await navigator.clipboard.writeText(text);
+    onToast("Copied countdown summary to clipboard!");
+  } catch {
+    onToast("Unable to share countdown.");
   }
-
-  if (status.rawDaysDiff === 0) {
-    return { text: "TODAY", variant: "today" };
-  }
-
-  if (status.rawDaysDiff === 1 && !countdown.countWorkingDays) {
-    return { text: "1 DAY LEFT", variant: "urgent" };
-  }
-
-  if (countdown.displayMode === "weeksDays") {
-    const weeks = Math.floor(status.workingDaysLeft / 7);
-    const rem = status.workingDaysLeft % 7;
-    return { text: `${weeks}W ${rem}D LEFT`, variant: "upcoming" };
-  }
-
-  if (countdown.displayMode === "hours") {
-    return { text: `${status.workingDaysLeft * 24} HOURS LEFT`, variant: "upcoming" };
-  }
-
-  const days = countdown.countWorkingDays ? status.workingDaysLeft : status.daysLeft;
-  const unitText = countdown.countWorkingDays
-    ? days === 1 ? "WORK DAY LEFT" : "WORK DAYS LEFT"
-    : days === 1 ? "DAY LEFT" : "DAYS LEFT";
-
-  return {
-    text: `${days} ${unitText}`,
-    variant: days <= 3 ? "urgent" : "upcoming"
-  };
 }
 
 export default function CountdownPage() {
@@ -78,11 +48,13 @@ export default function CountdownPage() {
     countdowns,
     activeCountdowns,
     completedCountdowns,
+    featuredCountdown,
     createCountdown,
     updateCountdown,
     deleteCountdown,
     duplicateCountdown,
     togglePin,
+    toggleFeatured,
     toggleShowOnToday
   } = useCountdowns();
 
@@ -121,7 +93,12 @@ export default function CountdownPage() {
   }, [menuOpenId]);
 
   // Filter and sort countdowns
-  const { pinnedCountdowns, regularActiveCountdowns, displayedCompleted } = useMemo(() => {
+  const {
+    featuredItem,
+    pinnedCountdowns,
+    regularActiveCountdowns,
+    displayedCompleted
+  } = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
 
     const matchesQuery = (c: Countdown) => {
@@ -150,22 +127,32 @@ export default function CountdownPage() {
     const matchedActive = activeCountdowns.filter(matchesQuery).sort(sortFn);
     const matchedCompleted = completedCountdowns.filter(matchesQuery).sort(sortFn);
 
-    const pinned = matchedActive.filter((c) => c.pinned);
-    const regular = matchedActive.filter((c) => !c.pinned);
+    // Rule 11: Only feature if user explicitly marked one as featured
+    let hero: Countdown | null = null;
+    let nonFeaturedActive = matchedActive;
+
+    if (featuredCountdown && matchedActive.some((c) => c.id === featuredCountdown.id)) {
+      hero = featuredCountdown;
+      nonFeaturedActive = matchedActive.filter((c) => c.id !== featuredCountdown.id);
+    }
+
+    const pinned = nonFeaturedActive.filter((c) => c.pinned);
+    const regular = nonFeaturedActive.filter((c) => !c.pinned);
 
     return {
+      featuredItem: hero,
       pinnedCountdowns: pinned,
       regularActiveCountdowns: regular,
       displayedCompleted: matchedCompleted
     };
-  }, [activeCountdowns, completedCountdowns, searchQuery, sortBy]);
+  }, [activeCountdowns, completedCountdowns, featuredCountdown, searchQuery, sortBy]);
 
   const totalVisibleCount =
     filterTab === "completed"
       ? displayedCompleted.length
       : filterTab === "active"
-      ? pinnedCountdowns.length + regularActiveCountdowns.length
-      : pinnedCountdowns.length + regularActiveCountdowns.length + displayedCompleted.length;
+      ? (featuredItem ? 1 : 0) + pinnedCountdowns.length + regularActiveCountdowns.length
+      : (featuredItem ? 1 : 0) + pinnedCountdowns.length + regularActiveCountdowns.length + displayedCompleted.length;
 
   return (
     <div className="page countdown-page">
@@ -193,13 +180,13 @@ export default function CountdownPage() {
           </div>
         ) : null}
 
-        {/* Header: Clean top row (Countdowns + New) */}
+        {/* Clean Header Bar */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            margin: "0 0 14px"
+            margin: "0 0 4px"
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -212,17 +199,19 @@ export default function CountdownPage() {
             >
               <BackIcon />
             </button>
-            <h1
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                margin: 0,
-                color: "var(--ink)",
-                letterSpacing: "-0.01em"
-              }}
-            >
-              Countdowns
-            </h1>
+            <div>
+              <h1
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  margin: 0,
+                  color: "var(--ink)",
+                  letterSpacing: "-0.01em"
+                }}
+              >
+                Countdowns
+              </h1>
+            </div>
           </div>
 
           <button
@@ -243,12 +232,24 @@ export default function CountdownPage() {
               gap: 4
             }}
           >
-            <span>+ New</span>
-            <span className="desktop-inline-label" style={{ display: "none" }}>Countdown</span>
+            <span>+</span>
+            <span>New</span>
           </button>
         </div>
 
-        {/* Global Empty State (Zero countdowns in storage) */}
+        {/* Header Subtitle */}
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--ink-muted)",
+            fontWeight: 500,
+            margin: "0 0 16px 48px"
+          }}
+        >
+          Important dates, at a glance
+        </div>
+
+        {/* Global Empty State (Zero Countdowns) */}
         {countdowns.length === 0 ? (
           <div
             style={{
@@ -281,7 +282,7 @@ export default function CountdownPage() {
                 lineHeight: 1.4
               }}
             >
-              Track an exam, trip, deadline or milestone.
+              Track an exam, trip, milestone or important date.
             </p>
             <button
               type="button"
@@ -303,7 +304,7 @@ export default function CountdownPage() {
           </div>
         ) : (
           <>
-            {/* Search Field (compact ~44px height) */}
+            {/* Search Input */}
             <div style={{ position: "relative", marginBottom: 12 }}>
               <span
                 style={{
@@ -317,7 +318,7 @@ export default function CountdownPage() {
                 }}
                 aria-hidden="true"
               >
-                🔎
+                🔍
               </span>
               <input
                 type="search"
@@ -327,8 +328,8 @@ export default function CountdownPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: "100%",
-                  minHeight: 44,
-                  height: 44,
+                  minHeight: 42,
+                  height: 42,
                   padding: "0 14px 0 38px",
                   fontSize: 14,
                   borderRadius: 12,
@@ -346,7 +347,7 @@ export default function CountdownPage() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 8,
-                marginBottom: 18,
+                marginBottom: 16,
                 flexWrap: "wrap"
               }}
             >
@@ -394,14 +395,13 @@ export default function CountdownPage() {
                   aria-label="Sort countdowns"
                 >
                   <option value="target_asc">Target date ▾</option>
-                  <option value="target_desc">Latest date ▾</option>
                   <option value="pinned">Pinned first ▾</option>
                   <option value="recent">Recently added ▾</option>
                 </select>
               </div>
             </div>
 
-            {/* Search Empty State */}
+            {/* No Search Matches */}
             {totalVisibleCount === 0 ? (
               <div
                 style={{
@@ -414,7 +414,58 @@ export default function CountdownPage() {
                 <div style={{ fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
                   No matching countdowns
                 </div>
-                <div>Try another search query.</div>
+                <div>Try another search term.</div>
+              </div>
+            ) : null}
+
+            {/* FEATURED HERO SECTION (Rule 10 & 11: Only shown if user explicitly featured one) */}
+            {filterTab !== "completed" && featuredItem ? (
+              <div style={{ marginBottom: 18 }}>
+                <div className="countdown-section-label">FEATURED</div>
+                <FeaturedHeroCard
+                  countdown={featuredItem}
+                  today={today}
+                  onOpen={() => setSelectedCountdown(featuredItem)}
+                  isMenuOpen={menuOpenId === featuredItem.id}
+                  onToggleMenu={() =>
+                    setMenuOpenId((curr) => (curr === featuredItem.id ? null : featuredItem.id))
+                  }
+                  onEdit={() => {
+                    setMenuOpenId(null);
+                    setEditingCountdown(featuredItem);
+                    setFormModalOpen(true);
+                  }}
+                  onToggleFeature={() => {
+                    setMenuOpenId(null);
+                    toggleFeatured(featuredItem.id);
+                    showToast("Removed from Featured.");
+                  }}
+                  onTogglePin={() => {
+                    setMenuOpenId(null);
+                    togglePin(featuredItem.id);
+                    showToast(featuredItem.pinned ? "Unpinned." : "Pinned to top.");
+                  }}
+                  onToggleShowOnToday={() => {
+                    setMenuOpenId(null);
+                    toggleShowOnToday(featuredItem.id);
+                    showToast(
+                      featuredItem.showOnToday ? "Hidden from Today." : "Shown on Today screen."
+                    );
+                  }}
+                  onDuplicate={() => {
+                    setMenuOpenId(null);
+                    duplicateCountdown(featuredItem.id);
+                    showToast(`Duplicated "${featuredItem.title}".`);
+                  }}
+                  onShare={() => {
+                    setMenuOpenId(null);
+                    shareCountdownSummary(featuredItem, showToast);
+                  }}
+                  onDelete={() => {
+                    setMenuOpenId(null);
+                    setDeleteConfirmTarget(featuredItem);
+                  }}
+                />
               </div>
             ) : null}
 
@@ -438,10 +489,15 @@ export default function CountdownPage() {
                         setEditingCountdown(item);
                         setFormModalOpen(true);
                       }}
+                      onToggleFeature={() => {
+                        setMenuOpenId(null);
+                        toggleFeatured(item.id);
+                        showToast(item.featured ? "Removed from Featured." : "Set as Featured hero.");
+                      }}
                       onTogglePin={() => {
                         setMenuOpenId(null);
                         togglePin(item.id);
-                        showToast(item.pinned ? "Unpinned countdown." : "Pinned to top.");
+                        showToast("Unpinned countdown.");
                       }}
                       onToggleShowOnToday={() => {
                         setMenuOpenId(null);
@@ -454,6 +510,10 @@ export default function CountdownPage() {
                         setMenuOpenId(null);
                         duplicateCountdown(item.id);
                         showToast(`Duplicated "${item.title}".`);
+                      }}
+                      onShare={() => {
+                        setMenuOpenId(null);
+                        shareCountdownSummary(item, showToast);
                       }}
                       onDelete={() => {
                         setMenuOpenId(null);
@@ -469,7 +529,7 @@ export default function CountdownPage() {
             {filterTab !== "completed" && regularActiveCountdowns.length > 0 ? (
               <div style={{ marginBottom: 18 }}>
                 <div className="countdown-section-label">
-                  {pinnedCountdowns.length > 0 ? "ACTIVE" : "ALL COUNTDOWNS"}
+                  {pinnedCountdowns.length > 0 || featuredItem ? "UPCOMING" : "ALL COUNTDOWNS"}
                 </div>
                 <div className="countdown-widget-list">
                   {regularActiveCountdowns.map((item) => (
@@ -486,6 +546,11 @@ export default function CountdownPage() {
                         setMenuOpenId(null);
                         setEditingCountdown(item);
                         setFormModalOpen(true);
+                      }}
+                      onToggleFeature={() => {
+                        setMenuOpenId(null);
+                        toggleFeatured(item.id);
+                        showToast(item.featured ? "Removed from Featured." : "Set as Featured hero.");
                       }}
                       onTogglePin={() => {
                         setMenuOpenId(null);
@@ -504,6 +569,10 @@ export default function CountdownPage() {
                         duplicateCountdown(item.id);
                         showToast(`Duplicated "${item.title}".`);
                       }}
+                      onShare={() => {
+                        setMenuOpenId(null);
+                        shareCountdownSummary(item, showToast);
+                      }}
                       onDelete={() => {
                         setMenuOpenId(null);
                         setDeleteConfirmTarget(item);
@@ -514,7 +583,7 @@ export default function CountdownPage() {
               </div>
             ) : null}
 
-            {/* COMPLETED SECTION */}
+            {/* COMPLETED SECTION (Visually quieter, no negative numbers ever) */}
             {(filterTab === "all" || filterTab === "completed") && displayedCompleted.length > 0 ? (
               <div style={{ marginBottom: 18 }}>
                 <div className="countdown-section-label">
@@ -536,10 +605,15 @@ export default function CountdownPage() {
                         setEditingCountdown(item);
                         setFormModalOpen(true);
                       }}
+                      onToggleFeature={() => {
+                        setMenuOpenId(null);
+                        toggleFeatured(item.id);
+                        showToast(item.featured ? "Removed from Featured." : "Set as Featured hero.");
+                      }}
                       onTogglePin={() => {
                         setMenuOpenId(null);
                         togglePin(item.id);
-                        showToast(item.pinned ? "Unpinned countdown." : "Pinned to top.");
+                        showToast(item.pinned ? "Unpinned." : "Pinned to top.");
                       }}
                       onToggleShowOnToday={() => {
                         setMenuOpenId(null);
@@ -552,6 +626,10 @@ export default function CountdownPage() {
                         setMenuOpenId(null);
                         duplicateCountdown(item.id);
                         showToast(`Duplicated "${item.title}".`);
+                      }}
+                      onShare={() => {
+                        setMenuOpenId(null);
+                        shareCountdownSummary(item, showToast);
                       }}
                       onDelete={() => {
                         setMenuOpenId(null);
@@ -619,6 +697,12 @@ export default function CountdownPage() {
                 curr ? { ...curr, pinned: !curr.pinned } : null
               );
             }}
+            onToggleFeatured={() => {
+              toggleFeatured(selectedCountdown.id);
+              setSelectedCountdown((curr) =>
+                curr ? { ...curr, featured: !curr.featured } : null
+              );
+            }}
             onToggleShowOnToday={() => {
               toggleShowOnToday(selectedCountdown.id);
               setSelectedCountdown((curr) =>
@@ -650,7 +734,215 @@ export default function CountdownPage() {
 }
 
 /**
- * Compact Glanceable Countdown Widget Card
+ * Featured Hero Card Component (Section 10 & 11)
+ *
+ * Structure:
+ * ┌────────────────────────────────────┐
+ * │ 🎓                              ⋮  │
+ * │                                    │
+ * │ 21 DAYS LEFT                       │
+ * │ SBI PO Exam                        │
+ * │ 21 October 2026 · Active           │
+ * │                                    │
+ * │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━        │
+ * └────────────────────────────────────┘
+ */
+interface CardProps {
+  countdown: Countdown;
+  today: string;
+  onOpen: () => void;
+  isMenuOpen: boolean;
+  onToggleMenu: () => void;
+  onEdit: () => void;
+  onToggleFeature: () => void;
+  onTogglePin: () => void;
+  onToggleShowOnToday: () => void;
+  onDuplicate: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+}
+
+function FeaturedHeroCard({
+  countdown,
+  today,
+  onOpen,
+  isMenuOpen,
+  onToggleMenu,
+  onEdit,
+  onToggleFeature,
+  onTogglePin,
+  onToggleShowOnToday,
+  onDuplicate,
+  onShare,
+  onDelete
+}: CardProps) {
+  const status = computeCountdownStatus(countdown, today);
+  const isCompleted = status.phase === "completed";
+  const dateFormatted = formatSmartTargetDate(countdown.targetDate, today);
+  const statusLabel = isCompleted ? "Completed" : "Active";
+
+  const statusText = status.displayUnit
+    ? `${status.displayValue} ${status.displayUnit}`
+    : status.displayValue;
+
+  return (
+    <div
+      className="countdown-hero-card"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      aria-label={`Featured: ${countdown.title}, ${statusText}, ${dateFormatted}`}
+      style={{
+        background: "var(--surface)",
+        border: "1.5px solid var(--accent, #10b981)",
+        borderRadius: 16,
+        padding: "16px 16px 14px",
+        boxShadow: "0 4px 14px rgba(16, 185, 129, 0.08)",
+        cursor: "pointer",
+        position: "relative",
+        userSelect: "none",
+        transition: "transform 0.12s ease"
+      }}
+    >
+      {/* Top Row: Icon on left, Overflow menu on right */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 26 }} aria-hidden="true">
+            {countdown.icon}
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "2px 7px",
+              borderRadius: 6,
+              background: "rgba(16, 185, 129, 0.12)",
+              color: "var(--accent, #10b981)"
+            }}
+          >
+            FEATURED
+          </span>
+          {countdown.pinned ? (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "var(--surface-hover)",
+                color: "var(--ink-muted)",
+                border: "1px solid var(--border)"
+              }}
+            >
+              PINNED
+            </span>
+          ) : null}
+        </div>
+
+        {/* Overflow Menu Button */}
+        <div onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="countdown-widget-menu-btn"
+            onClick={onToggleMenu}
+            aria-label={`Options for ${countdown.title}`}
+            aria-expanded={isMenuOpen}
+          >
+            ⋮
+          </button>
+
+          {isMenuOpen ? (
+            <CardOverflowDropdown
+              countdown={countdown}
+              onToggleFeature={onToggleFeature}
+              onTogglePin={onTogglePin}
+              onToggleShowOnToday={onToggleShowOnToday}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onShare={onShare}
+              onDelete={onDelete}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      {/* Countdown Number (Strongest visual element) */}
+      <div
+        style={{
+          fontSize: "clamp(26px, 7vw, 34px)",
+          fontWeight: 800,
+          color: isCompleted ? "var(--ink-muted)" : "var(--ink)",
+          letterSpacing: "-0.02em",
+          lineHeight: 1.1,
+          marginBottom: 4
+        }}
+      >
+        {statusText}
+      </div>
+
+      {/* Title */}
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: "var(--ink)",
+          marginBottom: 3,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap"
+        }}
+      >
+        {countdown.title}
+      </div>
+
+      {/* Target date · status */}
+      <div
+        style={{
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: "var(--ink-muted)",
+          marginBottom: status.hasMeaningfulProgress ? 12 : 0
+        }}
+      >
+        {dateFormatted} · {statusLabel}
+      </div>
+
+      {/* Meaningful Progress Bar */}
+      {status.hasMeaningfulProgress ? (
+        <div
+          style={{
+            width: "100%",
+            height: 5,
+            background: "var(--surface-hover)",
+            borderRadius: 3,
+            overflow: "hidden"
+          }}
+        >
+          <div
+            style={{
+              width: `${status.progressPct}%`,
+              height: "100%",
+              background: "var(--accent, #10b981)",
+              borderRadius: 3
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Compact Glanceable Countdown Widget Card (Section 12 & 13)
+ * Target height ~80–100px
  *
  * Structure:
  * ┌────────────────────────────────────┐
@@ -659,19 +951,6 @@ export default function CountdownPage() {
  * │     21 Oct 2026 · Active           │
  * └────────────────────────────────────┘
  */
-interface CompactCountdownCardProps {
-  countdown: Countdown;
-  today: string;
-  onOpen: () => void;
-  isMenuOpen: boolean;
-  onToggleMenu: () => void;
-  onEdit: () => void;
-  onTogglePin: () => void;
-  onToggleShowOnToday: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-}
-
 function CompactCountdownCard({
   countdown,
   today,
@@ -679,16 +958,21 @@ function CompactCountdownCard({
   isMenuOpen,
   onToggleMenu,
   onEdit,
+  onToggleFeature,
   onTogglePin,
   onToggleShowOnToday,
   onDuplicate,
+  onShare,
   onDelete
-}: CompactCountdownCardProps) {
+}: CardProps) {
   const status = computeCountdownStatus(countdown, today);
-  const isCompleted = countdown.mode !== "countup" && status.phase === "completed";
-  const { text: statusText, variant } = getStatusText(countdown, status);
-  const formattedDate = formatCardDate(countdown.targetDate);
+  const isCompleted = status.phase === "completed";
+  const dateFormatted = formatSmartTargetDate(countdown.targetDate, today);
   const statusLabel = isCompleted ? "Completed" : "Active";
+
+  const statusText = status.displayUnit
+    ? `${status.displayValue} ${status.displayUnit}`
+    : status.displayValue;
 
   return (
     <div
@@ -702,7 +986,7 @@ function CompactCountdownCard({
           onOpen();
         }
       }}
-      aria-label={`${countdown.title}, ${statusText}, ${formattedDate}`}
+      aria-label={`${countdown.title}, ${statusText}, ${dateFormatted}`}
     >
       {/* Top Row: Icon + Status on Left, Overflow Menu on Right */}
       <div className="countdown-widget-top">
@@ -710,8 +994,8 @@ function CompactCountdownCard({
           <span className="countdown-widget-icon" aria-hidden="true">
             {countdown.icon || "🎯"}
           </span>
-          <span className={`countdown-widget-status status-${variant}`}>
-            {statusText}
+          <span className={`countdown-widget-status ${isCompleted ? "status-completed" : "status-upcoming"}`}>
+            {isCompleted ? "✓ COMPLETED" : statusText}
           </span>
           {countdown.pinned ? (
             <span className="countdown-widget-badge-pill">PINNED</span>
@@ -743,55 +1027,16 @@ function CompactCountdownCard({
 
           {/* Overflow Menu Dropdown */}
           {isMenuOpen ? (
-            <div
-              className="countdown-overflow-dropdown"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="countdown-menu-item"
-                onClick={onTogglePin}
-              >
-                <span>📌</span>
-                <span>{countdown.pinned ? "Unpin" : "Pin to top"}</span>
-              </button>
-
-              <button
-                type="button"
-                className="countdown-menu-item"
-                onClick={onToggleShowOnToday}
-              >
-                <span>📅</span>
-                <span>{countdown.showOnToday ? "Hide from Today" : "Show on Today"}</span>
-              </button>
-
-              <button
-                type="button"
-                className="countdown-menu-item"
-                onClick={onEdit}
-              >
-                <span>✏️</span>
-                <span>Edit</span>
-              </button>
-
-              <button
-                type="button"
-                className="countdown-menu-item"
-                onClick={onDuplicate}
-              >
-                <span>📋</span>
-                <span>Duplicate</span>
-              </button>
-
-              <button
-                type="button"
-                className="countdown-menu-item countdown-menu-item-danger"
-                onClick={onDelete}
-              >
-                <span>🗑️</span>
-                <span>Delete</span>
-              </button>
-            </div>
+            <CardOverflowDropdown
+              countdown={countdown}
+              onToggleFeature={onToggleFeature}
+              onTogglePin={onTogglePin}
+              onToggleShowOnToday={onToggleShowOnToday}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onShare={onShare}
+              onDelete={onDelete}
+            />
           ) : null}
         </div>
       </div>
@@ -803,8 +1048,74 @@ function CompactCountdownCard({
 
       {/* Row 3: Target date · Status */}
       <div className="countdown-widget-date">
-        {formattedDate} · {statusLabel}
+        {dateFormatted} · {statusLabel}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Reusable Card Overflow Dropdown Menu (Section 15)
+ */
+function CardOverflowDropdown({
+  countdown,
+  onToggleFeature,
+  onTogglePin,
+  onToggleShowOnToday,
+  onEdit,
+  onDuplicate,
+  onShare,
+  onDelete
+}: {
+  countdown: Countdown;
+  onToggleFeature: () => void;
+  onTogglePin: () => void;
+  onToggleShowOnToday: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="countdown-overflow-dropdown" onClick={(e) => e.stopPropagation()}>
+      <button type="button" className="countdown-menu-item" onClick={onToggleFeature}>
+        <span>⭐</span>
+        <span>{countdown.featured ? "Remove from Featured" : "Feature"}</span>
+      </button>
+
+      <button type="button" className="countdown-menu-item" onClick={onTogglePin}>
+        <span>📌</span>
+        <span>{countdown.pinned ? "Unpin" : "Pin"}</span>
+      </button>
+
+      <button type="button" className="countdown-menu-item" onClick={onToggleShowOnToday}>
+        <span>🎯</span>
+        <span>{countdown.showOnToday ? "Hide from Today" : "Show on Today"}</span>
+      </button>
+
+      <button type="button" className="countdown-menu-item" onClick={onEdit}>
+        <span>✏️</span>
+        <span>Edit</span>
+      </button>
+
+      <button type="button" className="countdown-menu-item" onClick={onDuplicate}>
+        <span>📋</span>
+        <span>Duplicate</span>
+      </button>
+
+      <button type="button" className="countdown-menu-item" onClick={onShare}>
+        <span>↗</span>
+        <span>Share</span>
+      </button>
+
+      <button
+        type="button"
+        className="countdown-menu-item countdown-menu-item-danger"
+        onClick={onDelete}
+      >
+        <span>🗑️</span>
+        <span>Delete</span>
+      </button>
     </div>
   );
 }

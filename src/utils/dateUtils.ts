@@ -10,89 +10,126 @@ export function todayStr(): string {
   return toDateStr(new Date());
 }
 
-export function parseDateStr(s: string): Date {
-  if (!s || typeof s !== "string") return new Date();
-  const parts = s.split("-").map(Number);
+/**
+ * Pure local calendar date parsing.
+ * Never interprets YYYY-MM-DD as UTC.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split("-").map(Number);
   if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
     return new Date();
   }
-  return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+export function parseDateStr(s: string): Date {
+  return parseLocalDate(s);
 }
 
 export function addDays(dateStr: string, n: number): string {
-  const d = parseDateStr(dateStr);
-  d.setDate(d.getDate() + n);
-  return toDateStr(d);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + n);
+  return toDateStr(date);
 }
 
 export function isValidDateStr(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+export const CALENDAR_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+] as const;
+
+export const CALENDAR_MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+] as const;
+
+export const CALENDAR_WEEKDAYS = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+] as const;
+
+export const CALENDAR_WEEKDAYS_SHORT = [
+  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+] as const;
+
+export function getCalendarComponents(dateStr: string) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return {
+    year,
+    month,
+    day,
+    monthName: CALENDAR_MONTHS[month - 1] || "",
+    monthShort: CALENDAR_MONTHS_SHORT[month - 1] || "",
+    weekday: CALENDAR_WEEKDAYS[d.getDay()] || "",
+    weekdayShort: CALENDAR_WEEKDAYS_SHORT[d.getDay()] || ""
+  };
+}
+
 export function formatLong(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  return d.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric"
-  });
+  const comp = getCalendarComponents(dateStr);
+  return `${comp.weekday}, ${comp.monthName} ${comp.day}`;
 }
 
 export function formatShort(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric"
-  });
+  const comp = getCalendarComponents(dateStr);
+  return `${comp.weekdayShort}, ${comp.monthShort} ${comp.day}`;
 }
 
 export function weekdayLetter(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+  const comp = getCalendarComponents(dateStr);
+  return comp.weekdayShort;
 }
 
 export function weekdayFull(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  return d.toLocaleDateString(undefined, { weekday: "long" });
+  const comp = getCalendarComponents(dateStr);
+  return comp.weekday;
 }
 
 /** "20 September" or "20 September 2026" if not current year */
 export function formatDayMonth(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  const now = new Date();
-  if (d.getFullYear() !== now.getFullYear()) {
-    return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  const comp = getCalendarComponents(dateStr);
+  const currentYear = new Date().getFullYear();
+  if (comp.year !== currentYear) {
+    return `${comp.day} ${comp.monthName} ${comp.year}`;
   }
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "long" });
+  return `${comp.day} ${comp.monthName}`;
 }
 
 /** Compact nav date like "Sun 20 Sep" */
 export function formatNavDate(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
-  const month = d.toLocaleDateString(undefined, { month: "short" });
-  return `${weekday} ${d.getDate()} ${month}`;
+  const comp = getCalendarComponents(dateStr);
+  return `${comp.weekdayShort} ${comp.day} ${comp.monthShort}`;
 }
 
 /** "20 Sep 2026" — used for countdown goal dates (no weekday, needs the year). */
 export function formatDateMedium(dateStr: string): string {
-  const d = parseDateStr(dateStr);
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const comp = getCalendarComponents(dateStr);
+  return `${comp.day} ${comp.monthShort} ${comp.year}`;
 }
 
 /**
- * Whole calendar days between two YYYY-MM-DD dates (b - a), independent of
- * time-of-day/DST: both are parsed to local midnight, and rounding (rather
- * than flooring) absorbs the one-off DST hour shift so a "23-hour" or
- * "25-hour" day still counts as exactly 1 day. Never use `Date.now()` or
- * millisecond timestamps for calendar-day math — this is date-only.
+ * Calculates exact calendar day difference (b - a).
+ * Compares pure calendar components via Date.UTC to eliminate any timezone or DST shifts.
  */
+export function daysBetweenCalendarDates(
+  startDateStr: string,
+  endDateStr: string
+): number {
+  const [y1, m1, d1] = startDateStr.split("-").map(Number);
+  const [y2, m2, d2] = endDateStr.split("-").map(Number);
+
+  const startDay = Date.UTC(y1, m1 - 1, d1);
+  const endDay = Date.UTC(y2, m2 - 1, d2);
+
+  return Math.round((endDay - startDay) / 86_400_000);
+}
+
 export function daysBetweenCalendar(aDateStr: string, bDateStr: string): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const a = parseDateStr(aDateStr).getTime();
-  const b = parseDateStr(bDateStr).getTime();
-  return Math.round((b - a) / msPerDay);
+  return daysBetweenCalendarDates(aDateStr, bDateStr);
 }
 
 /** Week start date containing the given date (weekStartsOn: 1 = Monday, 0 = Sunday). */
