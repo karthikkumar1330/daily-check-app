@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Countdown } from "../../types";
-import { computeCountdownStatus } from "../../utils/countdownUtils";
+import { computeCountdownStatus, formatMilestoneDays } from "../../utils/countdownUtils";
 import { formatLong, formatShort, todayStr } from "../../utils/dateUtils";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { BackIcon, CloseIcon, EditIcon } from "../../components/icons";
@@ -33,11 +33,18 @@ export default function CountdownDetailModal({
   const closingTimeoutRef = useRef<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [milestonesExpanded, setMilestonesExpanded] = useState(false);
+  const [showReached, setShowReached] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
 
   const status = computeCountdownStatus(countdown, todayStr());
+  const nextMilestone = status.nextMilestone;
+  const upcomingMilestones = nextMilestone
+    ? status.milestones.filter((m) => m.days < nextMilestone.days)
+    : [];
+  const reachedMilestones = nextMilestone
+    ? status.milestones.filter((m) => m.days > nextMilestone.days && m.isReached)
+    : [];
 
   function handleClose() {
     if (isClosing) return;
@@ -204,12 +211,12 @@ export default function CountdownDetailModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="countdown-sheet-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="countdown-sheet-body" style={{ display: "flex", flexDirection: "column", gap: 13 }}>
           {/* Hero Section */}
           <div
             style={{
               textAlign: "center",
-              padding: "12px 10px 4px",
+              padding: "4px 8px 0",
               display: "flex",
               flexDirection: "column",
               alignItems: "center"
@@ -230,7 +237,7 @@ export default function CountdownDetailModal({
                   background: "rgba(16, 185, 129, 0.12)",
                   padding: "4px 12px",
                   borderRadius: 20,
-                  marginBottom: 10
+                  marginBottom: 8
                 }}
               >
                 <span>🎉</span>
@@ -250,7 +257,7 @@ export default function CountdownDetailModal({
                   background: "rgba(59, 130, 246, 0.12)",
                   padding: "4px 12px",
                   borderRadius: 20,
-                  marginBottom: 10
+                  marginBottom: 8
                 }}
               >
                 <span>🏆</span>
@@ -265,16 +272,16 @@ export default function CountdownDetailModal({
                 alignItems: "center",
                 gap: 8,
                 maxWidth: "100%",
-                marginBottom: 14
+                marginBottom: 6
               }}
             >
-              <span style={{ fontSize: 26, flexShrink: 0 }} aria-hidden="true">
+              <span style={{ fontSize: 24, flexShrink: 0 }} aria-hidden="true">
                 {countdown.icon}
               </span>
               <h2
                 id="countdown-detail-title"
                 style={{
-                  fontSize: 20,
+                  fontSize: 19,
                   fontWeight: 700,
                   margin: 0,
                   color: "var(--ink)",
@@ -287,10 +294,10 @@ export default function CountdownDetailModal({
             </div>
 
             {/* Hero Number & Unit */}
-            <div style={{ margin: "4px 0 10px" }}>
+            <div style={{ margin: "0 0 4px" }}>
               <div
                 style={{
-                  fontSize: "clamp(46px, 12vw, 68px)",
+                  fontSize: "clamp(46px, 12vw, 66px)",
                   fontWeight: 800,
                   lineHeight: 1,
                   color: isCompleted ? "var(--ink-muted)" : "var(--accent, #10b981)",
@@ -301,12 +308,12 @@ export default function CountdownDetailModal({
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
                   color: "var(--ink-muted)",
-                  marginTop: 6
+                  marginTop: 4
                 }}
               >
                 {isCompleted
@@ -320,7 +327,7 @@ export default function CountdownDetailModal({
             {/* Subtext Date */}
             <div
               style={{
-                fontSize: 14,
+                fontSize: 13.5,
                 color: "var(--ink-muted)",
                 fontWeight: 500,
                 marginTop: 2
@@ -341,7 +348,7 @@ export default function CountdownDetailModal({
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 14,
-              padding: "14px 16px"
+              padding: "12px 14px"
             }}
           >
             <div
@@ -363,7 +370,7 @@ export default function CountdownDetailModal({
             <div
               style={{
                 width: "100%",
-                height: 8,
+                height: 7,
                 background: "var(--surface-hover)",
                 borderRadius: 4,
                 overflow: "hidden"
@@ -387,10 +394,10 @@ export default function CountdownDetailModal({
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 14,
-              padding: "12px 16px",
+              padding: "12px 14px",
               display: "flex",
               flexDirection: "column",
-              gap: 12,
+              gap: 10,
               fontSize: 13.5
             }}
           >
@@ -445,12 +452,12 @@ export default function CountdownDetailModal({
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: 14,
-                padding: "14px 16px"
+                padding: "12px 14px"
               }}
             >
               <div
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: 700,
                   color: "var(--ink-muted)",
                   textTransform: "uppercase",
@@ -473,94 +480,151 @@ export default function CountdownDetailModal({
             </div>
           ) : null}
 
-          {/* Milestones if available */}
-          {status.nextMilestone && !isCompleted ? (
+          {/* Milestones Hierarchy */}
+          {nextMilestone && !isCompleted ? (
             <div
               style={{
-                background: "var(--surface-hover)",
+                background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: 14,
-                padding: "12px 14px"
+                padding: "13px 14px"
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em"
-                    }}
-                  >
-                    Next Milestone
-                  </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>
-                    {status.nextMilestone.label}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => setMilestonesExpanded((v) => !v)}
-                  style={{ fontSize: 12, fontWeight: 600 }}
-                >
-                  {milestonesExpanded ? "Hide" : "View all"}
-                </button>
-              </div>
-
-              {milestonesExpanded ? (
+              {/* Featured Next Milestone */}
+              <div style={{ marginBottom: 10 }}>
                 <div
                   style={{
-                    marginTop: 10,
-                    paddingTop: 8,
-                    borderTop: "1px solid var(--border)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--ink-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    marginBottom: 2
                   }}
                 >
-                  {status.milestones.map((m) => (
-                    <div
-                      key={m.days}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        fontSize: 12.5
-                      }}
-                    >
-                      <span
+                  NEXT MILESTONE
+                </div>
+                <div
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: "var(--ink)",
+                    letterSpacing: "-0.01em"
+                  }}
+                >
+                  {formatMilestoneDays(nextMilestone.days)}
+                </div>
+              </div>
+
+              {/* Remaining Milestones List (Next milestone is NOT repeated!) */}
+              {upcomingMilestones.length > 0 ? (
+                <div
+                  style={{
+                    borderTop: "1px solid var(--border)",
+                    paddingTop: 10,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8
+                  }}
+                >
+                  {upcomingMilestones.map((m) => {
+                    const isFinal = m.days === 0;
+                    return (
+                      <div
+                        key={m.days}
                         style={{
-                          color: m.isReached ? "var(--ink-muted)" : "var(--ink)",
-                          fontWeight: m.isNext ? 700 : 500
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          fontSize: 13,
+                          minHeight: 26
                         }}
                       >
-                        {m.label}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: 10,
-                          background: m.isReached
-                            ? "rgba(16, 185, 129, 0.12)"
-                            : m.isNext
-                            ? "rgba(59, 130, 246, 0.12)"
-                            : "var(--surface)",
-                          color: m.isReached
-                            ? "var(--accent, #10b981)"
-                            : m.isNext
-                            ? "#3b82f6"
-                            : "var(--ink-muted)"
-                        }}
-                      >
-                        {m.isReached ? "✓ Reached" : m.isNext ? "Next Goal" : "Upcoming"}
-                      </span>
+                        <span
+                          style={{
+                            color: "var(--ink)",
+                            fontWeight: isFinal ? 600 : 500
+                          }}
+                        >
+                          {formatMilestoneDays(m.days)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: isFinal ? 700 : 600,
+                            padding: "2px 8px",
+                            borderRadius: 8,
+                            background: isFinal
+                              ? "rgba(16, 185, 129, 0.14)"
+                              : "var(--surface-hover)",
+                            color: isFinal
+                              ? "var(--accent, #10b981)"
+                              : "var(--ink-muted)",
+                            border: isFinal
+                              ? "1px solid rgba(16, 185, 129, 0.25)"
+                              : "1px solid var(--border)"
+                          }}
+                        >
+                          {isFinal ? "Final" : "Upcoming"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {/* Reached Milestones toggle (if any passed) */}
+              {reachedMilestones.length > 0 ? (
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowReached((v) => !v)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "var(--ink-muted)",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}
+                  >
+                    <span>{showReached ? "▾ Hide" : "▸ Show"} passed milestones ({reachedMilestones.length})</span>
+                  </button>
+
+                  {showReached ? (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {reachedMilestones.map((m) => (
+                        <div
+                          key={m.days}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            fontSize: 12.5,
+                            opacity: 0.75
+                          }}
+                        >
+                          <span style={{ color: "var(--ink-muted)" }}>{formatMilestoneDays(m.days)}</span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: 8,
+                              background: "rgba(16, 185, 129, 0.1)",
+                              color: "var(--accent, #10b981)"
+                            }}
+                          >
+                            ✓ Reached
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               ) : null}
             </div>

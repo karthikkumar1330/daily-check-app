@@ -49,6 +49,21 @@ export function calculateWorkingDays(fromDateStr: string, targetDateStr: string)
   return isForward ? workingDays : -workingDays;
 }
 
+/**
+ * Presentation helper to format singular vs plural days (e.g. 1 day vs 2 days)
+ */
+export function formatDays(count: number): string {
+  return count === 1 ? "1 day" : `${count} days`;
+}
+
+/**
+ * Presentation helper to format milestone label
+ */
+export function formatMilestoneDays(days: number): string {
+  if (days === 0) return "Target day";
+  return formatDays(days);
+}
+
 const STANDARD_MILESTONES = [1000, 500, 365, 200, 100, 50, 30, 21, 14, 7, 3, 1, 0];
 
 /**
@@ -181,7 +196,7 @@ export function computeCountdownStatus(
     const isNext = nextMilestoneDays === m;
     return {
       days: m,
-      label: m === 0 ? "Today" : `${m} days`,
+      label: formatMilestoneDays(m),
       isReached,
       isNext
     };
