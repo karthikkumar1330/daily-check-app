@@ -13,8 +13,9 @@ interface HeaderProps {
 }
 
 const ROUTE_TITLES: Record<string, string> = {
-  "/today": "Daily Check",
-  "/tasks": "All Tasks",
+  "/": "Today",
+  "/today": "Today",
+  "/tasks": "Tasks",
   "/calendar": "Calendar",
   "/weekly": "Weekly Progress",
   "/routines": "Routines",
@@ -23,7 +24,8 @@ const ROUTE_TITLES: Record<string, string> = {
   "/high-priority": "High Priority",
   "/categories": "Categories",
   "/notifications": "Notifications",
-  "/settings": "Settings"
+  "/settings": "Settings",
+  "/countdown": "Countdowns"
 };
 
 export default function Header({ isDark, onToggleTheme, onOpenSidebar }: HeaderProps) {
@@ -34,6 +36,8 @@ export default function Header({ isDark, onToggleTheme, onOpenSidebar }: HeaderP
   const [toast, setToast] = useState<string | null>(null);
 
   const isHome = location.pathname === "/today" || location.pathname === "/";
+  const isCountdown = location.pathname === "/countdown";
+  const isRoutines = location.pathname === "/routines";
   const pageTitle = ROUTE_TITLES[location.pathname] || "Daily Check";
 
   function showToast(msg: string) {
@@ -109,7 +113,25 @@ export default function Header({ isDark, onToggleTheme, onOpenSidebar }: HeaderP
       <div className="topbar-title">{pageTitle}</div>
 
       <div className="topbar-actions">
-        {!isHome ? (
+        {isCountdown ? (
+          <button
+            type="button"
+            className="btn btn-primary topbar-primary-action"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-countdown-create"))}
+            aria-label="New countdown"
+          >
+            + New
+          </button>
+        ) : isRoutines ? (
+          <button
+            type="button"
+            className="btn btn-primary topbar-primary-action"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-routine-create"))}
+            aria-label="New routine"
+          >
+            + New
+          </button>
+        ) : !isHome ? (
           <button
             type="button"
             className="icon-btn topbar-share-btn"

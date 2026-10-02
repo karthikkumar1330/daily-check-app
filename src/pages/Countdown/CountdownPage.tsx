@@ -76,6 +76,16 @@ export default function CountdownPage() {
     setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3000);
   }
 
+  // Listen for header "+ New" action
+  useEffect(() => {
+    function handleOpenCreate() {
+      setEditingCountdown(null);
+      setFormModalOpen(true);
+    }
+    window.addEventListener("open-countdown-create", handleOpenCreate);
+    return () => window.removeEventListener("open-countdown-create", handleOpenCreate);
+  }, []);
+
   // Close card overflow menu on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -180,109 +190,35 @@ export default function CountdownPage() {
           </div>
         ) : null}
 
-        {/* Clean Header Bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            margin: "0 0 4px"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => navigate(-1)}
-              aria-label="Go back"
-              style={{ width: 38, height: 38 }}
-            >
-              <BackIcon />
-            </button>
-            <div>
-              <h1
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  margin: 0,
-                  color: "var(--ink)",
-                  letterSpacing: "-0.01em"
-                }}
-              >
-                Countdowns
-              </h1>
-            </div>
-          </div>
-
+        {/* Page Context: compact subtitle + quick add */}
+        <div className="countdown-context-row">
+          <p className="countdown-page-subtitle">
+            Important dates, at a glance
+          </p>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary countdown-new-btn-compact"
             onClick={() => {
               setEditingCountdown(null);
               setFormModalOpen(true);
             }}
-            style={{
-              minHeight: 38,
-              padding: "0 14px",
-              fontSize: 13.5,
-              fontWeight: 700,
-              borderRadius: 10,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4
-            }}
+            aria-label="New countdown"
           >
-            <span>+</span>
-            <span>New</span>
+            + New
           </button>
-        </div>
-
-        {/* Header Subtitle */}
-        <div
-          style={{
-            fontSize: 13,
-            color: "var(--ink-muted)",
-            fontWeight: 500,
-            margin: "0 0 16px 48px"
-          }}
-        >
-          Important dates, at a glance
         </div>
 
         {/* Global Empty State (Zero Countdowns) */}
         {countdowns.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "48px 16px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center"
-            }}
-          >
-            <div style={{ fontSize: 36, marginBottom: 12 }} aria-hidden="true">
-              🎯
+          <div className="countdown-empty-card">
+            <div className="countdown-empty-icon" aria-hidden="true">
+              📅
             </div>
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "var(--ink)",
-                margin: "0 0 6px"
-              }}
-            >
+            <h2 className="countdown-empty-title">
               No countdowns yet
             </h2>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--ink-muted)",
-                margin: "0 0 16px",
-                maxWidth: 280,
-                lineHeight: 1.4
-              }}
-            >
-              Track an exam, trip, milestone or important date.
+            <p className="countdown-empty-text">
+              Create an important date and see how much time remains.
             </p>
             <button
               type="button"
@@ -296,7 +232,8 @@ export default function CountdownPage() {
                 padding: "0 18px",
                 fontSize: 13.5,
                 fontWeight: 700,
-                borderRadius: 10
+                borderRadius: 10,
+                marginTop: 16
               }}
             >
               + New Countdown
@@ -304,7 +241,7 @@ export default function CountdownPage() {
           </div>
         ) : (
           <>
-            {/* Search Input */}
+            {/* Search Input (44px min height) */}
             <div style={{ position: "relative", marginBottom: 12 }}>
               <span
                 style={{
@@ -312,7 +249,7 @@ export default function CountdownPage() {
                   left: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
-                  fontSize: 13,
+                  fontSize: 14,
                   color: "var(--ink-muted)",
                   pointerEvents: "none"
                 }}
@@ -328,8 +265,8 @@ export default function CountdownPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: "100%",
-                  minHeight: 42,
-                  height: 42,
+                  minHeight: 44,
+                  height: 44,
                   padding: "0 14px 0 38px",
                   fontSize: 14,
                   borderRadius: 12,
@@ -418,9 +355,9 @@ export default function CountdownPage() {
               </div>
             ) : null}
 
-            {/* FEATURED HERO SECTION (Rule 10 & 11: Only shown if user explicitly featured one) */}
+            {/* FEATURED HERO SECTION (Only shown if user explicitly featured one) */}
             {filterTab !== "completed" && featuredItem ? (
-              <div style={{ marginBottom: 18 }}>
+              <div className="countdown-section-group">
                 <div className="countdown-section-label">FEATURED</div>
                 <FeaturedHeroCard
                   countdown={featuredItem}
@@ -471,7 +408,7 @@ export default function CountdownPage() {
 
             {/* PINNED SECTION */}
             {filterTab !== "completed" && pinnedCountdowns.length > 0 ? (
-              <div style={{ marginBottom: 18 }}>
+              <div className="countdown-section-group">
                 <div className="countdown-section-label">PINNED</div>
                 <div className="countdown-widget-list">
                   {pinnedCountdowns.map((item) => (
@@ -527,10 +464,8 @@ export default function CountdownPage() {
 
             {/* ACTIVE SECTION */}
             {filterTab !== "completed" && regularActiveCountdowns.length > 0 ? (
-              <div style={{ marginBottom: 18 }}>
-                <div className="countdown-section-label">
-                  {pinnedCountdowns.length > 0 || featuredItem ? "UPCOMING" : "ALL COUNTDOWNS"}
-                </div>
+              <div className="countdown-section-group">
+                <div className="countdown-section-label">ACTIVE</div>
                 <div className="countdown-widget-list">
                   {regularActiveCountdowns.map((item) => (
                     <CompactCountdownCard
@@ -585,10 +520,8 @@ export default function CountdownPage() {
 
             {/* COMPLETED SECTION (Visually quieter, no negative numbers ever) */}
             {(filterTab === "all" || filterTab === "completed") && displayedCompleted.length > 0 ? (
-              <div style={{ marginBottom: 18 }}>
-                <div className="countdown-section-label">
-                  COMPLETED ({displayedCompleted.length})
-                </div>
+              <div className="countdown-section-group">
+                <div className="countdown-section-label">COMPLETED</div>
                 <div className="countdown-widget-list">
                   {displayedCompleted.map((item) => (
                     <CompactCountdownCard
@@ -845,6 +778,11 @@ function FeaturedHeroCard({
               PINNED
             </span>
           ) : null}
+          {countdown.showOnToday ? (
+            <span className="countdown-on-today-badge">
+              ON TODAY
+            </span>
+          ) : null}
         </div>
 
         {/* Overflow Menu Button */}
@@ -1005,7 +943,7 @@ function CompactCountdownCard({
               className="countdown-widget-today-pill"
               title="Shown on Today screen"
             >
-              TODAY
+              ON TODAY
             </span>
           ) : null}
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRoutines } from "../../hooks/useRoutines";
 import { useTasks } from "../../hooks/useTasks";
 import { todayStr } from "../../utils/dateUtils";
@@ -7,11 +7,18 @@ import { DEFAULT_ROUTINES } from "../../utils/routineStorage";
 import type { Routine } from "../../types";
 import RoutineEditorModal from "../../components/Routines/RoutineEditorModal";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
-import EmptyState from "../../components/EmptyState/EmptyState";
 import { CheckIcon, EditIcon, PlusIcon, TrashIcon } from "../../components/icons";
 
 export default function RoutinesPage() {
-  const { routines, createRoutine, updateRoutine, deleteRoutine, applyRoutineToDate, isRoutineAppliedOnDate, replaceAllRoutines } = useRoutines();
+  const {
+    routines,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    applyRoutineToDate,
+    isRoutineAppliedOnDate,
+    replaceAllRoutines
+  } = useRoutines();
   const { getDay } = useTasks();
 
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
@@ -19,14 +26,39 @@ export default function RoutinesPage() {
   const [confirmDelete, setConfirmDelete] = useState<Routine | null>(null);
   const [confirmDuplicate, setConfirmDuplicate] = useState<Routine | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [expandedTasksId, setExpandedTasksId] = useState<string | null>(null);
 
+  const menuContainerRef = useRef<HTMLDivElement>(null);
   const today = todayStr();
   const todayDay = getDay(today);
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(null), 3200);
+    setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3200);
   }
+
+  // Listen to Global Header + New button event
+  useEffect(() => {
+    function handleOpenCreate() {
+      setIsCreating(true);
+    }
+    window.addEventListener("open-routine-create", handleOpenCreate);
+    return () => window.removeEventListener("open-routine-create", handleOpenCreate);
+  }, []);
+
+  // Close kebab menu on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenuId]);
 
   function handleApply(routine: Routine) {
     const isApplied = isRoutineAppliedOnDate(routine.id, todayDay.tasks);
@@ -59,46 +91,70 @@ export default function RoutinesPage() {
     showToast("Loaded starter routines.");
   }
 
+  // Count applied routines today
+  const appliedCount = useMemo(() => {
+    return routines.filter((r) => isRoutineAppliedOnDate(r.id, todayDay.tasks)).length;
+  }, [routines, todayDay.tasks, isRoutineAppliedOnDate]);
+
+  // Split routines into Applied Today vs Available Routines
+  const { appliedRoutines, availableRoutines } = useMemo(() => {
+    const applied: Routine[] = [];
+    const available: Routine[] = [];
+    for (const r of routines) {
+      if (isRoutineAppliedOnDate(r.id, todayDay.tasks)) {
+        applied.push(r);
+      } else {
+        available.push(r);
+      }
+    }
+    return { appliedRoutines: applied, availableRoutines: available };
+  }, [routines, todayDay.tasks, isRoutineAppliedOnDate]);
+
+  function formatRoutineMetadata(routine: Routine) {
+    const categories = Array.from(
+      new Set(
+        routine.tasks
+          .map((t) => categoryMeta(t.category).label)
+          .filter((l) => l && l !== "Other")
+      )
+    ).slice(0, 2);
+
+    const times = routine.tasks
+      .map((t) => t.dueTime)
+      .filter((time): time is string => Boolean(time))
+      .sort();
+
+    return {
+      categoriesText: categories.length > 0 ? categories.join(", ") : null,
+      earliestTime: times.length > 0 ? times[0] : null
+    };
+  }
+
   return (
-    <div className="page routines-page" style={{ paddingBottom: 64 }}>
-      <div
-        className="section-row"
-        style={{
-          margin: "0 0 4px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}
-      >
-        <div>
-          <h1 className="page-title" style={{ margin: 0 }}>
-            Daily Routines
-          </h1>
+    <div className="page routines-page" ref={menuContainerRef}>
+      {/* 1. Compact Context Row (when routines exist) */}
+      {routines.length > 0 && (
+        <div className="routines-context-bar" role="region" aria-label="Routines overview">
+          <div className="routines-context-left">
+            <span className="routines-context-title">Daily Routines</span>
+            <span className="routines-context-sub">
+              {appliedCount > 0
+                ? `${appliedCount} applied today · ${routines.length - appliedCount} ready`
+                : `${routines.length} ${routines.length === 1 ? "routine" : "routines"} ready to apply`}
+            </span>
+          </div>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setIsCreating(true)}
-          style={{ minHeight: 44, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
-          <PlusIcon />
-          <span>New Routine</span>
-        </button>
-      </div>
+      )}
 
-      <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 20 }}>
-        Reusable task templates to populate your daily checklist in one tap.
-      </p>
-
+      {/* 2. Empty State */}
       {routines.length === 0 ? (
-        <div className="card" style={{ padding: "32px 20px", textAlign: "center" }}>
-          <EmptyState
-            variant="custom"
-            icon="📋"
-            title="No routines yet."
-            subtitle="Create custom daily templates for study plans, workouts, or morning rituals."
-          />
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}>
+        <div className="routines-empty-card" role="region" aria-label="No routines yet">
+          <div className="routines-empty-icon" aria-hidden="true">📋</div>
+          <div className="routines-empty-title">No routines yet</div>
+          <div className="routines-empty-desc">
+            Create custom daily templates for study plans, workouts, or morning rituals to populate your checklist in one tap.
+          </div>
+          <div className="routines-empty-actions">
             <button
               type="button"
               className="btn btn-primary"
@@ -118,205 +174,59 @@ export default function RoutinesPage() {
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 16
-          }}
-        >
-          {routines.map((routine) => {
-            const isAppliedToday = isRoutineAppliedOnDate(routine.id, todayDay.tasks);
-            return (
-              <div
-                key={routine.id}
-                className="card routine-card"
-                style={{
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md, 12px)",
-                  background: "var(--surface)",
-                  position: "relative"
-                }}
-              >
-                {/* Header */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "var(--radius-sm, 8px)",
-                        background: "var(--surface-sunken, rgba(0,0,0,0.04))",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 22,
-                        flexShrink: 0
-                      }}
-                      aria-hidden="true"
-                    >
-                      {routine.icon || "📋"}
-                    </div>
-                    <div>
-                      <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--ink)" }}>
-                        {routine.name}
-                      </h2>
-                      <div style={{ fontSize: 12, color: "var(--ink-muted)", marginTop: 2 }}>
-                        {routine.tasks.length} task{routine.tasks.length === 1 ? "" : "s"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => setEditingRoutine(routine)}
-                      aria-label={`Edit ${routine.name}`}
-                      title="Edit routine"
-                      style={{ width: 36, height: 36 }}
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => setConfirmDelete(routine)}
-                      aria-label={`Delete ${routine.name}`}
-                      title="Delete routine"
-                      style={{ width: 36, height: 36, color: "var(--danger, #ef4444)" }}
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tasks Preview */}
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    margin: "4px 0 16px",
-                    background: "var(--surface-sunken, rgba(0,0,0,0.02))",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border)"
-                  }}
-                >
-                  {routine.tasks.map((t, idx) => {
-                    const cat = categoryMeta(t.category);
-                    return (
-                      <div
-                        key={t.id || idx}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          fontSize: 13,
-                          padding: "3px 0"
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
-                          <span style={{ color: "var(--ink-muted)", fontSize: 11, width: 14 }}>
-                            {idx + 1}.
-                          </span>
-                          <span
-                            style={{
-                              fontWeight: 500,
-                              color: "var(--ink)",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap"
-                            }}
-                          >
-                            {t.title}
-                          </span>
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                          {cat.id ? (
-                            <span
-                              style={{
-                                fontSize: 11,
-                                padding: "1px 6px",
-                                borderRadius: 6,
-                                background: "var(--surface)",
-                                border: "1px solid var(--border)",
-                                color: "var(--ink-muted)"
-                              }}
-                            >
-                              {cat.emoji} {cat.label}
-                            </span>
-                          ) : null}
-
-                          {t.priority === 1 ? (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: "1px 5px",
-                                borderRadius: 4,
-                                background: "rgba(239, 68, 68, 0.15)",
-                                color: "var(--danger, #ef4444)"
-                              }}
-                            >
-                              HIGH
-                            </span>
-                          ) : null}
-
-                          {t.dueTime ? (
-                            <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>
-                              🕒 {t.dueTime}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Footer Action */}
-                <div style={{ marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    className={`btn ${isAppliedToday ? "btn-secondary" : "btn-primary"}`}
-                    onClick={() => handleApply(routine)}
-                    style={{
-                      width: "100%",
-                      minHeight: 44,
-                      justifyContent: "center",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      gap: 6
-                    }}
-                    aria-label={`Apply ${routine.name} to Today`}
-                  >
-                    {isAppliedToday ? (
-                      <>
-                        <CheckIcon />
-                        <span>Applied to Today (Add Again)</span>
-                      </>
-                    ) : (
-                      <>
-                        <PlusIcon />
-                        <span>Apply to Today ({routine.tasks.length} tasks)</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+        <>
+          {/* 3. Applied Today Section (if any) */}
+          {appliedRoutines.length > 0 && (
+            <section className="routines-section" aria-label="Applied Today">
+              <div className="routines-section-label">Applied Today</div>
+              <div className="routines-list">
+                {appliedRoutines.map((routine) => (
+                  <RoutineCardItem
+                    key={routine.id}
+                    routine={routine}
+                    isAppliedToday={true}
+                    onApply={() => handleApply(routine)}
+                    onEdit={() => setEditingRoutine(routine)}
+                    onDelete={() => setConfirmDelete(routine)}
+                    isMenuOpen={openMenuId === routine.id}
+                    onToggleMenu={() => setOpenMenuId((curr) => (curr === routine.id ? null : routine.id))}
+                    isTasksExpanded={expandedTasksId === routine.id}
+                    onToggleTasks={() => setExpandedTasksId((curr) => (curr === routine.id ? null : routine.id))}
+                    metadata={formatRoutineMetadata(routine)}
+                  />
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </section>
+          )}
+
+          {/* 4. Available / All Routines Section */}
+          <section className="routines-section" aria-label={appliedRoutines.length > 0 ? "Available Routines" : "All Routines"}>
+            <div className="routines-section-label">
+              {appliedRoutines.length > 0 ? "Available Routines" : "Routines"}
+            </div>
+            <div className="routines-list">
+              {availableRoutines.map((routine) => (
+                <RoutineCardItem
+                  key={routine.id}
+                  routine={routine}
+                  isAppliedToday={false}
+                  onApply={() => handleApply(routine)}
+                  onEdit={() => setEditingRoutine(routine)}
+                  onDelete={() => setConfirmDelete(routine)}
+                  isMenuOpen={openMenuId === routine.id}
+                  onToggleMenu={() => setOpenMenuId((curr) => (curr === routine.id ? null : routine.id))}
+                  isTasksExpanded={expandedTasksId === routine.id}
+                  onToggleTasks={() => setExpandedTasksId((curr) => (curr === routine.id ? null : routine.id))}
+                  metadata={formatRoutineMetadata(routine)}
+                />
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
       {/* Editor Modal for Create / Edit */}
-      {isCreating ? (
+      {isCreating && (
         <RoutineEditorModal
           onSave={(data) => {
             const res = createRoutine(data);
@@ -328,9 +238,9 @@ export default function RoutinesPage() {
           }}
           onCancel={() => setIsCreating(false)}
         />
-      ) : null}
+      )}
 
-      {editingRoutine ? (
+      {editingRoutine && (
         <RoutineEditorModal
           routine={editingRoutine}
           onSave={(data) => {
@@ -343,10 +253,10 @@ export default function RoutinesPage() {
           }}
           onCancel={() => setEditingRoutine(null)}
         />
-      ) : null}
+      )}
 
       {/* Confirm Delete Routine Modal */}
-      {confirmDelete ? (
+      {confirmDelete && (
         <ConfirmModal
           title={`Delete "${confirmDelete.name}"?`}
           message="This template will be removed. Any tasks previously created from this routine on your checklists will remain intact."
@@ -359,10 +269,10 @@ export default function RoutinesPage() {
           }}
           onCancel={() => setConfirmDelete(null)}
         />
-      ) : null}
+      )}
 
       {/* Confirm Duplicate Application */}
-      {confirmDuplicate ? (
+      {confirmDuplicate && (
         <ConfirmModal
           title="Apply Routine Again?"
           message={`Tasks from "${confirmDuplicate.name}" are already in today's checklist. Would you like to add another set of these tasks?`}
@@ -370,14 +280,205 @@ export default function RoutinesPage() {
           onConfirm={handleForceApply}
           onCancel={() => setConfirmDuplicate(null)}
         />
-      ) : null}
+      )}
 
-      {/* Toast */}
-      {toast ? (
+      {/* Toast Notification */}
+      {toast && (
         <div className="toast" role="status" aria-live="polite">
           {toast}
         </div>
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+interface RoutineCardItemProps {
+  routine: Routine;
+  isAppliedToday: boolean;
+  onApply: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isMenuOpen: boolean;
+  onToggleMenu: () => void;
+  isTasksExpanded: boolean;
+  onToggleTasks: () => void;
+  metadata: {
+    categoriesText: string | null;
+    earliestTime: string | null;
+  };
+}
+
+function RoutineCardItem({
+  routine,
+  isAppliedToday,
+  onApply,
+  onEdit,
+  onDelete,
+  isMenuOpen,
+  onToggleMenu,
+  isTasksExpanded,
+  onToggleTasks,
+  metadata
+}: RoutineCardItemProps) {
+  return (
+    <div className={`routine-card-item${isAppliedToday ? " is-applied" : ""}`}>
+      <div className="routine-card-header">
+        <div className="routine-card-left">
+          <div className="routine-icon-avatar" aria-hidden="true">
+            {routine.icon || "📋"}
+          </div>
+          <div className="routine-card-info">
+            <div className="routine-title-row">
+              <h3 className="routine-name">{routine.name}</h3>
+              {isAppliedToday ? (
+                <span className="routine-status-badge badge-active">Applied Today</span>
+              ) : (
+                <span className="routine-status-badge badge-ready">Ready to apply</span>
+              )}
+            </div>
+            <div className="routine-meta-row">
+              <span>{routine.tasks.length} {routine.tasks.length === 1 ? "task" : "tasks"}</span>
+              {metadata.categoriesText && (
+                <>
+                  <span className="routine-meta-dot" aria-hidden="true">·</span>
+                  <span>{metadata.categoriesText}</span>
+                </>
+              )}
+              {metadata.earliestTime && (
+                <>
+                  <span className="routine-meta-dot" aria-hidden="true">·</span>
+                  <span>🕒 {metadata.earliestTime}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="routine-card-actions">
+          <button
+            type="button"
+            className={`btn ${isAppliedToday ? "btn-secondary" : "btn-primary"} routine-apply-btn`}
+            onClick={onApply}
+            aria-label={isAppliedToday ? `Add ${routine.name} again to Today` : `Apply ${routine.name} to Today`}
+          >
+            {isAppliedToday ? (
+              <>
+                <CheckIcon />
+                <span>Applied</span>
+              </>
+            ) : (
+              <>
+                <PlusIcon />
+                <span>Apply</span>
+              </>
+            )}
+          </button>
+
+          <div className="routine-kebab-container">
+            <button
+              type="button"
+              className="icon-btn routine-kebab-btn"
+              onClick={onToggleMenu}
+              aria-label={`Options for ${routine.name}`}
+              aria-expanded={isMenuOpen}
+            >
+              ⋯
+            </button>
+            {isMenuOpen && (
+              <div className="routine-dropdown-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="routine-dropdown-item"
+                  onClick={() => {
+                    onToggleMenu();
+                    onEdit();
+                  }}
+                >
+                  <EditIcon />
+                  <span>Edit routine</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="routine-dropdown-item"
+                  onClick={() => {
+                    onToggleMenu();
+                    onToggleTasks();
+                  }}
+                >
+                  <span aria-hidden="true">📋</span>
+                  <span>{isTasksExpanded ? "Hide tasks" : "View tasks"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="routine-dropdown-item danger"
+                  onClick={() => {
+                    onToggleMenu();
+                    onDelete();
+                  }}
+                >
+                  <TrashIcon />
+                  <span>Delete routine</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Expandable Tasks Preview */}
+      {isTasksExpanded && (
+        <div className="routine-tasks-preview" role="region" aria-label={`Tasks in ${routine.name}`}>
+          {routine.tasks.map((t, idx) => {
+            const cat = categoryMeta(t.category);
+            return (
+              <div key={t.id || idx} className="routine-task-preview-row">
+                <div className="routine-task-preview-left">
+                  <span className="routine-task-num">{idx + 1}.</span>
+                  <span className="routine-task-title">{t.title}</span>
+                </div>
+                <div className="routine-task-tags">
+                  {cat.id ? (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        padding: "1px 6px",
+                        borderRadius: 6,
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
+                        color: "var(--ink-muted)"
+                      }}
+                    >
+                      {cat.emoji} {cat.label}
+                    </span>
+                  ) : null}
+                  {t.priority === 1 ? (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "1px 5px",
+                        borderRadius: 4,
+                        background: "rgba(239, 68, 68, 0.15)",
+                        color: "var(--danger, #ef4444)"
+                      }}
+                    >
+                      HIGH
+                    </span>
+                  ) : null}
+                  {t.dueTime ? (
+                    <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+                      🕒 {t.dueTime}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

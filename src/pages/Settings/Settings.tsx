@@ -17,14 +17,12 @@ import {
 import { formatDayMonth, todayStr } from "../../utils/dateUtils";
 import { dayStats, formatPct } from "../../utils/progressUtils";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
-import ActionRow from "../../components/ActionRow/ActionRow";
-import { DownloadIcon, InstallIcon, PrintIcon, ShareIcon, TrashIcon, UploadIcon } from "../../components/icons";
 import { usePwaInstall } from "../../hooks/usePwaInstall";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "light", label: "\u2600\uFE0F Light" },
-  { value: "dark", label: "\uD83C\uDF19 Dark" },
-  { value: "auto", label: "\uD83D\uDDA5\uFE0F System" }
+  { value: "light", label: "☀️ Light" },
+  { value: "dark", label: "🌙 Dark" },
+  { value: "auto", label: "🖥️ System" }
 ];
 
 const IMPORT_ERROR = "Couldn't import this backup. Check that the file is a valid Daily Check backup.";
@@ -43,8 +41,10 @@ export default function Settings() {
   const { preferences: notifPrefs, updatePreferences: updateNotifPrefs } = useNotificationCenter();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+
   const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [showTechInfo, setShowTechInfo] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [, setNotifStateVersion] = useState(0);
 
@@ -52,7 +52,6 @@ export default function Settings() {
 
   const isSupported = isNotificationSupported();
   const notifPermission = getNotificationPermission();
-
 
   function showToast(msg: string) {
     setToast(msg);
@@ -74,7 +73,6 @@ export default function Settings() {
   }
 
   async function handleShare() {
-
     const today = todayStr();
     const day = getDay(today);
     const stats = dayStats(day);
@@ -129,7 +127,6 @@ export default function Settings() {
         countdowns: result.countdowns,
         routines: result.routines
       });
-
     };
     reader.onerror = () => showToast(IMPORT_ERROR);
     reader.readAsText(file);
@@ -153,7 +150,6 @@ export default function Settings() {
     showToast("Data imported successfully.");
   }
 
-
   async function handleInstall() {
     const outcome = await promptInstall();
     if (outcome === "accepted") showToast("Daily Check installed.");
@@ -161,394 +157,407 @@ export default function Settings() {
 
   return (
     <div className="page settings-page">
-      <div className="section-row" style={{ margin: "0 0 16px" }}>
-        <h1 className="page-title">Settings</h1>
-      </div>
-
-      {/* Appearance & Preferences */}
-      <div className="card settings-card">
-        <div className="settings-heading">Appearance &amp; Preferences</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
-          Theme
-        </div>
-        <div className="seg" style={{ width: "100%", marginBottom: 16 }} role="radiogroup" aria-label="Theme">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              role="radio"
-              aria-checked={appData.theme === opt.value}
-              className={appData.theme === opt.value ? "active" : ""}
-              style={{ flex: 1, justifyContent: "center" }}
-              onClick={() => setTheme(opt.value)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ paddingTop: 14, borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
-            First Day of the Week
-          </div>
-          <div className="seg" style={{ width: "100%" }} role="radiogroup" aria-label="First day of the week">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={(appData.weekStartsOn ?? 1) === 1}
-              className={(appData.weekStartsOn ?? 1) === 1 ? "active" : ""}
-              style={{ flex: 1, justifyContent: "center" }}
-              onClick={() => {
-                setWeekStartsOn(1);
-                showToast("Week starts on Monday.");
-              }}
-            >
-              Monday
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={(appData.weekStartsOn ?? 1) === 0}
-              className={(appData.weekStartsOn ?? 1) === 0 ? "active" : ""}
-              style={{ flex: 1, justifyContent: "center" }}
-              onClick={() => {
-                setWeekStartsOn(0);
-                showToast("Week starts on Sunday.");
-              }}
-            >
-              Sunday
-            </button>
-          </div>
-        </div>
-
-        <div style={{ paddingTop: 14, marginTop: 14, borderTop: "1px solid var(--border)" }}>
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Haptic Feedback</div>
-              <div style={{ fontSize: 12, color: "var(--ink-muted)" }}>
-                Vibration cues on task completion and targets
-              </div>
+      {/* 1. APPEARANCE */}
+      <div className="settings-group">
+        <div className="settings-group-label">Appearance</div>
+        <div className="settings-group-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Theme</div>
+              <div className="settings-row-desc">Light, dark, or follow device theme</div>
             </div>
-            <input
-              type="checkbox"
-              checked={appData.hapticsEnabled !== false}
-              onChange={(e) => {
-                setHapticsEnabled(e.target.checked);
-                showToast(e.target.checked ? "Haptic feedback enabled." : "Haptic feedback disabled.");
-              }}
-              style={{ accentColor: "var(--accent)", width: 18, height: 18, cursor: "pointer" }}
-              aria-label="Toggle haptic feedback"
-            />
-          </label>
-        </div>
-      </div>
-
-      {/* Reminders & Notifications */}
-      <div className="card settings-card">
-        <div className="settings-heading">Reminders &amp; Notifications</div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* OS/Browser Permission Sub-section */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>
-              Browser Notifications (System)
-            </div>
-            <div className="about-details" style={{ margin: 0 }}>
-              <div className="about-row">
-                <span className="about-label">System support:</span>
-                <span className="about-val" style={{ fontWeight: 600 }}>
-                  {isSupported ? "Supported" : "Unsupported"}
-                </span>
-              </div>
-              <div className="about-row">
-                <span className="about-label">Browser permission:</span>
-                <span
-                  className="about-val"
-                  style={{
-                    fontWeight: 600,
-                    color:
-                      notifPermission === "granted"
-                        ? "var(--accent)"
-                        : notifPermission === "denied"
-                        ? "var(--danger, #ef4444)"
-                        : "inherit"
-                  }}
-                >
-                  {notifPermission === "granted"
-                    ? "✓ Allowed"
-                    : notifPermission === "denied"
-                    ? "⚠ Blocked in browser"
-                    : notifPermission === "unsupported"
-                    ? "Unsupported"
-                    : "Not granted"}
-                </span>
-              </div>
-            </div>
-
-            {/* Status Message / Actions */}
-            {notifPermission === "unsupported" ? (
-              <div className="settings-subtext" style={{ padding: "6px 2px 0", fontSize: 13, color: "var(--ink-muted)" }}>
-                Notifications are not supported by this browser.
-              </div>
-            ) : notifPermission === "denied" ? (
-              <div className="settings-subtext" style={{ padding: "6px 2px 0", fontSize: 13, color: "var(--danger, #ef4444)" }}>
-                Browser notifications are blocked. Enable them in your browser/device site settings.
-              </div>
-            ) : notifPermission === "granted" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-                <div>
+            <div className="settings-row-action">
+              <div className="seg-compact" role="radiogroup" aria-label="Theme preference">
+                {THEME_OPTIONS.map((opt) => (
                   <button
+                    key={opt.value}
                     type="button"
-                    className="btn btn-secondary"
-                    style={{ minHeight: 40, padding: "0 14px", fontSize: 13 }}
-                    onClick={async () => {
-                      const sent = await sendTestNotification();
-                      if (sent) {
-                        showToast("Test notification sent.");
-                      } else {
-                        showToast("Could not send test notification.");
-                      }
-                    }}
+                    role="radio"
+                    aria-checked={appData.theme === opt.value}
+                    className={appData.theme === opt.value ? "active" : ""}
+                    onClick={() => setTheme(opt.value)}
                   >
-                    🔔 Send test notification
+                    {opt.label}
                   </button>
-                </div>
+                ))}
               </div>
-            ) : (
-              <div style={{ marginTop: 8 }}>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. PREFERENCES */}
+      <div className="settings-group">
+        <div className="settings-group-label">Preferences</div>
+        <div className="settings-group-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Week starts on</div>
+              <div className="settings-row-desc">Used in calendar views and weekly progress</div>
+            </div>
+            <div className="settings-row-action">
+              <div className="seg-compact" role="radiogroup" aria-label="First day of the week">
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  style={{ minHeight: 42, padding: "0 16px", width: "100%", justifyContent: "center" }}
-                  onClick={handleEnableReminders}
+                  role="radio"
+                  aria-checked={(appData.weekStartsOn ?? 1) === 1}
+                  className={(appData.weekStartsOn ?? 1) === 1 ? "active" : ""}
+                  onClick={() => {
+                    setWeekStartsOn(1);
+                    showToast("Week starts on Monday.");
+                  }}
                 >
-                  Enable Browser Reminders
+                  Monday
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={(appData.weekStartsOn ?? 1) === 0}
+                  className={(appData.weekStartsOn ?? 1) === 0 ? "active" : ""}
+                  onClick={() => {
+                    setWeekStartsOn(0);
+                    showToast("Week starts on Sunday.");
+                  }}
+                >
+                  Sunday
                 </button>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* In-App Notification Center Sub-section */}
-          <div style={{ paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>In-App Notification Center</div>
-                <div style={{ fontSize: 12, color: "var(--ink-muted)" }}>
-                  History, unread alerts, and deep links inside Daily Check
-                </div>
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Haptic feedback</div>
+              <div className="settings-row-desc">Vibration cues on completion &amp; milestones</div>
+            </div>
+            <div className="settings-row-action">
+              <label className="dc-switch" aria-label="Toggle haptic feedback">
+                <input
+                  type="checkbox"
+                  checked={appData.hapticsEnabled !== false}
+                  onChange={(e) => {
+                    setHapticsEnabled(e.target.checked);
+                    showToast(e.target.checked ? "Haptic feedback enabled." : "Haptic feedback disabled.");
+                  }}
+                />
+                <span className="dc-switch-slider" />
+              </label>
+            </div>
+          </div>
+
+          {!installed && canInstall ? (
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-title">Install app</div>
+                <div className="settings-row-desc">Add Daily Check to home screen for offline access</div>
               </div>
-              <label className="toggle-switch" style={{ position: "relative", display: "inline-block", width: 44, height: 24 }}>
+              <div className="settings-row-action">
+                <button
+                  type="button"
+                  className="btn btn-secondary settings-action-btn"
+                  onClick={handleInstall}
+                >
+                  Install →
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* 3. NOTIFICATIONS */}
+      <div className="settings-group">
+        <div className="settings-group-label">Notifications</div>
+        <div className="settings-group-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Browser notifications</div>
+              <div className="settings-row-desc">
+                {notifPermission === "granted"
+                  ? "Notifications allowed by browser"
+                  : notifPermission === "denied"
+                  ? "Blocked in browser site settings"
+                  : notifPermission === "unsupported"
+                  ? "Unsupported by this browser"
+                  : "Receive scheduled reminders and cues"}
+              </div>
+            </div>
+            <div className="settings-row-action">
+              {notifPermission === "granted" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="settings-status-pill status-granted">Allowed</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary settings-btn-compact"
+                    onClick={async () => {
+                      const sent = await sendTestNotification();
+                      showToast(sent ? "Test notification sent." : "Could not send test notification.");
+                    }}
+                    title="Send a test notification"
+                  >
+                    🔔 Test
+                  </button>
+                </div>
+              ) : notifPermission === "denied" ? (
+                <span className="settings-status-pill status-denied">Blocked</span>
+              ) : notifPermission === "unsupported" ? (
+                <span className="settings-status-pill status-unsupported">Unsupported</span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary settings-btn-compact"
+                  onClick={handleEnableReminders}
+                >
+                  Enable →
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">In-app notification center</div>
+              <div className="settings-row-desc">
+                Alerts, unread badge, and notification center
+              </div>
+            </div>
+            <div className="settings-row-action">
+              <label className="dc-switch" aria-label="Toggle in-app notification center">
                 <input
                   type="checkbox"
                   checked={notifPrefs.centerEnabled}
                   onChange={(e) => updateNotifPrefs({ centerEnabled: e.target.checked })}
-                  aria-label="Toggle Notification Center"
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <span
-                  style={{
-                    position: "absolute",
-                    cursor: "pointer",
-                    inset: 0,
-                    backgroundColor: notifPrefs.centerEnabled ? "var(--accent, #10b981)" : "var(--border, #ccc)",
-                    borderRadius: 24,
-                    transition: "0.2s"
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      height: 18,
-                      width: 18,
-                      left: notifPrefs.centerEnabled ? 22 : 3,
-                      bottom: 3,
-                      backgroundColor: "white",
-                      borderRadius: "50%",
-                      transition: "0.2s"
-                    }}
-                  />
-                </span>
+                <span className="dc-switch-slider" />
               </label>
             </div>
-
-            {/* Category Preferences */}
-            {notifPrefs.centerEnabled ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, paddingLeft: 4 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Notification Categories
-                </div>
-
-                {[
-                  { key: "taskDue", label: "⏰ Task Due Reminders", sub: "Scheduled reminder alerts" },
-                  { key: "taskOverdue", label: "⚠️ Overdue Tasks", sub: "Alert when scheduled time passes" },
-                  { key: "recurringTask", label: "🔁 Recurring Tasks", sub: "Daily & routine occurrences" },
-                  { key: "durationReminder", label: "⏱️ Duration Reminders", sub: "Timed task milestones" },
-                  { key: "quantityReminder", label: "💧 Quantity Reminders", sub: "Target check-ins" },
-                  { key: "focusReminder", label: "🎯 Focus Reminders", sub: "Top priority task cues" }
-                ].map((cat) => (
-                  <label
-                    key={cat.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "6px 0",
-                      cursor: "pointer",
-                      fontSize: 13
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 500, color: "var(--ink)" }}>{cat.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--ink-muted)" }}>{cat.sub}</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={Boolean((notifPrefs as any)[cat.key])}
-                      onChange={(e) => updateNotifPrefs({ [cat.key]: e.target.checked })}
-                      style={{ accentColor: "var(--accent, #10b981)", width: 18, height: 18, cursor: "pointer" }}
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
           </div>
 
-          <div
-            className="settings-subtext"
-            style={{
-              paddingTop: 10,
-              borderTop: "1px solid var(--border)",
-              fontSize: 12,
-              color: "var(--ink-muted)",
-              lineHeight: 1.45
-            }}
-          >
-            Reminders work while Daily Check is active. Browser or operating-system restrictions may delay notifications when the app is suspended or completely closed.
+          {notifPrefs.centerEnabled ? (
+            <>
+              <div className="settings-subgroup-label">
+                Notification preferences
+              </div>
+
+              {[
+                { key: "taskDue", label: "Task due reminders", sub: "Scheduled reminder alerts" },
+                { key: "taskOverdue", label: "Overdue tasks", sub: "Alert when scheduled time passes" },
+                { key: "recurringTask", label: "Recurring tasks", sub: "Daily & routine occurrences" },
+                { key: "durationReminder", label: "Duration reminders", sub: "Timed task milestones" },
+                { key: "quantityReminder", label: "Quantity reminders", sub: "Target check-ins" },
+                { key: "focusReminder", label: "Focus reminders", sub: "Top priority task cues" }
+              ].map((cat) => (
+                <div key={cat.key} className="settings-row settings-row-sub">
+                  <div className="settings-row-text">
+                    <div className="settings-row-title">{cat.label}</div>
+                    <div className="settings-row-desc">{cat.sub}</div>
+                  </div>
+                  <div className="settings-row-action">
+                    <label className="dc-switch" aria-label={`Toggle ${cat.label}`}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean((notifPrefs as any)[cat.key])}
+                        onChange={(e) => updateNotifPrefs({ [cat.key]: e.target.checked })}
+                      />
+                      <span className="dc-switch-slider" />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : null}
+
+          <div className="settings-footnote">
+            Reminders work while Daily Check is active. Background delivery depends on browser and operating-system restrictions.
           </div>
         </div>
       </div>
 
-      {/* App Install */}
-      {!installed && canInstall ? (
-        <div className="card settings-card">
-          <div className="settings-heading">App Installation</div>
-          <ActionRow
-            icon={<InstallIcon />}
-            title="Install App"
-            description="Add Daily Check to your home screen for quick, offline access."
-            actionLabel="Install"
-            onAction={handleInstall}
+      {/* 4. DATA & BACKUPS */}
+      <div className="settings-group">
+        <div className="settings-group-label">Data &amp; Backups</div>
+        <div className="settings-group-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Export backup</div>
+              <div className="settings-row-desc">Download complete JSON backup with history</div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="btn btn-secondary settings-action-btn"
+                onClick={handleExport}
+              >
+                Export →
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Import backup</div>
+              <div className="settings-row-desc">Restore your data from a backup JSON file</div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="btn btn-secondary settings-action-btn"
+                onClick={() => fileRef.current?.click()}
+              >
+                Import →
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Share daily summary</div>
+              <div className="settings-row-desc">Copy or share today’s progress summary</div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="btn btn-secondary settings-action-btn"
+                onClick={handleShare}
+              >
+                Share →
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Print weekly progress</div>
+              <div className="settings-row-desc">Formatted weekly view to print or save as PDF</div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="btn btn-secondary settings-action-btn"
+                onClick={() => navigate("/weekly")}
+              >
+                Open →
+              </button>
+            </div>
+          </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            aria-hidden="true"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImportFile(file);
+              e.target.value = "";
+            }}
           />
         </div>
-      ) : null}
-
-      {/* Data Management */}
-      <div className="card settings-card">
-        <div className="settings-heading">Data &amp; Backups</div>
-
-        <ActionRow
-          icon={<ShareIcon />}
-          title="Share Daily Summary"
-          description="Copy or share today's task completion progress summary to your clipboard or apps."
-          actionLabel="Share"
-          onAction={handleShare}
-        />
-        <ActionRow
-          icon={<DownloadIcon />}
-          title="Export Backup"
-          description="Download a complete JSON backup of your tasks and checklist history."
-          actionLabel="Export"
-          onAction={handleExport}
-        />
-        <ActionRow
-          icon={<UploadIcon />}
-          title="Import Backup"
-          description="Restore your Daily Check data from a previously downloaded backup file."
-          actionLabel="Import"
-          onAction={() => fileRef.current?.click()}
-        />
-        <ActionRow
-          icon={<PrintIcon />}
-          title="Print Weekly Progress"
-          description="Open formatted weekly view to print or save as a PDF."
-          actionLabel="Open"
-          onAction={() => navigate("/weekly")}
-        />
-        <ActionRow
-          icon={<TrashIcon />}
-          title="Reset All Tasks &amp; History"
-          description="Erase all checklists, days, and recurring tasks to start fresh."
-          actionLabel="Reset"
-          onAction={() => setConfirmResetOpen(true)}
-        />
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          style={{ display: "none" }}
-          aria-hidden="true"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleImportFile(file);
-            e.target.value = "";
-          }}
-        />
       </div>
 
-      {/* Storage & Privacy Guarantee */}
-      <div className="card settings-card storage-privacy-card">
-        <div className="settings-heading">Storage &amp; Privacy Architecture</div>
-        <div className="privacy-info-block">
-          <div className="privacy-badge">
-            <span className="privacy-icon" aria-hidden="true">
-              🔒
-            </span>
-            <strong>100% Client-Side Local Storage</strong>
+      {/* 5. STORAGE & PRIVACY */}
+      <div className="settings-group">
+        <div className="settings-group-label">Storage &amp; Privacy</div>
+        <div className="settings-group-card settings-privacy-card">
+          <div className="settings-privacy-header">
+            <span className="settings-privacy-icon" aria-hidden="true">🔒</span>
+            <div className="settings-privacy-badge-text">
+              Your data stays on this device
+            </div>
           </div>
-          <p className="privacy-text">
-            Your tasks, checklists, and goals are stored <strong>strictly on this device</strong> in your
-            browser&rsquo;s local storage. No data is sent to or stored on any external server.
+          <p className="settings-privacy-text">
+            Daily Check stores your tasks, checklists, and countdowns locally in your browser storage. Nothing is sent to an external server.
           </p>
-          <div className="storage-stat-row">
-            <span className="storage-stat-label">Local Storage Used:</span>
-            <span className="storage-stat-value">{storageUsage}</span>
+          <div className="settings-storage-pill">
+            <span className="settings-storage-label">Local storage used:</span>
+            <span className="settings-storage-val">{storageUsage}</span>
           </div>
-          <p className="privacy-subtext">
-            <strong>Cross-Device Note:</strong> Another person opening or sharing this URL on a different
-            device or browser profile starts with their own separate, empty workspace. To transfer your data
-            between devices, use the <strong>Export Backup</strong> and <strong>Import Backup</strong> buttons above.
+          <p className="settings-privacy-note">
+            Each browser profile or device maintains its own separate workspace. To transfer data across devices, use Export and Import under Data &amp; Backups.
           </p>
         </div>
       </div>
 
-      {/* About */}
-      <div className="card settings-card">
-        <div className="settings-heading">About Daily Check</div>
-        <div className="about-details">
-          <div className="about-row">
-            <span className="about-label">Application Version:</span>
-            <span className="about-val">v{APP_VERSION}</span>
-          </div>
-          <div className="about-row">
-            <span className="about-label">Task Schema:</span>
-            <span className="about-val">v{CURRENT_DATA_VERSION}</span>
-          </div>
-          <div className="about-row">
-            <span className="about-label">Countdowns Schema:</span>
-            <span className="about-val">v{CURRENT_COUNTDOWN_VERSION}</span>
-          </div>
-          <div className="about-row">
-            <span className="about-label">Daily Routines Schema:</span>
-            <span className="about-val">v{CURRENT_ROUTINES_VERSION}</span>
+      {/* 6. DANGER ZONE */}
+      <div className="settings-group">
+        <div className="settings-group-label" style={{ color: "var(--danger, #ef4444)" }}>
+          Danger Zone
+        </div>
+        <div className="settings-group-card settings-danger-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title" style={{ color: "var(--danger, #ef4444)" }}>
+                Reset all data
+              </div>
+              <div className="settings-row-desc">
+                Permanently erase all daily checklists and task records. This cannot be undone.
+              </div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="btn settings-action-btn-danger"
+                onClick={() => setConfirmResetOpen(true)}
+              >
+                Reset →
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* 7. ABOUT */}
+      <div className="settings-group">
+        <div className="settings-group-label">About</div>
+        <div className="settings-group-card">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-title">Daily Check</div>
+              <div className="settings-row-desc">
+                Version {APP_VERSION} · Local-first productivity app
+              </div>
+            </div>
+            <div className="settings-row-action">
+              <button
+                type="button"
+                className="settings-tech-toggle-btn"
+                onClick={() => setShowTechInfo((v) => !v)}
+                aria-expanded={showTechInfo}
+              >
+                Technical information {showTechInfo ? "▴" : "›"}
+              </button>
+            </div>
+          </div>
+
+          {showTechInfo ? (
+            <div className="settings-tech-info-block">
+              <div className="settings-tech-row">
+                <span className="settings-tech-label">Application Version</span>
+                <span className="settings-tech-val">v{APP_VERSION}</span>
+              </div>
+              <div className="settings-tech-row">
+                <span className="settings-tech-label">Task Schema</span>
+                <span className="settings-tech-val">v{CURRENT_DATA_VERSION}</span>
+              </div>
+              <div className="settings-tech-row">
+                <span className="settings-tech-label">Countdowns Schema</span>
+                <span className="settings-tech-val">v{CURRENT_COUNTDOWN_VERSION}</span>
+              </div>
+              <div className="settings-tech-row">
+                <span className="settings-tech-label">Daily Routines Schema</span>
+                <span className="settings-tech-val">v{CURRENT_ROUTINES_VERSION}</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Modals */}
       {pendingImport ? (
         <ConfirmModal
           title="Import this backup?"
-          message="This will replace your current Daily Check data with the contents of the backup."
+          message="This will replace your current Daily Check data with the contents of the backup file."
           confirmLabel="Import Backup"
           danger
           onConfirm={confirmImport}
@@ -579,4 +588,3 @@ export default function Settings() {
     </div>
   );
 }
-

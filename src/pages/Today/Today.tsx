@@ -180,31 +180,27 @@ export default function Today() {
 
   return (
     <div className="page today-page">
-      <div className="today-header-block">
-        <h1 className="today-date-heading">{formatDayMonth(viewDate)}</h1>
-        <div className="today-weekday-label">{weekdayFull(viewDate)}</div>
+      {/* 1. Date context navigation */}
+      <div className="today-date-nav-wrap">
+        <DateNavigator
+          viewDate={viewDate}
+          isToday={isToday}
+          onPrev={() => {
+            setViewDate(addDays(viewDate, -1));
+            setEditingId(null);
+          }}
+          onNext={() => {
+            setViewDate(addDays(viewDate, 1));
+            setEditingId(null);
+          }}
+          onToday={() => {
+            setViewDate(currentToday);
+            setEditingId(null);
+          }}
+        />
       </div>
 
-
-      {/* 2. Day navigation */}
-      <DateNavigator
-        viewDate={viewDate}
-        isToday={isToday}
-        onPrev={() => {
-          setViewDate(addDays(viewDate, -1));
-          setEditingId(null);
-        }}
-        onNext={() => {
-          setViewDate(addDays(viewDate, 1));
-          setEditingId(null);
-        }}
-        onToday={() => {
-          setViewDate(currentToday);
-          setEditingId(null);
-        }}
-      />
-
-      {/* 3. Today's Progress */}
+      {/* 2. Today's Progress */}
       <ProgressCard stats={stats} isToday={isToday} />
 
       {/* 4. Quick Add */}

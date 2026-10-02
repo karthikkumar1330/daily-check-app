@@ -54,10 +54,9 @@ export default function Important() {
 
   return (
     <div className="page">
-      <div className="section-row" style={{ margin: "0 0 16px" }}>
-        <div className="page-title">Important</div>
-      </div>
-      <p className="page-subtitle">Tasks explicitly marked Important, organized by when they&rsquo;re due.</p>
+      <p className="page-subtitle" style={{ margin: "0 0 16px" }}>
+        Tasks explicitly marked Important, organized by when they&rsquo;re due.
+      </p>
 
       {isEmpty ? (
         <EmptyState

@@ -15,6 +15,7 @@ import { useTasks } from "../../hooks/useTasks";
 import { useFocusTimer } from "../../hooks/useFocusTimer";
 import { calculateDurationPct, DURATION_PRESETS, formatDuration } from "../../utils/durationUtils";
 import { calculateQuantityPct, formatQuantity, getQuickAddOptions } from "../../utils/quantityUtils";
+import TaskFormModal from "../Modals/TaskFormModal";
 
 interface TaskItemProps {
   task: Task;
@@ -211,7 +212,31 @@ export default function TaskItem({
   }, [menuOpen]);
 
   if (isEditing) {
-    return <EditForm task={task} onCancel={onCancelEdit} onSave={onSave} />;
+    return (
+      <TaskFormModal
+        mode="edit"
+        initialTask={task}
+        initialDate={effectiveDate}
+        onCancel={onCancelEdit}
+        onSubmit={(data) => {
+          onSave({
+            title: data.title,
+            priority: data.priority,
+            important: data.important,
+            category: data.category,
+            notes: data.notes,
+            recurrence: data.recurrence,
+            dueTime: data.dueTime,
+            reminderMinutes: data.reminderMinutes,
+            dueDate: data.dueDate,
+            durationTargetMinutes: data.durationTargetMinutes,
+            quantityTarget: data.quantityTarget,
+            quantityUnit: data.quantityUnit,
+            quantityStep: data.quantityStep
+          });
+        }}
+      />
+    );
   }
 
   const isFocused = Boolean(dateStr && task.focusDate === dateStr);
@@ -254,6 +279,12 @@ export default function TaskItem({
           <span className={"prio-dot " + prioClass(task.priority)} title={prioLabel(task.priority) + " priority"} />
           <span className="task-title">{task.title}</span>
 
+          {task.important ? (
+            <span className="task-title-star" title="Marked Important" aria-label="Marked Important">
+              ⭐
+            </span>
+          ) : null}
+
           {achievementData ? (
             <span
               className={
@@ -269,108 +300,75 @@ export default function TaskItem({
           ) : null}
         </div>
 
-        {/* META ROW */}
-        {isFocused || task.important || timeFormatted || (task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed) || recurrenceLabel || cat.id || dateLabel ? (
-          <div className="task-meta-row">
-            {/* Important Badge */}
-            {task.important ? (
-              <span
-                className="task-important-badge"
-                title="Marked Important"
-                aria-label="Marked Important"
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  padding: "2px 6px",
-                  borderRadius: 6,
-                  background: "rgba(245, 158, 11, 0.15)",
-                  color: "#b45309",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3
-                }}
-              >
-                <span>⭐</span>
-                <span>Important</span>
+        {/* COMPACT EXECUTION-FOCUSED META ROW */}
+        {(() => {
+          const metaPieces: React.ReactNode[] = [];
+
+          if (dateLabel) {
+            metaPieces.push(
+              <span key="date" className="task-meta-piece task-meta-date">
+                {dateLabel}
               </span>
-            ) : null}
+            );
+          }
 
-            {/* Focus Badge */}
-            {isFocused ? (
-              <span
-                className="task-focus-badge"
-                title="Today's Focus task"
-                aria-label="Today's Focus task"
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  padding: "2px 6px",
-                  borderRadius: 6,
-                  background: "var(--accent-soft, rgba(16, 185, 129, 0.15))",
-                  color: "var(--accent, #10b981)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3
-                }}
-              >
-                <span>🎯</span>
-                <span>Focus</span>
+          if (task.priority === 1) {
+            metaPieces.push(
+              <span key="prio" className="task-meta-piece task-meta-high">
+                High
               </span>
-            ) : null}
+            );
+          }
 
-            {/* Time & Due Status Badges */}
-            {timeFormatted ? (
-              task.completed ? (
-                <span className="task-time-badge completed" title={`Due at ${timeFormatted}`}>
-                  🕒 {timeFormatted}
-                </span>
-              ) : scheduleStatus === "overdue" ? (
-                <span
-                  className="task-time-badge overdue"
-                  title={`Overdue · Due at ${timeFormatted}`}
-                  aria-label={`Overdue · Due at ${timeFormatted}`}
-                >
-                  ⚠️ Overdue · {timeFormatted}
-                </span>
-              ) : scheduleStatus === "due" ? (
-                <span
-                  className="task-time-badge due"
-                  title={`Due · ${timeFormatted}`}
-                  aria-label={`Due at ${timeFormatted}`}
-                >
-                  ⏰ Due · {timeFormatted}
-                </span>
-              ) : (
-                <span className="task-time-badge upcoming" title={`Due at ${timeFormatted}`}>
-                  🕒 {timeFormatted}
-                </span>
-              )
-            ) : null}
-
-            {/* Reminder Badge */}
-            {task.reminderMinutes !== null && task.reminderMinutes !== undefined && !task.completed ? (
+          if (timeFormatted) {
+            metaPieces.push(
               <span
-                className="task-reminder-badge"
-                title={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
-                aria-label={`Reminder: ${getReminderLabel(task.reminderMinutes)}`}
+                key="time"
+                className={`task-meta-piece task-meta-time${scheduleStatus === "overdue" && !task.completed ? " task-meta-overdue" : ""}`}
               >
-                🔔 {task.reminderMinutes === 0 ? "At due time" : `${task.reminderMinutes} min before`}
+                {scheduleStatus === "overdue" && !task.completed ? `⚠️ Overdue · ${timeFormatted}` : `🕒 ${timeFormatted}`}
               </span>
-            ) : null}
+            );
+          }
 
-            {recurrenceLabel ? (
-              <span className="task-recurrence-badge" title={`Repeats: ${recurrenceLabel}`}>
+          if (isFocused) {
+            metaPieces.push(
+              <span key="focus" className="task-meta-piece task-meta-focus">
+                🎯 Focus
+              </span>
+            );
+          }
+
+          if (cat.id) {
+            metaPieces.push(
+              <span key="cat" className="task-meta-piece task-meta-category">
+                {cat.emoji ? `${cat.emoji} ` : ""}{cat.label}
+              </span>
+            );
+          }
+
+          if (recurrenceLabel) {
+            metaPieces.push(
+              <span key="rec" className="task-meta-piece task-meta-repeat" title={`Repeats: ${recurrenceLabel}`}>
                 🔄 {recurrenceLabel}
               </span>
-            ) : null}
-            {cat.id ? (
-              <span className="task-cat">
-                {cat.emoji} {cat.label}
-              </span>
-            ) : null}
-            {dateLabel ? <span className="task-date-badge">{dateLabel}</span> : null}
-          </div>
-        ) : null}
+            );
+          }
+
+          if (metaPieces.length === 0) return null;
+
+          return (
+            <div className="task-meta-row">
+              {metaPieces.map((piece, i) => (
+                <span key={i} className="task-meta-item">
+                  {i > 0 ? <span className="task-meta-sep" aria-hidden="true"> · </span> : null}
+                  {piece}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
         {task.notes ? <div className="task-notes">{task.notes}</div> : null}
 
         {/* Duration Task Progress & Controls */}
@@ -1000,557 +998,6 @@ export default function TaskItem({
           onToast={onToast}
         />
       ) : null}
-    </div>
-  );
-}
-
-interface EditFormProps {
-  task: Task;
-  onCancel: () => void;
-  onSave: (updates: Partial<Task>) => void;
-}
-
-type RepeatOption = "none" | RecurrenceType;
-
-const REPEAT_OPTIONS: { value: RepeatOption; label: string }[] = [
-  { value: "none", label: "Does not repeat" },
-  { value: "daily", label: "Every day" },
-  { value: "weekdays", label: "Weekdays" },
-  { value: "weekly", label: "Every week" },
-  { value: "custom", label: "Custom days" }
-];
-
-function EditForm({ task, onCancel, onSave }: EditFormProps) {
-  const [title, setTitle] = useState(task.title);
-  const [priority, setPriority] = useState<Priority>(task.priority);
-  const [important, setImportant] = useState<boolean>(Boolean(task.important));
-  const [category, setCategory] = useState<CategoryId>(task.category);
-  const [notes, setNotes] = useState(task.notes);
-
-  const [dueDate, setDueDate] = useState(task.dueDate ?? "");
-  const [dueTime, setDueTime] = useState(task.dueTime ?? "");
-  const [reminder, setReminder] = useState<ReminderMinutes | "none">(task.reminderMinutes ?? "none");
-
-  const initialRepeat: RepeatOption = task.recurrence?.type ?? "none";
-  const [repeat, setRepeat] = useState<RepeatOption>(initialRepeat);
-  const [startDate, setStartDate] = useState(task.recurrence?.startDate ?? todayStr());
-  const [endDate, setEndDate] = useState(task.recurrence?.endDate ?? "");
-  const [customDays, setCustomDays] = useState<number[]>(
-    task.recurrence?.daysOfWeek && task.recurrence.daysOfWeek.length > 0
-      ? task.recurrence.daysOfWeek
-      : [1, 3, 5]
-  );
-  const initialDuration = task.durationTargetMinutes ? String(task.durationTargetMinutes) : "none";
-  const isCustomInitial =
-    Boolean(task.durationTargetMinutes && ![15, 30, 45, 60, 120, 180].includes(task.durationTargetMinutes));
-  const [durationPreset, setDurationPreset] = useState<string>(
-    isCustomInitial ? "custom" : initialDuration
-  );
-  const [customDurationMinutes, setCustomDurationMinutes] = useState<string>(
-    task.durationTargetMinutes ? String(task.durationTargetMinutes) : ""
-  );
-
-  const [goalType, setGoalType] = useState<"standard" | "duration" | "quantity">(
-    task.quantityTarget ? "quantity" : task.durationTargetMinutes ? "duration" : "standard"
-  );
-  const [quantityTarget, setQuantityTarget] = useState<string>(
-    task.quantityTarget ? String(task.quantityTarget) : "8"
-  );
-  const [quantityUnit, setQuantityUnit] = useState<string>(task.quantityUnit || "glasses");
-  const [quantityStep, setQuantityStep] = useState<string>(
-    task.quantityStep ? String(task.quantityStep) : "1"
-  );
-
-  const [error, setError] = useState<string | null>(null);
-
-  const titleRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    titleRef.current?.focus();
-    const len = titleRef.current?.value.length ?? 0;
-    titleRef.current?.setSelectionRange(len, len);
-  }, []);
-
-  function toggleCustomDay(dayNumber: number) {
-    setError(null);
-    setCustomDays((prev) =>
-      prev.includes(dayNumber) ? prev.filter((d) => d !== dayNumber) : [...prev, dayNumber]
-    );
-  }
-
-  function save() {
-    const trimmed = title.trim();
-
-    let rec: TaskRecurrence | null = null;
-    if (repeat !== "none") {
-      rec = {
-        type: repeat,
-        startDate: startDate || todayStr(),
-        ...(endDate.trim() ? { endDate: endDate.trim() } : {}),
-        daysOfWeek:
-          repeat === "custom"
-            ? customDays
-            : repeat === "weekly"
-            ? [parseDateStr(startDate || todayStr()).getDay()]
-            : undefined
-      };
-
-      const val = validateRecurrence(rec);
-      if (!val.valid) {
-        setError(val.error ?? "Invalid recurrence configuration");
-        return;
-      }
-    }
-
-    const cleanDueTime = dueTime.trim() || null;
-    const cleanReminder = cleanDueTime && reminder !== "none" ? reminder : null;
-    const cleanDueDate = repeat === "none" ? (dueDate.trim() || null) : null;
-
-    let cleanDuration: number | null = null;
-    let cleanQtyTarget: number | null = null;
-    let cleanQtyUnit = "";
-    let cleanQtyStep = 1;
-
-    if (goalType === "duration") {
-      if (durationPreset !== "none") {
-        if (durationPreset === "custom") {
-          const val = parseInt(customDurationMinutes, 10);
-          if (!isNaN(val) && val > 0) cleanDuration = val;
-        } else {
-          const val = parseInt(durationPreset, 10);
-          if (!isNaN(val) && val > 0) cleanDuration = val;
-        }
-      }
-    } else if (goalType === "quantity") {
-      const qVal = parseFloat(quantityTarget);
-      if (!isNaN(qVal) && qVal > 0) {
-        cleanQtyTarget = qVal;
-        cleanQtyUnit = quantityUnit.trim();
-        const sVal = parseFloat(quantityStep);
-        cleanQtyStep = !isNaN(sVal) && sVal > 0 ? sVal : 1;
-      }
-    }
-
-    onSave({
-      title: trimmed || task.title,
-      priority,
-      important,
-      category,
-      notes: notes.trim(),
-      recurrence: rec,
-      dueDate: cleanDueDate,
-      dueTime: cleanDueTime,
-      reminderMinutes: cleanReminder,
-      durationTargetMinutes: cleanDuration,
-      quantityTarget: cleanQtyTarget,
-      quantityUnit: cleanQtyUnit,
-      quantityStep: cleanQtyStep
-    });
-  }
-
-  const weeklyDayName = weekdayFull(startDate || todayStr());
-
-  return (
-    <div className="task">
-      <div className="edit-form">
-        <input
-          ref={titleRef}
-          type="text"
-          value={title}
-          maxLength={140}
-          aria-label="Task title"
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onCancel();
-            if (e.key === "Enter" && repeat === "none") {
-              e.preventDefault();
-              save();
-            }
-          }}
-        />
-        <div className="edit-row">
-          <div className="seg" role="radiogroup" aria-label="Priority">
-            {([1, 2, 3] as Priority[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={priority === p}
-                className={priority === p ? "active" : ""}
-                onClick={() => setPriority(p)}
-              >
-                {prioEmoji(p)} {prioLabel(p)}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className={"chip-btn" + (important ? " active" : "")}
-            onClick={() => setImportant((v) => !v)}
-            aria-pressed={important}
-            title={important ? "Important (click to remove)" : "Mark as important"}
-            style={{
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              padding: "6px 10px",
-              minHeight: 36,
-              color: important ? "#b45309" : "var(--ink-muted)",
-              background: important ? "rgba(245, 158, 11, 0.15)" : "var(--surface)",
-              border: important ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--border)",
-              borderRadius: "9px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4
-            }}
-          >
-            <span>{important ? "⭐ Important" : "☆ Important"}</span>
-          </button>
-          <select value={category} onChange={(e) => setCategory(e.target.value as CategoryId)} aria-label="Category">
-            {CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.emoji ? c.emoji + " " : ""}
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Recurrence repeat selector */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--ink-muted)" }} htmlFor={`edit-task-repeat-${task.id}`}>
-            Repeat
-          </label>
-          <select
-            id={`edit-task-repeat-${task.id}`}
-            value={repeat}
-            onChange={(e) => {
-              setRepeat(e.target.value as RepeatOption);
-              setError(null);
-            }}
-            aria-label="Repeat option"
-          >
-            {REPEAT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {repeat !== "none" ? (
-          <div className="recurrence-control-group">
-            <div className="recurrence-dates-row">
-              <div className="recurrence-date-field">
-                <label className="recurrence-sublabel" htmlFor={`edit-recurrence-start-date-${task.id}`}>
-                  Start date
-                </label>
-                <input
-                  id={`edit-recurrence-start-date-${task.id}`}
-                  type="date"
-                  className="modal-input"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    setError(null);
-                  }}
-                />
-              </div>
-
-              <div className="recurrence-date-field">
-                <label className="recurrence-sublabel" htmlFor={`edit-recurrence-end-date-${task.id}`}>
-                  End date (optional)
-                </label>
-                <input
-                  id={`edit-recurrence-end-date-${task.id}`}
-                  type="date"
-                  className="modal-input"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setError(null);
-                  }}
-                />
-              </div>
-            </div>
-
-            {repeat === "weekly" ? (
-              <div className="recurrence-info-text">
-                Repeats every <strong>{weeklyDayName}</strong> starting {startDate}.
-              </div>
-            ) : null}
-
-            {repeat === "custom" ? (
-              <div>
-                <div className="recurrence-sublabel" style={{ marginBottom: 6 }}>
-                  Repeat on days:
-                </div>
-                <div className="recurrence-days-grid" role="group" aria-label="Select repeat days">
-                  {DAYS_OF_WEEK_OPTIONS.map((opt) => {
-                    const isSelected = customDays.includes(opt.day);
-                    return (
-                      <button
-                        key={opt.day}
-                        type="button"
-                        className={"recurrence-day-btn" + (isSelected ? " active" : "")}
-                        onClick={() => toggleCustomDay(opt.day)}
-                        aria-pressed={isSelected}
-                        aria-label={opt.label}
-                      >
-                        {opt.short}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {error ? <div className="recurrence-error-msg">{error}</div> : null}
-          </div>
-        ) : null}
-
-        {/* SCHEDULE Section */}
-        <div className="schedule-control-group">
-          <div className="schedule-section-title">SCHEDULE</div>
-
-          {repeat === "none" ? (
-            <div className="schedule-field" style={{ marginBottom: 4 }}>
-              <label className="field-label" htmlFor={`edit-task-due-date-${task.id}`}>
-                Due date
-              </label>
-              <input
-                id={`edit-task-due-date-${task.id}`}
-                type="date"
-                className="modal-input"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                aria-label="Due date"
-              />
-            </div>
-          ) : null}
-
-          <div className="schedule-row">
-            <div className="schedule-field">
-              <label className="field-label" htmlFor={`edit-task-due-time-${task.id}`}>
-                Due time (optional)
-              </label>
-              <input
-                id={`edit-task-due-time-${task.id}`}
-                type="time"
-                className="modal-input time-input"
-                value={dueTime}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDueTime(val);
-                  if (!val) setReminder("none");
-                }}
-                aria-label="Due time"
-              />
-            </div>
-
-            <div className="schedule-field">
-              <label className="field-label" htmlFor={`edit-task-reminder-${task.id}`}>
-                Reminder
-              </label>
-              <select
-                id={`edit-task-reminder-${task.id}`}
-                className="modal-input"
-                value={reminder}
-                disabled={!dueTime}
-                onChange={(e) => {
-                  const val = e.target.value === "none" ? "none" : (Number(e.target.value) as ReminderMinutes);
-                  setReminder(val);
-                }}
-                aria-label="Reminder notification"
-              >
-                {REMINDER_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {!dueTime ? (
-            <div className="schedule-hint">Set a due time to enable reminders.</div>
-          ) : (
-            <div className="schedule-hint">Notifications can be enabled later in Settings.</div>
-          )}
-        </div>
-
-        {/* Goal Type / Measurement Section */}
-        <div style={{ marginBottom: 12 }}>
-          <label className="field-label" id={`edit-goal-type-label-${task.id}`}>
-            Task Type
-          </label>
-          <div
-            role="radiogroup"
-            aria-labelledby={`edit-goal-type-label-${task.id}`}
-            style={{ display: "flex", gap: 6, marginBottom: 8 }}
-          >
-            <button
-              type="button"
-              className={"chip-btn" + (goalType === "standard" ? " active" : "")}
-              onClick={() => setGoalType("standard")}
-              role="radio"
-              aria-checked={goalType === "standard"}
-            >
-              Standard
-            </button>
-            <button
-              type="button"
-              className={"chip-btn" + (goalType === "duration" ? " active" : "")}
-              onClick={() => setGoalType("duration")}
-              role="radio"
-              aria-checked={goalType === "duration"}
-            >
-              ⏱ Duration
-            </button>
-            <button
-              type="button"
-              className={"chip-btn" + (goalType === "quantity" ? " active" : "")}
-              onClick={() => setGoalType("quantity")}
-              role="radio"
-              aria-checked={goalType === "quantity"}
-            >
-              📊 Quantity
-            </button>
-          </div>
-
-          {goalType === "duration" ? (
-            <div className="duration-control-group" style={{ marginTop: 8 }}>
-              <label className="field-label" id={`edit-duration-label-${task.id}`}>
-                Target Duration
-              </label>
-              <div
-                className="duration-preset-grid"
-                role="radiogroup"
-                aria-labelledby={`edit-duration-label-${task.id}`}
-                style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}
-              >
-                <button
-                  type="button"
-                  className={"chip-btn" + (durationPreset === "none" ? " active" : "")}
-                  onClick={() => setDurationPreset("none")}
-                  role="radio"
-                  aria-checked={durationPreset === "none"}
-                >
-                  None
-                </button>
-                {DURATION_PRESETS.map((p) => (
-                  <button
-                    key={p.minutes}
-                    type="button"
-                    className={"chip-btn" + (durationPreset === String(p.minutes) ? " active" : "")}
-                    onClick={() => setDurationPreset(String(p.minutes))}
-                    role="radio"
-                    aria-checked={durationPreset === String(p.minutes)}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className={"chip-btn" + (durationPreset === "custom" ? " active" : "")}
-                  onClick={() => setDurationPreset("custom")}
-                  role="radio"
-                  aria-checked={durationPreset === "custom"}
-                >
-                  Custom
-                </button>
-              </div>
-
-              {durationPreset === "custom" ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1440"
-                    className="modal-input"
-                    style={{ width: 140 }}
-                    placeholder="Minutes"
-                    value={customDurationMinutes}
-                    onChange={(e) => setCustomDurationMinutes(e.target.value)}
-                    aria-label="Custom duration in minutes"
-                  />
-                  <span style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
-                    {customDurationMinutes && !isNaN(Number(customDurationMinutes))
-                      ? formatDuration(Number(customDurationMinutes))
-                      : "minutes"}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          ) : goalType === "quantity" ? (
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <label className="field-label" htmlFor={`edit-qty-target-${task.id}`}>
-                    Target Amount
-                  </label>
-                  <input
-                    id={`edit-qty-target-${task.id}`}
-                    type="number"
-                    step="any"
-                    min="0.01"
-                    className="modal-input"
-                    value={quantityTarget}
-                    onChange={(e) => setQuantityTarget(e.target.value)}
-                    placeholder="e.g. 8"
-                  />
-                </div>
-                <div>
-                  <label className="field-label" htmlFor={`edit-qty-unit-${task.id}`}>
-                    Unit
-                  </label>
-                  <input
-                    id={`edit-qty-unit-${task.id}`}
-                    type="text"
-                    className="modal-input"
-                    value={quantityUnit}
-                    onChange={(e) => setQuantityUnit(e.target.value)}
-                    placeholder="e.g. glasses, L, steps"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="field-label" htmlFor={`edit-qty-step-${task.id}`}>
-                  Quick-add Step
-                </label>
-                <input
-                  id={`edit-qty-step-${task.id}`}
-                  type="number"
-                  step="any"
-                  min="0.01"
-                  className="modal-input"
-                  style={{ width: 120 }}
-                  value={quantityStep}
-                  onChange={(e) => setQuantityStep(e.target.value)}
-                  placeholder="e.g. 1"
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <textarea
-          placeholder="Notes (optional)"
-          rows={2}
-          value={notes}
-          aria-label="Notes"
-          onChange={(e) => setNotes(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onCancel();
-          }}
-        />
-        <div className="edit-actions">
-          <button className="btn-primary" onClick={save}>
-            Save
-          </button>
-          <button className="btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

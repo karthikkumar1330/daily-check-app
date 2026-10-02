@@ -71,7 +71,7 @@ export function getCalendarComponents(dateStr: string) {
 
 export function formatLong(dateStr: string): string {
   const comp = getCalendarComponents(dateStr);
-  return `${comp.weekday}, ${comp.monthName} ${comp.day}`;
+  return `${comp.weekday}, ${comp.day} ${comp.monthName}`;
 }
 
 export function formatShort(dateStr: string): string {
@@ -109,6 +109,19 @@ export function formatNavDate(dateStr: string): string {
 export function formatDateMedium(dateStr: string): string {
   const comp = getCalendarComponents(dateStr);
   return `${comp.day} ${comp.monthShort} ${comp.year}`;
+}
+
+/**
+ * Safe local calendar display date avoiding ambiguous numerical formats.
+ * e.g. "Thu, 1 Oct 2026"
+ */
+export function formatDisplayDate(dateStr: string, includeWeekday = true): string {
+  if (!dateStr || !isValidDateStr(dateStr)) return dateStr || "";
+  const comp = getCalendarComponents(dateStr);
+  if (includeWeekday) {
+    return `${comp.weekdayShort}, ${comp.day} ${comp.monthShort} ${comp.year}`;
+  }
+  return `${comp.day} ${comp.monthName} ${comp.year}`;
 }
 
 /**

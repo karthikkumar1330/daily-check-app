@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTasks } from "../../hooks/useTasks";
-import { addDays, formatLong, todayStr } from "../../utils/dateUtils";
+import { addDays, formatDisplayDate, formatLong, todayStr } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
 import { CATEGORIES, categoryMeta } from "../../utils/taskUtils";
 import type { CategoryId } from "../../types";
@@ -56,33 +56,43 @@ export default function Tasks() {
   const filtersActive = status !== "all" || category !== "all" || query.trim() !== "";
 
   return (
-    <div className="page">
-      <div className="section-row" style={{ margin: "0 0 16px" }}>
-        <div className="page-title">Tasks</div>
+    <div className="page tasks-page">
+      {/* 1. Date context navigator */}
+      <div className="today-date-nav-wrap">
+        <DateNavigator
+          viewDate={viewDate}
+          isToday={isToday}
+          onPrev={() => {
+            setViewDate(addDays(viewDate, -1));
+            setEditingId(null);
+          }}
+          onNext={() => {
+            setViewDate(addDays(viewDate, 1));
+            setEditingId(null);
+          }}
+          onToday={() => {
+            setViewDate(todayStr());
+            setEditingId(null);
+          }}
+        />
       </div>
 
-      <DateNavigator
-        viewDate={viewDate}
-        isToday={isToday}
-        onPrev={() => {
-          setViewDate(addDays(viewDate, -1));
-          setEditingId(null);
-        }}
-        onNext={() => {
-          setViewDate(addDays(viewDate, 1));
-          setEditingId(null);
-        }}
-        onToday={() => {
-          setViewDate(todayStr());
-          setEditingId(null);
-        }}
-      />
+      {/* 2. Quick capture & Full Add option */}
+      <div className="quick-add-section">
+        <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", margin: "4px 0 14px" }}>
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => setAdvancedOpen(true)}
+          style={{ fontSize: "0.82rem" }}
+        >
+          + Add with priority &amp; schedule
+        </button>
+      </div>
 
-      <QuickAddTask onAdd={(title) => addTask(viewDate, title)} />
-      <button className="link-btn" onClick={() => setAdvancedOpen(true)} style={{ marginBottom: 16 }}>
-        + Add with priority, category &amp; notes
-      </button>
-
+      {/* 3. Search */}
       <div className="search-row">
         <SearchIcon />
         <input
@@ -104,13 +114,14 @@ export default function Tasks() {
         ) : null}
       </div>
 
+      {/* 4. Compact filter chips & category */}
       <div className="filter-chips">
         {(
           [
             ["all", "All"],
             ["active", "Active"],
             ["completed", "Completed"],
-            ["high", "High Priority"],
+            ["high", "High"],
             ["important", "⭐ Important"]
           ] as [StatusFilter, string][]
         ).map(([val, label]) => (
@@ -137,9 +148,10 @@ export default function Tasks() {
         </select>
       </div>
 
-      <div className="section-row">
-        <div className="section-title first" style={{ margin: 0 }}>
-          {formatLong(viewDate)}
+      {/* 5. Date heading and Clear completed */}
+      <div className="section-row" style={{ marginTop: 12, marginBottom: 8 }}>
+        <div className="section-title first" style={{ margin: 0, fontSize: "0.92rem", fontWeight: 700 }}>
+          {formatDisplayDate(viewDate)}
         </div>
         {stats.completed > 0 ? (
           <button className="link-btn" onClick={() => setConfirmClear(true)}>
@@ -148,14 +160,43 @@ export default function Tasks() {
         ) : null}
       </div>
 
+      {/* 6. Task list & Compact Empty State */}
       {day.tasks.length === 0 ? (
-        <EmptyState variant="no-tasks" />
+        <EmptyState
+          variant="custom"
+          title="No tasks yet"
+          subtitle="Create your first task to get started."
+          action={
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setAdvancedOpen(true)}
+              style={{ minHeight: 38, padding: "0 16px", marginTop: 8 }}
+            >
+              + Add Task
+            </button>
+          }
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           variant="custom"
           icon={"\uD83D\uDD0D"}
-          title="No tasks found."
-          subtitle="Try a different search or filter."
+          title="No tasks match filter"
+          subtitle="Try clearing or adjusting your search or filters."
+          action={
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => {
+                setQuery("");
+                setStatus("all");
+                setCategory("all");
+              }}
+              style={{ minHeight: 34, padding: "0 14px", marginTop: 6 }}
+            >
+              Reset Filters
+            </button>
+          }
         />
       ) : (
         <TaskList

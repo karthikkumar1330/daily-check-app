@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import type { Countdown, DayData, Task } from "../../types";
-import { getMonthGrid, monthLabel, todayStr } from "../../utils/dateUtils";
+import { formatDisplayDate, getMonthGrid, monthAnchor as getMonthAnchor, monthLabel, todayStr } from "../../utils/dateUtils";
 import { dayStats } from "../../utils/progressUtils";
 import { resolveDayData } from "../../utils/recurrenceUtils";
 
@@ -31,41 +32,70 @@ export default function Calendar({
   onNextMonth,
   onToday
 }: CalendarProps) {
-  const cells = getMonthGrid(monthAnchor, weekStartsOn);
+  const cells = useMemo(
+    () => getMonthGrid(monthAnchor, weekStartsOn),
+    [monthAnchor, weekStartsOn]
+  );
   const weekdayHeaders = weekStartsOn === 0 ? SUN_HEADERS : MON_HEADERS;
   const today = todayStr();
-
+  const currentMonthAnchor = getMonthAnchor(today);
+  const isCurrentMonth = monthAnchor === currentMonthAnchor;
 
   return (
-    <div className="card calendar-card">
-      <div className="week-nav" style={{ marginBottom: 4 }}>
-        <button onClick={onPrevMonth} aria-label="Previous month">
-          {"\u2039"}
-        </button>
-        <div className="label" style={{ fontWeight: 600, color: "var(--ink)" }}>
-          {monthLabel(monthAnchor)}
+    <div className="calendar-card" role="region" aria-label="Monthly Calendar">
+      {/* 1. MONTH NAVIGATION */}
+      <div className="calendar-nav-row">
+        <div className="calendar-nav-controls">
+          <button
+            type="button"
+            className="icon-btn calendar-nav-btn"
+            onClick={onPrevMonth}
+            aria-label="Previous month"
+            title="Previous month"
+          >
+            ‹
+          </button>
+          <h2 className="calendar-month-title">
+            {monthLabel(monthAnchor)}
+          </h2>
+          <button
+            type="button"
+            className="icon-btn calendar-nav-btn"
+            onClick={onNextMonth}
+            aria-label="Next month"
+            title="Next month"
+          >
+            ›
+          </button>
         </div>
-        <button onClick={onNextMonth} aria-label="Next month">
-          {"\u203A"}
-        </button>
+
+        {!isCurrentMonth ? (
+          <button
+            type="button"
+            className="calendar-today-action-btn"
+            onClick={onToday}
+            aria-label="Return to current date"
+          >
+            Today
+          </button>
+        ) : null}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-        <button className="link-btn" onClick={onToday}>
-          Today
-        </button>
-      </div>
-
-      <div className="calendar-grid calendar-headers">
+      {/* 2. WEEKDAY HEADERS */}
+      <div className="calendar-grid calendar-headers" role="row" aria-label="Day of week">
         {weekdayHeaders.map((w) => (
-          <div key={w} className="calendar-header-cell">
+          <div key={w} className="calendar-header-cell" role="columnheader">
             {w}
           </div>
         ))}
       </div>
-      <div className="calendar-grid">
+
+      {/* 3. CALENDAR CELLS GRID */}
+      <div className="calendar-grid calendar-cells-grid" role="grid" aria-label="Month days">
         {cells.map((cell) => {
-          const day = recurringTasks ? resolveDayData(cell.date, days[cell.date], recurringTasks) : days[cell.date];
+          const day = recurringTasks
+            ? resolveDayData(cell.date, days[cell.date], recurringTasks)
+            : days[cell.date];
           const st = dayStats(day);
           const isToday = cell.date === today;
           const isSelected = cell.date === selectedDate;
@@ -79,39 +109,44 @@ export default function Calendar({
             (t) => t.focusDate === cell.date || (t.focusDates && Boolean(t.focusDates[cell.date]))
           );
 
-          // Subtle status dot: none for zero-task days, otherwise colored by
-          // completion (>=80% = success, >0% = partial, 0% = neutral)
-          let dotClass = "";
+          // Subtle task status dot: only for dates with tasks
+          let dotVariant = "";
           if (st.total > 0 && st.pct !== null) {
-            if (st.pct >= 80) dotClass = "calendar-dot-complete";
-            else if (st.pct > 0) dotClass = "calendar-dot-partial";
-            else dotClass = "calendar-dot-neutral";
+            if (st.pct === 100) dotVariant = "dot-complete";
+            else if (st.completed > 0) dotVariant = "dot-partial";
+            else dotVariant = "dot-active";
           }
+
+          const accessibleLabel = `${formatDisplayDate(cell.date)}${isToday ? ", Today" : ""}${isSelected ? ", Selected" : ""}${
+            st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks"
+          }${hasFocusTasks ? ", focus task" : ""}${hasCountdownTarget ? ", countdown event" : ""}`;
 
           return (
             <button
               key={cell.date}
+              type="button"
               className={
                 "calendar-cell" +
-                (cell.inMonth ? "" : " outside") +
-                (isToday ? " today" : "") +
-                (isSelected ? " selected" : "") +
-                (hasCountdownTarget && cell.inMonth ? " in-goal" : "")
+                (cell.inMonth ? " in-month" : " outside") +
+                (isToday ? " is-today" : "") +
+                (isSelected ? " is-selected" : "") +
+                (hasCountdownTarget && cell.inMonth ? " has-countdown" : "")
               }
               onClick={() => onSelectDate(cell.date)}
-              aria-label={
-                cell.date +
-                (st.total > 0 ? `, ${st.completed} of ${st.total} tasks completed` : ", no tasks") +
-                (hasFocusTasks ? ", has focus tasks" : "") +
-                (hasCountdownTarget ? ", has countdown target" : "")
-              }
-
+              aria-label={accessibleLabel}
               aria-pressed={isSelected}
+              aria-current={isToday ? "date" : undefined}
             >
-              <span>{dayNum}</span>
-              <span className="calendar-dot-indicators" aria-hidden="true">
-                {dotClass ? <span className={"calendar-dot " + dotClass} /> : null}
-                {hasFocusTasks ? <span className="calendar-focus-dot" /> : null}
+              <span className="calendar-day-number">{dayNum}</span>
+
+              {/* Subtle indicators: max 1 compact dot container */}
+              <span className="calendar-cell-indicators" aria-hidden="true">
+                {dotVariant ? (
+                  <span className={`calendar-task-dot ${dotVariant}`} />
+                ) : null}
+                {hasFocusTasks ? (
+                  <span className="calendar-focus-mark" title="Focus task" />
+                ) : null}
               </span>
             </button>
           );

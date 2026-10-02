@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "../../hooks/useTasks";
 import { useCountdowns } from "../../hooks/useCountdowns";
-import { formatLong, addDays, getWeekDates, getWeekStart, todayStr, weekLabel } from "../../utils/dateUtils";
-import { dayStats, formatPct, weekSummary } from "../../utils/progressUtils";
+import { addDays, getWeekDates, getWeekStart, todayStr, weekLabel, weekdayFull } from "../../utils/dateUtils";
+import { dayStats, weekSummary } from "../../utils/progressUtils";
 import { resolveDayData } from "../../utils/recurrenceUtils";
 import { computeStreaks } from "../../utils/streakUtils";
 import { calculatePeriodMetrics, getDateRangePreset, type DateRangePreset } from "../../utils/insightsUtils";
@@ -13,6 +13,7 @@ import WeeklyReview from "../../components/WeeklyReview/WeeklyReview";
 import TrendChart from "../../components/Insights/TrendChart";
 import PrintWeek from "../../components/PrintWeek/PrintWeek";
 import { InsightsIcon, PrintIcon } from "../../components/icons";
+import { WeeklyInsights, WeeklyStats } from "./WeeklyStats";
 
 type WeeklyTab = "overview" | "review" | "trends";
 type TrendPreset = "last_7_days" | "last_30_days" | "last_90_days";
@@ -34,6 +35,9 @@ export default function WeeklyProgress() {
   }, [weekStartsOn]);
 
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const currentWeekStart = useMemo(() => getWeekStart(todayStr(), weekStartsOn), [weekStartsOn]);
+  const isCurrentWeek = weekStart === currentWeekStart;
+
   const summary = useMemo(
     () => weekSummary(appData.days, weekDates, appData.recurringTasks),
     [appData.days, weekDates, appData.recurringTasks]
@@ -43,6 +47,49 @@ export default function WeeklyProgress() {
     [appData.days, appData.recurringTasks]
   );
 
+  const activeDaysCount = useMemo(() => {
+    return weekDates.filter((dstr) => {
+      const day = resolveDayData(dstr, appData.days[dstr], appData.recurringTasks);
+      return (day?.tasks?.length ?? 0) > 0;
+    }).length;
+  }, [weekDates, appData.days, appData.recurringTasks]);
+
+  const hasTasksThisWeek = summary.created > 0;
+
+  // Factual observations for the week
+  const { strongestDay, lowestDay } = useMemo(() => {
+    const daysWithTasks = weekDates
+      .map((dstr) => {
+        const day = resolveDayData(dstr, appData.days[dstr], appData.recurringTasks);
+        const st = dayStats(day);
+        return {
+          date: dstr,
+          weekday: weekdayFull(dstr),
+          pct: st.pct ?? 0,
+          total: st.total,
+          completed: st.completed
+        };
+      })
+      .filter((d) => d.total > 0);
+
+    if (daysWithTasks.length < 2) {
+      return { strongestDay: null, lowestDay: null };
+    }
+
+    let best = daysWithTasks[0];
+    let lowest = daysWithTasks[0];
+    for (const d of daysWithTasks) {
+      if (d.pct > best.pct || (d.pct === best.pct && d.completed > best.completed)) {
+        best = d;
+      }
+      if (d.pct < lowest.pct || (d.pct === lowest.pct && d.completed < lowest.completed)) {
+        lowest = d;
+      }
+    }
+
+    return { strongestDay: best, lowestDay: lowest };
+  }, [weekDates, appData.days, appData.recurringTasks]);
+
   // Trend metrics for Trends tab
   const trendRange = useMemo(() => getDateRangePreset(trendPreset as DateRangePreset), [trendPreset]);
   const trendMetrics = useMemo(
@@ -51,35 +98,13 @@ export default function WeeklyProgress() {
   );
 
   return (
-    <div className="page" style={{ paddingBottom: 64 }}>
-      <div className="section-row" style={{ margin: "0 0 12px", flexWrap: "wrap", gap: 10 }}>
-        <div className="page-title">Weekly Progress</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="link-btn"
-            onClick={() => navigate("/insights")}
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}
-          >
-            <InsightsIcon /> View Full Insights
-          </button>
-          <button
-            type="button"
-            className="link-btn"
-            onClick={() => window.print()}
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}
-          >
-            <PrintIcon /> Print Week
-          </button>
-        </div>
-      </div>
-
+    <div className="page weekly-page">
       {/* Segmented View Switcher */}
       <div
-        className="seg"
+        className="seg-compact"
         role="tablist"
         aria-label="Weekly Progress View Mode"
-        style={{ width: "100%", marginBottom: 16 }}
+        style={{ width: "100%", marginBottom: 12, marginTop: 4 }}
       >
         <button
           type="button"
@@ -115,47 +140,111 @@ export default function WeeklyProgress() {
 
       {activeTab === "overview" && (
         <>
-          <div className="week-nav">
-            <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week">
-              {"\u2039"}
+          {/* Week Navigation */}
+          <div className="weekly-nav-row" role="region" aria-label="Week navigation">
+            <button
+              type="button"
+              className="weekly-nav-btn"
+              onClick={() => setWeekStart(addDays(weekStart, -7))}
+              aria-label="Previous week"
+              title="Previous week"
+            >
+              ‹
             </button>
-            <div className="label">{weekLabel(weekStart)}</div>
-            <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week">
-              {"\u203A"}
-            </button>
-          </div>
-
-          <WeeklyChart
-            days={appData.days}
-            recurringTasks={appData.recurringTasks}
-            weekStart={weekStart}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
-
-          <div className="day-breakdown">
-            {weekDates.map((dstr) => {
-              const day = resolveDayData(dstr, appData.days[dstr], appData.recurringTasks);
-              const st = dayStats(day);
-              return (
+            <div className="weekly-nav-center">
+              <span className="weekly-nav-range">{weekLabel(weekStart)}</span>
+              {isCurrentWeek ? (
+                <span className="weekly-nav-badge">This week</span>
+              ) : (
                 <button
-                  key={dstr}
-                  className={"day-breakdown-row" + (dstr === selectedDate ? " selected" : "")}
-                  onClick={() => setSelectedDate(dstr)}
+                  type="button"
+                  className="weekly-nav-today-btn"
+                  onClick={() => setWeekStart(currentWeekStart)}
+                  aria-label="Jump to current week"
                 >
-                  <span className="day-breakdown-date">{formatLong(dstr)}</span>
-                  <span className="day-breakdown-stat">
-                    {st.total === 0 ? "No tasks" : `${st.completed}/${st.total} \u00B7 ${formatPct(st.pct)}`}
-                  </span>
+                  This week
                 </button>
-              );
-            })}
+              )}
+            </div>
+            <button
+              type="button"
+              className="weekly-nav-btn"
+              onClick={() => setWeekStart(addDays(weekStart, 7))}
+              aria-label="Next week"
+              title="Next week"
+            >
+              ›
+            </button>
           </div>
 
-          <WeeklySummary summary={summary} streaks={streaks} />
+          {!hasTasksThisWeek ? (
+            /* Compact Empty State */
+            <div className="weekly-empty-card" role="region" aria-label="No tasks this week">
+              <div className="weekly-empty-icon" aria-hidden="true">📅</div>
+              <div className="weekly-empty-title">No tasks this week</div>
+              <div className="weekly-empty-desc">
+                Add tasks to start tracking weekly progress.
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate("/today")}
+                style={{ minHeight: 44, padding: "0 20px" }}
+              >
+                Go to Today
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Weekly Summary */}
+              <WeeklySummary
+                summary={summary}
+                streaks={streaks}
+                activeDaysCount={activeDaysCount}
+              />
 
-          <div className="footer-note">
-            A day counts toward your streak at 80%+ completion. Zero-task days are skipped.
+              {/* 7-Day Progress Visualization */}
+              <WeeklyChart
+                days={appData.days}
+                recurringTasks={appData.recurringTasks}
+                weekStart={weekStart}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+              />
+
+              {/* Weekly Statistics */}
+              <WeeklyStats
+                summary={summary}
+                streaks={streaks}
+                activeDaysCount={activeDaysCount}
+              />
+
+              {/* Optional Insights / Context */}
+              <WeeklyInsights
+                strongestDay={strongestDay}
+                lowestDay={lowestDay}
+              />
+            </>
+          )}
+
+          {/* Secondary Actions */}
+          <div className="weekly-actions-row">
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => navigate("/insights")}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <InsightsIcon /> View Full Insights
+            </button>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => window.print()}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <PrintIcon /> Print Week
+            </button>
           </div>
 
           <PrintWeek days={appData.days} recurringTasks={appData.recurringTasks} weekStart={weekStart} />
@@ -170,7 +259,6 @@ export default function WeeklyProgress() {
           onNavigateWeek={setWeekStart}
         />
       )}
-
 
       {activeTab === "trends" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -295,4 +383,3 @@ export default function WeeklyProgress() {
     </div>
   );
 }
-

@@ -1,10 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNotificationCenter } from "../../hooks/useNotificationCenter";
-import type { NotificationRecord, NotificationType } from "../../types/notification";
+import type { NotificationPreferences, NotificationRecord, NotificationType } from "../../types/notification";
 import { formatDayMonth, toDateStr, todayStr } from "../../utils/dateUtils";
 import { CloseIcon } from "../../components/icons";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+  type NotificationSupportStatus
+} from "../../utils/notificationUtils";
+
+const NOTIFICATION_TYPES: Array<{
+  key: keyof Omit<NotificationPreferences, "centerEnabled">;
+  label: string;
+  desc: string;
+}> = [
+  { key: "taskDue", label: "Task due reminders", desc: "Scheduled reminder alerts" },
+  { key: "taskOverdue", label: "Overdue tasks", desc: "Alert when scheduled time passes" },
+  { key: "recurringTask", label: "Recurring tasks", desc: "Daily & routine occurrences" },
+  { key: "durationReminder", label: "Duration reminders", desc: "Timed task milestones" },
+  { key: "quantityReminder", label: "Quantity reminders", desc: "Target check-ins" },
+  { key: "focusReminder", label: "Focus reminders", desc: "Top priority task cues" }
+];
 
 function formatNotificationTime(isoStr: string): string {
   try {
@@ -55,13 +74,47 @@ export default function NotificationCenter() {
   const {
     notifications,
     unreadCount,
+    preferences,
+    updatePreferences,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     clearAll
   } = useNotificationCenter();
 
+  const [permission, setPermission] = useState<NotificationSupportStatus>(() => getNotificationPermission());
+  const [showPreferences, setShowPreferences] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast((curr) => (curr === msg ? null : curr)), 3200);
+  }
+
+  // Sync permission state when window regains focus
+  useEffect(() => {
+    function handleFocus() {
+      setPermission(getNotificationPermission());
+    }
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
+  async function handleRequestPermission() {
+    const result = await requestNotificationPermission();
+    setPermission(result);
+    if (result === "granted") {
+      showToast("Notifications enabled.");
+    } else if (result === "denied") {
+      showToast("Notifications were blocked by the browser.");
+    }
+  }
+
+  async function handleSendTest() {
+    const sent = await sendTestNotification();
+    showToast(sent ? "Test notification sent." : "Could not display test notification.");
+  }
 
   const todayNotifications: NotificationRecord[] = [];
   const earlierNotifications: NotificationRecord[] = [];
@@ -86,7 +139,9 @@ export default function NotificationCenter() {
     if (n.taskId) {
       const targetDate = n.dateStr || todayStr();
       const action = n.action?.type || "open_task";
-      navigate(`/today?date=${encodeURIComponent(targetDate)}&taskId=${encodeURIComponent(n.taskId)}&action=${encodeURIComponent(action)}`);
+      navigate(
+        `/today?date=${encodeURIComponent(targetDate)}&taskId=${encodeURIComponent(n.taskId)}&action=${encodeURIComponent(action)}`
+      );
       return;
     }
 
@@ -96,65 +151,153 @@ export default function NotificationCenter() {
   }
 
   return (
-    <div className="page notification-center-page" style={{ maxWidth: 640, margin: "0 auto" }}>
-      {/* Header */}
-      <div className="notif-center-header">
-        <div className="notif-center-title-row">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: "1.4rem" }} aria-hidden="true">🔔</span>
-            <h1 className="page-title" style={{ margin: 0 }}>Notifications</h1>
-            {unreadCount > 0 ? (
-              <span className="notif-badge-header" aria-label={`${unreadCount} unread`}>
+    <div className="page notif-page">
+      {/* 1. PERMISSION / AVAILABILITY STATUS */}
+      <div className="notif-status-card" role="region" aria-label="Notification permission status">
+        <div className="notif-status-left">
+          <div className="notif-status-icon" aria-hidden="true">
+            {permission === "granted" ? "🔔" : permission === "denied" ? "🔕" : "📣"}
+          </div>
+          <div className="notif-status-info">
+            <div className="notif-status-title-row">
+              <span className="notif-status-title">Browser notifications</span>
+              <span className={`notif-status-pill status-${permission}`}>
+                {permission === "granted"
+                  ? "Enabled"
+                  : permission === "denied"
+                  ? "Blocked"
+                  : permission === "unsupported"
+                  ? "Unsupported"
+                  : "Permission required"}
+              </span>
+            </div>
+            <p className="notif-status-desc">
+              {permission === "granted"
+                ? "Scheduled alerts and daily reminders are enabled on this device."
+                : permission === "denied"
+                ? "Notifications are blocked in your browser site settings. Enable them in browser settings."
+                : permission === "unsupported"
+                ? "Browser notifications are not supported in this browser."
+                : "Enable notifications to receive task reminders and scheduled cues."}
+            </p>
+          </div>
+        </div>
+
+        <div className="notif-status-actions">
+          {permission === "default" && (
+            <button
+              type="button"
+              className="btn btn-primary notif-enable-btn"
+              onClick={handleRequestPermission}
+              aria-label="Enable browser notifications"
+            >
+              Enable
+            </button>
+          )}
+          {permission === "granted" && (
+            <button
+              type="button"
+              className="btn btn-secondary notif-test-btn"
+              onClick={handleSendTest}
+              aria-label="Send test notification"
+            >
+              Send test
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. NOTIFICATION CONTROLS (CATEGORY TOGGLES) */}
+      <div className="notif-controls-section" role="region" aria-label="Notification types">
+        <div className="notif-section-header">
+          <h2 className="notif-section-title">Notification Types</h2>
+          <button
+            type="button"
+            className="notif-collapse-toggle"
+            onClick={() => setShowPreferences((prev) => !prev)}
+            aria-expanded={showPreferences}
+            aria-label={showPreferences ? "Hide notification types configuration" : "Configure notification types"}
+          >
+            {showPreferences ? "Hide" : "Configure"}
+          </button>
+        </div>
+
+        {showPreferences && (
+          <div className="notif-controls-group">
+            {NOTIFICATION_TYPES.map((cat) => (
+              <div key={cat.key} className="notif-control-row">
+                <div className="notif-control-text">
+                  <span className="notif-control-title">{cat.label}</span>
+                  <span className="notif-control-desc">{cat.desc}</span>
+                </div>
+                <label className="dc-switch" aria-label={`Toggle ${cat.label}`}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(preferences[cat.key])}
+                    onChange={(e) => updatePreferences({ [cat.key]: e.target.checked })}
+                  />
+                  <span className="dc-switch-slider" />
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. NOTIFICATION HISTORY */}
+      <div className="notif-history-section" role="region" aria-label="Recent notifications">
+        <div className="notif-history-header">
+          <div className="notif-history-title-row">
+            <h2 className="notif-section-title">Recent Notifications</h2>
+            {unreadCount > 0 && (
+              <span className="notif-unread-count-pill" aria-label={`${unreadCount} unread`}>
                 {unreadCount} unread
               </span>
-            ) : null}
+            )}
           </div>
 
-          <div className="notif-center-actions">
-            {unreadCount > 0 ? (
+          <div className="notif-history-actions">
+            {unreadCount > 0 && (
               <button
                 type="button"
                 className="link-btn notif-action-btn"
                 onClick={markAllAsRead}
                 aria-label="Mark all notifications as read"
+                style={{ minHeight: 44, display: "inline-flex", alignItems: "center" }}
               >
-                Mark all as read
+                Mark all read
               </button>
-            ) : null}
-            {notifications.length > 0 ? (
+            )}
+            {notifications.length > 0 && (
               <button
                 type="button"
                 className="link-btn notif-action-btn notif-clear-btn"
                 onClick={() => setConfirmClearOpen(true)}
                 aria-label="Clear all notifications"
+                style={{ minHeight: 44, display: "inline-flex", alignItems: "center" }}
               >
                 Clear all
               </button>
-            ) : null}
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      {notifications.length === 0 ? (
-        <div className="empty-state notif-empty-state">
-          <div className="empty-icon" aria-hidden="true" style={{ fontSize: "2.8rem", marginBottom: 12 }}>
-            🔔
+        {notifications.length === 0 ? (
+          <div className="notif-empty-card" role="region" aria-label="No notifications yet">
+            <div className="notif-empty-icon" aria-hidden="true">
+              🔔
+            </div>
+            <div className="notif-empty-title">No notifications yet</div>
+            <div className="notif-empty-desc">
+              Notifications will appear here when Daily Check sends them.
+            </div>
           </div>
-          <h2 className="empty-title" style={{ fontSize: "1.1rem", marginBottom: 6 }}>
-            No notifications yet
-          </h2>
-          <p className="empty-sub" style={{ fontSize: "0.9rem", color: "var(--ink-muted)", margin: 0, maxWidth: 360 }}>
-            Your task reminders, scheduled notifications, and achievements will appear here.
-          </p>
-        </div>
-      ) : (
-        <div className="notif-list-container">
-          {/* TODAY SECTION */}
-          {todayNotifications.length > 0 ? (
-            <div className="notif-section">
-              <div className="notif-section-heading">TODAY</div>
-              <div className="notif-cards-stack">
+        ) : (
+          <div className="notif-list-container" role="list">
+            {/* TODAY SECTION */}
+            {todayNotifications.length > 0 && (
+              <div className="notif-section-group">
+                <div className="notif-date-subheading">Today</div>
                 {todayNotifications.map((item) => (
                   <NotificationItem
                     key={item.id}
@@ -167,14 +310,12 @@ export default function NotificationCenter() {
                   />
                 ))}
               </div>
-            </div>
-          ) : null}
+            )}
 
-          {/* EARLIER SECTION */}
-          {earlierNotifications.length > 0 ? (
-            <div className="notif-section" style={{ marginTop: todayNotifications.length > 0 ? 24 : 0 }}>
-              <div className="notif-section-heading">EARLIER</div>
-              <div className="notif-cards-stack">
+            {/* EARLIER SECTION */}
+            {earlierNotifications.length > 0 && (
+              <div className="notif-section-group">
+                <div className="notif-date-subheading">Earlier</div>
                 {earlierNotifications.map((item) => (
                   <NotificationItem
                     key={item.id}
@@ -187,12 +328,13 @@ export default function NotificationCenter() {
                   />
                 ))}
               </div>
-            </div>
-          ) : null}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
-      {confirmClearOpen ? (
+      {/* Confirmation Modal for Clear All */}
+      {confirmClearOpen && (
         <ConfirmModal
           title="Clear all notifications?"
           message="This will remove all notifications from your history. This cannot be undone."
@@ -201,10 +343,18 @@ export default function NotificationCenter() {
           onConfirm={() => {
             clearAll();
             setConfirmClearOpen(false);
+            showToast("Cleared notification history.");
           }}
           onCancel={() => setConfirmClearOpen(false)}
         />
-      ) : null}
+      )}
+
+      {/* Toast Feedback */}
+      {toast && (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -224,7 +374,9 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
     <div
       role={isActionable ? "button" : "article"}
       tabIndex={isActionable ? 0 : undefined}
-      className={`notif-card ${notification.read ? "read" : "unread"} ${isActionable ? "actionable" : ""}`}
+      className={`notif-item-row ${notification.read ? "is-read" : "is-unread"} ${
+        isActionable ? "is-actionable" : ""
+      }`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (isActionable && (e.key === "Enter" || e.key === " ")) {
@@ -234,22 +386,22 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
       }}
       aria-label={`${notification.read ? "Read" : "Unread"}: ${notification.title}`}
     >
-      <div className="notif-card-icon" aria-hidden="true">
+      <div className="notif-item-icon" aria-hidden="true">
         {icon}
       </div>
 
-      <div className="notif-card-content">
-        <div className="notif-card-top">
-          <div className="notif-card-title">{notification.title}</div>
-          <div className="notif-card-time">{timeText}</div>
+      <div className="notif-item-content">
+        <div className="notif-item-top">
+          <div className="notif-item-title">{notification.title}</div>
+          <div className="notif-item-time">{timeText}</div>
         </div>
-        <div className="notif-card-body">{notification.body}</div>
+        <div className="notif-item-body">{notification.body}</div>
       </div>
 
-      <div className="notif-card-end">
-        {!notification.read ? (
+      <div className="notif-item-end">
+        {!notification.read && (
           <span className="notif-unread-dot" aria-label="Unread" title="Unread" />
-        ) : null}
+        )}
         <button
           type="button"
           className="icon-btn notif-delete-btn"

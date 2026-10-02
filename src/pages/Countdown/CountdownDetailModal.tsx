@@ -39,6 +39,7 @@ export default function CountdownDetailModal({
   const [isClosing, setIsClosing] = useState(false);
   const closingTimeoutRef = useRef<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [showAllMilestones, setShowAllMilestones] = useState(false);
   const [showPassedMilestones, setShowPassedMilestones] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
@@ -220,6 +221,19 @@ export default function CountdownDetailModal({
               </div>
             ) : null}
 
+            {/* Title */}
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: "var(--ink)",
+                marginBottom: 8,
+                letterSpacing: "-0.01em"
+              }}
+            >
+              {countdown.title}
+            </div>
+
             {/* Prominent Number */}
             <div
               style={{
@@ -272,7 +286,7 @@ export default function CountdownDetailModal({
           </div>
 
           {/* Meaningful Progress Bar (Only when meaningful: not 0%) */}
-          {status.hasMeaningfulProgress ? (
+          {status.hasMeaningfulProgress && status.progressPct > 0 ? (
             <div
               style={{
                 background: "var(--surface)",
@@ -345,42 +359,42 @@ export default function CountdownDetailModal({
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "var(--ink-muted)", textTransform: "uppercase", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>Today</span>
+              <span style={{ color: "var(--ink-muted)", textTransform: "uppercase", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>On Today</span>
               <button
                 type="button"
                 onClick={onToggleShowOnToday}
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: 600,
-                  padding: "3px 8px",
-                  borderRadius: 8,
+                  padding: "3px 10px",
+                  borderRadius: 6,
                   background: countdown.showOnToday ? "rgba(16, 185, 129, 0.12)" : "var(--surface-hover)",
                   color: countdown.showOnToday ? "var(--accent, #10b981)" : "var(--ink-muted)",
                   border: "1px solid var(--border)",
                   cursor: "pointer"
                 }}
               >
-                {countdown.showOnToday ? "Shown on Today" : "Hidden from Today"}
+                {countdown.showOnToday ? "Yes" : "No"}
               </button>
             </div>
 
             {countdown.featured ? (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ color: "var(--ink-muted)", textTransform: "uppercase", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>Featured</span>
-                <span style={{ fontWeight: 600, color: "var(--accent, #10b981)" }}>⭐ Featured hero card</span>
+                <span style={{ fontWeight: 600, color: "var(--accent, #10b981)" }}>⭐ Yes</span>
               </div>
             ) : null}
 
             {countdown.pinned ? (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ color: "var(--ink-muted)", textTransform: "uppercase", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>Pinned</span>
-                <span style={{ fontWeight: 600, color: "var(--ink)" }}>📌 Pinned to top</span>
+                <span style={{ fontWeight: 600, color: "var(--ink)" }}>📌 Yes</span>
               </div>
             ) : null}
           </div>
 
-          {/* Notes (if present) */}
-          {countdown.notes ? (
+          {/* Notes (Only when notes actually exist) */}
+          {countdown.notes && countdown.notes.trim() ? (
             <div
               style={{
                 background: "var(--surface)",
@@ -427,7 +441,7 @@ export default function CountdownDetailModal({
               }}
             >
               {/* Featured Next Milestone */}
-              <div style={{ marginBottom: 10 }}>
+              <div style={{ marginBottom: upcomingMilestones.length > 0 ? 8 : 0 }}>
                 <div
                   style={{
                     fontSize: 10.5,
@@ -442,7 +456,7 @@ export default function CountdownDetailModal({
                 </div>
                 <div
                   style={{
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: 800,
                     color: "var(--ink)",
                     letterSpacing: "-0.01em"
@@ -450,10 +464,31 @@ export default function CountdownDetailModal({
                 >
                   {formatMilestoneDays(nextMilestone.days)}
                 </div>
+
+                {upcomingMilestones.length > 0 && !showAllMilestones ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllMilestones(true)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      marginTop: 6,
+                      color: "var(--accent, #10b981)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    View all milestones →
+                  </button>
+                ) : null}
               </div>
 
-              {/* Upcoming Milestones List (Next milestone is NOT repeated) */}
-              {upcomingMilestones.length > 0 ? (
+              {/* Upcoming Milestones List (When expanded, no duplicate of next milestone) */}
+              {upcomingMilestones.length > 0 && showAllMilestones ? (
                 <div
                   style={{
                     borderTop: "1px solid var(--border)",
@@ -496,11 +531,28 @@ export default function CountdownDetailModal({
                               : "1px solid var(--border)"
                           }}
                         >
-                          {isFinal ? "Final" : "Upcoming"}
+                          {isFinal ? "Target day · Final" : "Upcoming"}
                         </span>
                       </div>
                     );
                   })}
+                  <button
+                    type="button"
+                    onClick={() => setShowAllMilestones(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      marginTop: 4,
+                      color: "var(--ink-muted)",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textAlign: "left"
+                    }}
+                  >
+                    Hide upcoming milestones ▴
+                  </button>
                 </div>
               ) : null}
 
@@ -551,18 +603,11 @@ export default function CountdownDetailModal({
           ) : null}
 
           {/* Quick Actions Row */}
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <div className="countdown-detail-actions">
             <button
               type="button"
               className="btn btn-secondary"
               onClick={onEdit}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                fontSize: 13.5,
-                fontWeight: 600,
-                borderRadius: 12
-              }}
             >
               ✏️ Edit
             </button>
@@ -571,34 +616,22 @@ export default function CountdownDetailModal({
               type="button"
               className="btn btn-secondary"
               onClick={handleShare}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                fontSize: 13.5,
-                fontWeight: 600,
-                borderRadius: 12
-              }}
             >
               ↗ Share
             </button>
 
             <button
               type="button"
-              className="btn"
+              className="btn btn-danger"
               onClick={() => setConfirmDeleteOpen(true)}
               style={{
-                width: 44,
-                minHeight: 44,
-                fontSize: 16,
+                background: "rgba(239, 68, 68, 0.1)",
                 color: "var(--danger, #ef4444)",
-                background: "rgba(239, 68, 68, 0.08)",
-                border: "1px solid rgba(239, 68, 68, 0.2)",
-                borderRadius: 12,
-                cursor: "pointer"
+                border: "1px solid rgba(239, 68, 68, 0.25)"
               }}
               aria-label="Delete countdown"
             >
-              🗑️
+              🗑️ Delete
             </button>
           </div>
         </div>
