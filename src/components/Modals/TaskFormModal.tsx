@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CategoryId, Priority, RecurrenceType, ReminderMinutes, Task, TaskRecurrence } from "../../types";
 import { formatDisplayDate, parseDateStr, todayStr, weekdayFull } from "../../utils/dateUtils";
 import { DAYS_OF_WEEK_OPTIONS, validateRecurrence } from "../../utils/recurrenceUtils";
@@ -235,9 +236,9 @@ export default function TaskFormModal({
 
   const weeklyDayName = weekdayFull(startDate || effectiveStart);
 
-  return (
+  const modalContent = (
     <div
-      className="modal-overlay dc-modal-overlay"
+      className="modal-overlay dc-modal-overlay dc-task-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -716,4 +717,6 @@ export default function TaskFormModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }

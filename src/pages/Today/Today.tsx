@@ -375,7 +375,8 @@ export default function Today() {
             durationTargetMinutes,
             quantityTarget,
             quantityUnit,
-            quantityStep
+            quantityStep,
+            important
           ) => {
             addTask(
               viewDate,
@@ -390,7 +391,8 @@ export default function Today() {
               durationTargetMinutes,
               quantityTarget,
               quantityUnit,
-              quantityStep
+              quantityStep,
+              important
             );
             setAdvancedOpen(false);
           }}

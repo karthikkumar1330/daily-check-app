@@ -736,27 +736,97 @@ textarea {
 /* ==========================================================================
    PHASE 3A: TASK FORM MODAL & MOBILE FORM FLOW
    ========================================================================== */
+.dc-task-modal-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100%;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: dcTaskOverlayFadeIn 0.18s ease-out;
+}
+
+:root[data-theme="dark"] .dc-task-modal-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+@keyframes dcTaskOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 641px) {
+  .dc-task-modal-overlay {
+    align-items: center;
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+}
+
 .dc-task-modal-sheet {
   background: var(--surface);
   color: var(--ink);
   width: 100%;
   max-width: 520px;
-  border-radius: var(--dc-radius-lg) var(--dc-radius-lg) 0 0;
-  max-height: min(90dvh, 740px);
+  height: auto;
+  max-height: 90vh;
+  max-height: 90dvh;
+  border-radius: var(--dc-radius-lg, 16px) var(--dc-radius-lg, 16px) 0 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
   border-bottom: none;
-  padding-bottom: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  animation: dcTaskSheetSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
+
+@keyframes dcTaskSheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @media (min-width: 641px) {
   .dc-task-modal-sheet {
-    border-radius: var(--dc-radius-lg);
+    border-radius: var(--dc-radius-lg, 16px);
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
     max-height: 85vh;
+    max-height: 85dvh;
+    animation: dcTaskModalZoomIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes dcTaskModalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -768,6 +838,8 @@ textarea {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 .dc-task-modal-title {
   margin: 0;
@@ -798,8 +870,10 @@ textarea {
 }
 
 .dc-task-modal-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 18px 24px;
   display: flex;
   flex-direction: column;
@@ -1152,6 +1226,8 @@ textarea {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   display: flex;
+  position: relative;
+  z-index: 2;
 }
 .dc-task-modal-primary-btn {
   width: 100%;
