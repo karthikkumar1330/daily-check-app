@@ -7068,6 +7068,321 @@ textarea {
 }
 
 /* ==========================================================================
+   ROUTINE EDITOR MODAL / BOTTOM SHEET (MOBILE VIEWPORT & DESKTOP)
+   ========================================================================== */
+.routine-modal-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100%;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: routineOverlayFadeIn 0.18s ease-out;
+}
+
+:root[data-theme="dark"] .routine-modal-overlay {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+@keyframes routineOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 641px) {
+  .routine-modal-overlay {
+    align-items: center;
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+}
+
+.routine-modal-sheet {
+  background: var(--surface);
+  color: var(--ink);
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  max-height: 90vh;
+  max-height: 90dvh;
+  border-radius: var(--dc-radius-lg, 16px) var(--dc-radius-lg, 16px) 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  animation: routineSheetSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+@keyframes routineSheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 641px) {
+  .routine-modal-sheet {
+    border-radius: var(--dc-radius-lg, 16px);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+    max-height: 85vh;
+    max-height: 85dvh;
+    animation: routineModalZoomIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes routineModalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.routine-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.routine-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.routine-modal-close-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  border-radius: var(--dc-radius-sm, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.routine-modal-close-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.routine-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.routine-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.routine-modal-subtitle {
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.routine-modal-error {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger, #ef4444);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.routine-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.routine-title-input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.routine-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 380px) {
+  .routine-icon-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+}
+
+.routine-icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  width: 100%;
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dc-radius-sm, 8px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.routine-icon-btn:hover {
+  background: var(--surface-2);
+}
+
+.routine-icon-btn.selected {
+  border: 2px solid var(--accent);
+  background: var(--accent-subtle, rgba(46, 125, 90, 0.12));
+}
+
+.routine-tasks-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.routine-add-task-link {
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.routine-task-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routine-task-edit-card {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.routine-add-another-btn {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.routine-modal-footer {
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.routine-modal-cancel-btn {
+  min-height: 46px;
+  padding: 0 18px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.routine-modal-submit-btn {
+  min-height: 46px;
+  padding: 0 20px;
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+@media (max-width: 480px) {
+  .routine-modal-footer {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .routine-modal-cancel-btn {
+    flex: 1;
+    min-height: 48px;
+    justify-content: center;
+  }
+  .routine-modal-submit-btn {
+    flex: 2;
+    min-height: 48px;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
    PHASE 4D: CATEGORIES UI/UX OPTIMIZATION
    ========================================================================== */
 

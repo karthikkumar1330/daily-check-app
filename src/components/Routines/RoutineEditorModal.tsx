@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CategoryId, Priority, ReminderMinutes, Routine, RoutineTask } from "../../types";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { CATEGORIES } from "../../utils/taskUtils";
@@ -152,71 +153,75 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
     }
   }
 
-  return (
+  const modalContent = (
     <div
-      className="overlay"
+      className="routine-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
+      role="presentation"
     >
       <div
-        className="modal routine-editor-modal"
+        className="routine-modal-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="routine-editor-title"
-        style={{ maxWidth: 540, maxHeight: "90vh", display: "flex", flexDirection: "column" }}
       >
-        <div className="modal-header">
-          <h2 id="routine-editor-title" style={{ margin: 0 }}>
+        {/* Fixed Header */}
+        <div className="routine-modal-header">
+          <h2 id="routine-editor-title" className="routine-modal-title">
             {isEdit ? "Edit Routine" : "New Daily Routine"}
           </h2>
-          <button className="icon-btn" onClick={onCancel} aria-label="Close">
+          <button
+            type="button"
+            className="routine-modal-close-btn"
+            onClick={onCancel}
+            aria-label="Close"
+          >
             <CloseIcon />
           </button>
         </div>
 
-        <p className="modal-subtitle" style={{ margin: "4px 0 16px" }}>
-          Create a reusable template of tasks you can apply to any day in one tap.
-        </p>
+        {/* Form Container */}
+        <form onSubmit={handleSubmit} className="routine-modal-form">
+          {/* Scrollable Modal Body (Single Scroll Container) */}
+          <div className="routine-modal-body">
+            <p className="routine-modal-subtitle">
+              Create a reusable template of tasks you can apply to any day in one tap.
+            </p>
 
-        {error ? (
-          <div className="modal-error" role="alert" style={{ marginBottom: 16 }}>
-            {error}
-          </div>
-        ) : null}
+            {error ? (
+              <div className="routine-modal-error" role="alert">
+                {error}
+              </div>
+            ) : null}
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-          <div style={{ overflowY: "auto", paddingRight: 4, flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Routine Name & Icon */}
-            <div>
+            {/* Routine Name */}
+            <div className="routine-form-field">
               <label className="field-label" htmlFor="routine-name">
                 Routine name
               </label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  id="routine-name"
-                  ref={nameRef}
-                  type="text"
-                  className="modal-input"
-                  placeholder="e.g. Bank Exam Routine, Workout, Morning Setup"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={60}
-                  style={{ flex: 1 }}
-                />
-              </div>
+              <input
+                id="routine-name"
+                ref={nameRef}
+                type="text"
+                className="modal-input routine-title-input"
+                placeholder="e.g. Bank Exam Routine, Workout, Morning Setup"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={60}
+              />
             </div>
 
             {/* Icon Chooser */}
-            <div>
+            <div className="routine-form-field">
               <label className="field-label" id="icon-choices-label">
                 Icon
               </label>
               <div
-                className="icon-picker"
+                className="routine-icon-grid"
                 role="radiogroup"
                 aria-labelledby="icon-choices-label"
-                style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
               >
                 {ICON_CHOICES.map((ic) => (
                   <button
@@ -225,20 +230,8 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                     role="radio"
                     aria-checked={icon === ic}
                     aria-label={`Select icon ${ic}`}
-                    className={`icon-choice ${icon === ic ? "selected" : ""}`}
+                    className={`routine-icon-btn ${icon === ic ? "selected" : ""}`}
                     onClick={() => setIcon(ic)}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      fontSize: 20,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "var(--radius-sm, 8px)",
-                      border: icon === ic ? "2px solid var(--accent)" : "1px solid var(--border)",
-                      background: icon === ic ? "var(--accent-subtle, rgba(46, 125, 90, 0.1))" : "var(--surface)",
-                      cursor: "pointer"
-                    }}
                   >
                     {ic}
                   </button>
@@ -247,35 +240,23 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
             </div>
 
             {/* Tasks in Routine */}
-            <div>
-              <div className="section-row" style={{ margin: "8px 0 8px" }}>
-                <label className="field-label" style={{ margin: 0, fontWeight: 600 }}>
+            <div className="routine-form-field">
+              <div className="routine-tasks-header-row">
+                <label className="field-label" style={{ margin: 0, fontWeight: 700 }}>
                   Routine Tasks ({tasks.filter((t) => t.title.trim().length > 0).length})
                 </label>
                 <button
                   type="button"
-                  className="link-btn"
+                  className="link-btn routine-add-task-link"
                   onClick={handleAddTask}
-                  style={{ fontSize: 13, fontWeight: 600 }}
                 >
                   + Add task
                 </button>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="routine-task-cards-list">
                 {tasks.map((task, index) => (
-                  <div
-                    key={task.id}
-                    className="card"
-                    style={{
-                      padding: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      border: "1px solid var(--border)",
-                      borderRadius: 10
-                    }}
-                  >
+                  <div key={task.id} className="routine-task-edit-card card">
                     {/* Top Row: Reorder, Title, Delete */}
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {/* Reorder controls */}
@@ -286,7 +267,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                           disabled={index === 0}
                           onClick={() => handleMoveTask(index, "up")}
                           aria-label={`Move task ${index + 1} up`}
-                          style={{ width: 22, height: 22, padding: 0, opacity: index === 0 ? 0.3 : 1 }}
+                          style={{ width: 24, height: 24, padding: 0, opacity: index === 0 ? 0.3 : 1 }}
                         >
                           <UpIcon />
                         </button>
@@ -296,7 +277,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                           disabled={index === tasks.length - 1}
                           onClick={() => handleMoveTask(index, "down")}
                           aria-label={`Move task ${index + 1} down`}
-                          style={{ width: 22, height: 22, padding: 0, opacity: index === tasks.length - 1 ? 0.3 : 1 }}
+                          style={{ width: 24, height: 24, padding: 0, opacity: index === tasks.length - 1 ? 0.3 : 1 }}
                         >
                           <DownIcon />
                         </button>
@@ -309,7 +290,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                         placeholder={`Task ${index + 1} title (e.g. Quant Practice)`}
                         value={task.title}
                         onChange={(e) => handleUpdateTask(task.id, { title: e.target.value })}
-                        style={{ flex: 1, minHeight: 40 }}
+                        style={{ flex: 1, minHeight: 44 }}
                       />
 
                       {/* Remove task */}
@@ -318,16 +299,16 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                         className="icon-btn"
                         onClick={() => handleRemoveTask(task.id)}
                         aria-label={`Remove task ${index + 1}`}
-                        style={{ color: "var(--danger, #ef4444)", minWidth: 40, minHeight: 40 }}
+                        style={{ color: "var(--danger, #ef4444)", minWidth: 44, minHeight: 44 }}
                       >
                         <TrashIcon />
                       </button>
                     </div>
 
-                    {/* Metadata row: Priority & Category */}
+                    {/* Metadata row: Priority, Important & Category */}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                       {/* Priority selector */}
-                      <div className="seg" role="radiogroup" aria-label="Priority" style={{ height: 32 }}>
+                      <div className="seg" role="radiogroup" aria-label="Priority" style={{ minHeight: 36 }}>
                         {([1, 2, 3] as Priority[]).map((p) => (
                           <button
                             key={p}
@@ -336,7 +317,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                             aria-checked={task.priority === p}
                             className={task.priority === p ? "active" : ""}
                             onClick={() => handleUpdateTask(task.id, { priority: p })}
-                            style={{ padding: "0 8px", fontSize: 12 }}
+                            style={{ padding: "0 10px", fontSize: 12.5, minHeight: 36 }}
                           >
                             {p === 1 ? "High" : p === 2 ? "Med" : "Low"}
                           </button>
@@ -351,9 +332,9 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                         aria-label={task.important ? "Remove Important" : "Mark Important"}
                         title={task.important ? "Important (click to remove)" : "Mark Important"}
                         style={{
-                          height: 32,
-                          fontSize: 12,
-                          padding: "0 8px",
+                          minHeight: 36,
+                          fontSize: 12.5,
+                          padding: "0 10px",
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 4,
@@ -371,7 +352,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                         className="chip-select"
                         value={task.category}
                         onChange={(e) => handleUpdateTask(task.id, { category: e.target.value as CategoryId })}
-                        style={{ height: 32, fontSize: 12, flex: "1 1 120px" }}
+                        style={{ minHeight: 36, fontSize: 12.5, flex: "1 1 120px" }}
                         aria-label={`Category for task ${index + 1}`}
                       >
                         <option value="">No category</option>
@@ -387,7 +368,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                         type="button"
                         className="link-btn"
                         onClick={() => handleUpdateTask(task.id, { showDetails: !task.showDetails })}
-                        style={{ fontSize: 12, marginLeft: "auto" }}
+                        style={{ fontSize: 12.5, marginLeft: "auto", minHeight: 36 }}
                       >
                         {task.showDetails ? "− Less" : "+ Details"}
                       </button>
@@ -411,7 +392,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                             placeholder="Notes or instructions (optional)"
                             value={task.notes}
                             onChange={(e) => handleUpdateTask(task.id, { notes: e.target.value })}
-                            style={{ fontSize: 13 }}
+                            style={{ fontSize: 13, minHeight: 40 }}
                           />
                         </div>
 
@@ -430,7 +411,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                                   reminderMinutes: !e.target.value ? null : task.reminderMinutes
                                 })
                               }
-                              style={{ fontSize: 13, minHeight: 36 }}
+                              style={{ fontSize: 13, minHeight: 40 }}
                             />
                           </div>
 
@@ -447,7 +428,7 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
                                     reminderMinutes: e.target.value ? (Number(e.target.value) as ReminderMinutes) : null
                                   })
                                 }
-                                style={{ fontSize: 13, minHeight: 36 }}
+                                style={{ fontSize: 13, minHeight: 40 }}
                               >
                                 <option value="">No reminder</option>
                                 <option value="0">At due time</option>
@@ -467,39 +448,26 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
 
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary routine-add-another-btn"
                 onClick={handleAddTask}
-                style={{ width: "100%", marginTop: 8, minHeight: 40, justifyContent: "center", fontSize: 13 }}
               >
                 + Add Another Task
               </button>
             </div>
           </div>
 
-          {/* Modal Actions Footer */}
-          <div
-            className="modal-actions"
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              marginTop: 16,
-              paddingTop: 12,
-              borderTop: "1px solid var(--border)"
-            }}
-          >
+          {/* Sticky Modal Actions Footer */}
+          <div className="routine-modal-footer">
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary routine-modal-cancel-btn"
               onClick={onCancel}
-              style={{ minHeight: 44, padding: "0 16px" }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
-              style={{ minHeight: 44, padding: "0 20px" }}
+              className="btn btn-primary routine-modal-submit-btn"
             >
               {isEdit ? "Save Changes" : "Create Routine"}
             </button>
@@ -508,4 +476,6 @@ export default function RoutineEditorModal({ routine, onSave, onCancel }: Routin
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
