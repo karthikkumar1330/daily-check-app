@@ -8,7 +8,21 @@ import "./index.css";
 import { registerSW } from "virtual:pwa-register";
 
 if (import.meta.env.PROD) {
-  registerSW({ immediate: true });
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      updateSW(true);
+    },
+    onRegisteredSW(_swUrl, r) {
+      if (r) {
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            r.update();
+          }
+        });
+      }
+    }
+  });
 } else if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const registration of registrations) {

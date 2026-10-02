@@ -238,14 +238,14 @@ export default function TaskFormModal({
 
   const modalContent = (
     <div
-      className="modal-overlay dc-modal-overlay dc-task-modal-overlay"
+      className="dc-task-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
       role="presentation"
     >
       <div
-        className="modal-sheet dc-task-modal-sheet"
+        className="dc-task-modal-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-form-modal-title"
